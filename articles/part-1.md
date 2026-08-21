@@ -6,6 +6,8 @@ permalink: /articles/part-1/
 *Part 1 of "The Inference Wall". One model (Qwen3.5-4B), one mid-range GPU
 (NVIDIA A10G, 23 GB), measured under real load.*
 
+*Manas Pathak · August 21, 2026*
+
 Say you want to run an open-source language model yourself instead of calling an API:
 you rent one GPU, download the model's weights onto it, and start a server that answers
 requests. This is called *self-hosting*, and the practical question everyone asks first

@@ -48,7 +48,8 @@ The release checklist for each part, so every week is the same mechanical step:
 
 1. **Article.** Adapt the reviewed draft into `articles/part-N.md`:
    - front matter with `title` and `permalink: /articles/part-N/`; a byline line
-     (*Part N of "The Inference Wall". Same rig...*) instead of the draft header
+     (*Part N of "The Inference Wall". Same rig...*) instead of the draft header,
+     followed by an author/date line (*Manas Pathak · Month D, YYYY*)
    - replace every `<!-- FIGURE ... -->` / `<!-- DIAGRAM ... -->` marker with an image
      embed from `assets/` (descriptive alt text, `relative_url` filter)
    - rewrite the reproduce footer to point at this repo's

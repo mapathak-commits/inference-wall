@@ -8,6 +8,8 @@ permalink: /articles/primer/
 or batch are fuzzy. It explains the machine the five posts go on to break; it deliberately
 stops before any of their findings.*
 
+*Manas Pathak · August 21, 2026*
+
 The five posts in this series each take a working LLM server, turn one knob until something
 breaks, and read why. To follow *why* each break happens, you need a mechanical picture of
 what the server is doing between the moment a request arrives and the moment its answer
@@ -148,6 +150,14 @@ weights that advances a whole batch of requests by one token, and the KV cache i
 each request contribute just its newest token.** With that in hand, Part 1 can ask the
 question the series is really about, which is what happens to this machine when you push it
 until it breaks.
+
+---
+
+## About the author
+
+I am **Manas Pathak**. Questions, corrections, or a number of your own that disagrees with
+mine are all welcome: email me at <mapathak@gmail.com> or find me on
+[LinkedIn](https://www.linkedin.com/in/manas-pathak-806b002a/).
 
 ---
 
