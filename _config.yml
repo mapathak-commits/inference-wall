@@ -1,0 +1,24 @@
+title: The Inference Wall
+description: Understanding ML inference by breaking it apart
+author:
+  name: Manas Pathak
+  email: mapathak@gmail.com
+
+url: "https://mapathak-commits.github.io"
+baseurl: "/inference-wall"
+
+theme: minima
+markdown: kramdown
+
+# Keep repo plumbing out of the rendered site; benchmarks/ and experiments/
+# stay included so posts can link straight to the raw logs and scripts.
+exclude:
+  - README.md
+  - requirements.txt
+  - LICENSE
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: page

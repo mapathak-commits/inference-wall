@@ -1,0 +1,25 @@
+# Pinned stack that reproduces the study on a CUDA-12.8 / driver-570 host (Python 3.12).
+#
+# WHY THE PINS (this was itself a finding — see the posts' "reproducing the stack" note):
+#  - Qwen3.5's architecture is not registered in vLLM until 0.18.0.
+#  - vLLM 0.18.0's default wheel pulls a CUDA-13 torch, which will NOT run on an older
+#    driver; torch is force-pinned to a cu128 build to match a 12.8 driver.
+#  - The torch downgrade leaves mismatched flashinfer packages; the two flashinfer
+#    packages must be aligned to the same version.
+#
+# Install torch from the cu128 index first, then the rest:
+#   pip install torch==2.10.0+cu128 --index-url https://download.pytorch.org/whl/cu128
+#   pip install -r requirements.txt
+
+vllm==0.18.0
+torch==2.10.0+cu128
+flashinfer-python==0.6.6
+flashinfer-cubin==0.6.6
+
+# Models are pulled from the HuggingFace hub at run time (not vendored here):
+#   Qwen/Qwen3.5-4B            (fp16 protagonist)
+#   QuantTrio/Qwen3.5-9B-AWQ   (4-bit AWQ finale)
+#
+# Runtime env (baked into the scripts, restated here):
+#   VLLM_WORKER_MULTIPROC_METHOD=spawn      # forked EngineCore can't re-init CUDA
+#   FLASHINFER_DISABLE_VERSION_CHECK=1
