@@ -42,6 +42,27 @@ Every number in a published post is backed by a raw log or trace in `benchmarks/
 produced by a script in `experiments/` or `scripts/`. Folders for a post land together with
 the post.
 
+## Publishing a new part (weekly)
+
+The release checklist for each part, so every week is the same mechanical step:
+
+1. **Article.** Adapt the reviewed draft into `articles/part-N.md`:
+   - front matter with `title` and `permalink: /articles/part-N/`; a byline line
+     (*Part N of "The Inference Wall". Same rig...*) instead of the draft header
+   - replace every `<!-- FIGURE ... -->` / `<!-- DIAGRAM ... -->` marker with an image
+     embed from `assets/` (descriptive alt text, `relative_url` filter)
+   - rewrite the reproduce footer to point at this repo's
+     `experiments/0N-.../` and `benchmarks/0N-.../` folders
+   - prev/next navigation links and the disclaimer at the bottom
+2. **Code and data.** Copy the part's scripts into `experiments/0N-<slug>/` and its raw
+   logs/traces into `benchmarks/0N-<slug>/`, each with a README mapping file → claim.
+   Shared server-launch scripts go in `scripts/`.
+3. **Assets.** Add the part's figures to `assets/figures/` (descriptive names) and
+   diagrams to `assets/diagrams/` (recompress to ~1400 px JPEG, quality 80).
+4. **Index.** In `index.md` and this README's series table: flip the part's status from
+   *coming* to a link. Update the previous part's "Next" navigation to link the new one.
+5. Commit and push; GitHub Pages redeploys automatically.
+
 ## Reproducing
 
 Python 3.12 and a CUDA-12.x GPU. The version pins in `requirements.txt` matter (Qwen3.5 is
