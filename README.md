@@ -64,6 +64,20 @@ The release checklist for each part, so every week is the same mechanical step:
    *coming* to a link. Update the previous part's "Next" navigation to link the new one.
 5. Commit and push; GitHub Pages redeploys automatically.
 
+### Previewing a draft before it ships
+
+Drafts are reviewed on `preview/<part>` branches, never on `main` (Pages builds only
+from `main`, so nothing on a preview branch reaches the live site — but the repo is
+public, so a draft branch is technically visible to anyone who goes looking). The
+pattern: put the draft and its images in `drafts/<part>/` on the branch, name the
+markdown `README.md` so GitHub renders it on the folder view, keep image paths plain
+and relative so they resolve in GitHub's renderer. Review at
+`github.com/<owner>/<repo>/blob/preview/<part>/drafts/<part>/README.md`, then delete
+the branch once the part is published. Liquid tags (`relative_url`) don't render on
+GitHub blob views, so drafts use plain paths and are converted at publish time.
+
+Current preview branches: `preview/part-6` (speculative decoding).
+
 ## Reproducing
 
 Python 3.12 and a CUDA-12.x GPU. The version pins in `requirements.txt` matter (Qwen3.5 is
