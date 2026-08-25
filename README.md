@@ -22,7 +22,7 @@ New parts are published weekly.
 |---|---|---|
 | Primer | [How an LLM actually serves a request](articles/primer.md) | published |
 | 1 | [An 8.6 GB model that serves only 7 requests a second](articles/part-1.md) | published |
-| 2 | The prefill that freezes your decoders | coming |
+| 2 | [The prefill that freezes your decoders](articles/part-2.md) | published |
 | 3 | The batching cliff | coming |
 | 4 | Starving the cache | coming |
 | 5 | Quantization as a fit-enabler | coming |
