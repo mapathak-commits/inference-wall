@@ -12,6 +12,7 @@ the trace capture that shows the freeze kernel by kernel.
 | `tp_verify.py` | Kernel-family counts + decode-to-decode gap percentiles from the trace | the p50/p90/p99 gap numbers in the post |
 | `tp_gap_reconcile.py` | The gap-figure methodology: idle time between consecutive decode kernels | — |
 | `tp_occupancy.py` | GPU-busy fraction over the profiled window | — |
+| `render_heartbeat.py` | Renders the step-cadence figure from the trace (one tick per engine step) | `assets/figures/fig2b-step-heartbeat.png` |
 
 The trace analysis needs no GPU: `pip install perfetto`, gunzip the trace from
 `benchmarks/02-prefill-freeze/`, and point the `tp_*.py` scripts at it.

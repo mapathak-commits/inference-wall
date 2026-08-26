@@ -6,7 +6,7 @@ permalink: /articles/part-2/
 *Part 2 of "The Inference Wall". Same rig as Part 1: Qwen3.5-4B, fp16, one NVIDIA A10G
 (23 GB), under real load.*
 
-*Manas Pathak · August 25, 2026*
+*Manas Pathak · August 28, 2026*
 
 When you self-host a language model, the server does not answer one request at a time. It
 runs many requests together on the GPU at once, which is the whole reason one GPU can
@@ -176,10 +176,11 @@ than the entire decode stream it is crashing into. It really is the heavy lump t
 implied, and you can count it.
 
 **2. The freeze becomes a slower heartbeat, and you can watch it.** The engine advances
-in steps, and the 8 full-attention layers fire their kernels once per step no matter what
-kind of step it is, so clustering those kernels reconstructs the step cadence straight
-from the trace. Here is that cadence around the moment the injected prompt finishes; every
-tick is one engine step at its true timestamp:
+in steps, and the full-attention layers leave a per-step signature in the trace: their
+kernels fire in one tight burst each step, whatever kind of step it is. Clustering those
+bursts reconstructs the step cadence straight from the trace. Here is that cadence around
+the moment the injected prompt finishes; every tick is one engine step at its true
+timestamp:
 
 ![Engine steps reconstructed from the trace: while the prefill is being interleaved the victims' steps tick every 39 ms, and the instant the injected prompt finishes they snap back to every 22 ms]({{ '/assets/figures/fig2b-step-heartbeat.png' | relative_url }})
 
@@ -199,7 +200,7 @@ stretch, the idle gap between consecutive decode kernels is **p50 549 microsecon
 other layers of the step. No dead air anywhere; the freeze was never the GPU idling, it
 was the scheduler's choice about whose work rides in each step.
 
-![Decode-kernel gap percentiles from the trace: p50 549 microseconds, p90 1,182, p99 3,988 — the GPU never sits idle for more than about 4 ms]({{ '/assets/figures/fig2-decode-gap-percentiles.png' | relative_url }})
+![Decode-kernel gap percentiles from the trace: p50 549 microseconds, p90 1,182, p99 3,988; the GPU never sits idle for more than about 4 ms]({{ '/assets/figures/fig2-decode-gap-percentiles.png' | relative_url }})
 
 **3. Full and linear layers, side by side.** Only the 8 full-attention layers show the
 classic `flash` and `varlen_fwd` kernels of FlashAttention, the standard kernel for the
@@ -263,7 +264,7 @@ a duration.*
 
 ---
 
-**Previous:** [Part 1 — An 8.6 GB model that serves only 7 requests a second]({{ '/articles/part-1/' | relative_url }}) · **Next:** Part 3 (coming next week)
+**Previous:** [Part 1: An 8.6 GB model that serves only 7 requests a second]({{ '/articles/part-1/' | relative_url }}) · **Next:** Part 3 (coming next week)
 
 ---
 
