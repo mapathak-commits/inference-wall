@@ -76,7 +76,13 @@ and relative so they resolve in GitHub's renderer. Review at
 the branch once the part is published. Liquid tags (`relative_url`) don't render on
 GitHub blob views, so drafts use plain paths and are converted at publish time.
 
-Current preview branches: `preview/part-6` (speculative decoding).
+Publication-ready parts wait on `publish/<part>` branches; going live is a
+fast-forward merge of that branch into `main`. Unlike previews, a publish branch
+carries the real article with Liquid paths plus its `experiments/`, `benchmarks/`,
+and `assets/` material, and the index/nav flips.
+
+Current branches: `publish/part-2` (reviewed, publishes Friday 2026-08-28);
+`preview/part-6` (speculative decoding draft, publishes after parts 3-5).
 
 ## Reproducing
 
