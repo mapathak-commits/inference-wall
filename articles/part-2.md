@@ -175,25 +175,31 @@ token at a time: **13,905 calls, about 1.74 seconds of CUDA time total.** That s
 than the entire decode stream it is crashing into. It really is the heavy lump the ITL tail
 implied, and you can count it.
 
-**2. The freeze is the gap between consecutive decode kernels.** Here is the measurement
-window itself, every decode kernel drawn as one tick on the real timeline. This is the
-victims' heartbeat, read straight off the GPU:
+**2. The freeze becomes a slower heartbeat, and you can watch it.** The engine advances
+in steps, and the 8 full-attention layers fire their kernels once per step no matter what
+kind of step it is, so clustering those kernels reconstructs the step cadence straight
+from the trace. Here is that cadence around the moment the injected prompt finishes; every
+tick is one engine step at its true timestamp:
 
-![Every decode kernel in the trace window as a tick on a 367 ms timeline: a steady heartbeat with visibly stretched gaps where prefill chunks take their turn, the widest flagged at 4 ms]({{ '/assets/figures/fig2b-decode-heartbeat.png' | relative_url }})
+![Engine steps reconstructed from the trace: while the prefill is being interleaved the victims' steps tick every 39 ms, and the instant the injected prompt finishes they snap back to every 22 ms]({{ '/assets/figures/fig2b-step-heartbeat.png' | relative_url }})
 
-The beat never stops, but some beats come late. Measure the idle time between successive
-decode kernels, the GPU-level proxy for victim ITL, and you get **p50 549 microseconds,
-p90 1,182 microseconds, p99 3,988 microseconds**, about 4 ms at the worst.
+This is the whole chunked-prefill trade in one picture. While the injected prompt is
+being sliced in, the victims' steps come every **~39 ms** instead of ~22: each of those
+steps is a mixed batch carrying a prefill slice alongside every victim's next token, so
+every beat is slower, but the beat never stops. The instant the prompt's last slice
+clears, the cadence snaps back to **~22 ms**, which matches the 21.3 ms ITL the clients
+measured. Elevated but bounded, exactly what the client-side tail said, now visible as
+the GPU's own step rhythm. Because this capture is lighter than the client-side runs
+above, one prompt and 4 victims instead of 12 and 6, its absolute numbers do not line up
+with the 345 ms client tail, and they should not. What matches is the *shape*.
 
-![Decode-to-decode gap percentiles from the chunked-ON trace: p50 549 microseconds, p90 1,182, p99 3,988 — elevated but bounded, the decoders never fully halt]({{ '/assets/figures/fig2-decode-gap-percentiles.png' | relative_url }})
+The trace also shows the machine is not wasting the slower beats. Within the pure-decode
+stretch, the idle gap between consecutive decode kernels is **p50 549 microseconds, p99
+3,988 microseconds**, and inside even the widest gaps the GPU is ~97% busy running the
+other layers of the step. No dead air anywhere; the freeze was never the GPU idling, it
+was the scheduler's choice about whose work rides in each step.
 
-With chunked prefill on, the decode kernels keep
-firing *through* the prefill rather than halting, but the gap between them stretches at the
-tail as the scheduler interleaves prefill chunks. Because this capture is lighter than the
-client-side runs above, one prompt and 4 victims instead of 12 and 6, its absolute numbers
-do not line up with the 345 ms client tail, and they should not. What matches is the *shape*: on the GPU, exactly as at the client, the decode steps
-stay elevated but bounded rather than stopping dead. The mechanism is not inferred from the
-client numbers alone, it is visible directly in the kernel timeline.
+![Decode-kernel gap percentiles from the trace: p50 549 microseconds, p90 1,182, p99 3,988 — the GPU never sits idle for more than about 4 ms]({{ '/assets/figures/fig2-decode-gap-percentiles.png' | relative_url }})
 
 **3. Full and linear layers, side by side.** Only the 8 full-attention layers show the
 classic `flash` and `varlen_fwd` kernels of FlashAttention, the standard kernel for the
@@ -219,11 +225,12 @@ budget in Part 1, now seen from the GPU's side.
    exact same flag was un-measurable on a 0.5B and clearly beneficial on a 4B. Always ask
    whether your test model is big enough for the effect you are trying to measure to
    exist.
-5. **Traces turn "I think it stalls" into "here is the gap."** The kernel counts, a single
-   6k prefill issuing ~34x more kernel launches than the whole decode stream, and the
-   decode-to-decode gap distribution show the *same shape* the client-side ITL did: the
-   stall is real and it is bounded, not a full halt. When an independent trace shows the same
-   mechanism the client numbers implied, you can trust it.
+5. **Traces turn "I think it stalls" into "here is the slower heartbeat."** The kernel
+   counts, a single 6k prefill issuing ~34x more kernel launches than the whole decode
+   stream, and the step cadence, ~39 ms while the prefill is interleaved against ~22 ms
+   after, show the *same shape* the client-side ITL did: the stall is real and it is
+   bounded, not a full halt. When an independent trace shows the same mechanism the client
+   numbers implied, you can trust it.
 
 Next in the series, coming next week: the flag from this post protected the decoders from
 *one* fat prompt, but the deeper lever is running many requests together at all. I turn
@@ -248,7 +255,7 @@ package, which runs PerfettoSQL over the trace; a one-line
 and CUDA time. Every trace-derived number and figure in this post is reproduced by the
 scripts in the experiments folder: `tp_verify.py` for the kernel-family counts and the
 decode-to-decode gap percentiles, `tp_gap_reconcile.py` for the gap methodology,
-`tp_occupancy.py` for the GPU-busy fraction, and `render_heartbeat.py` for the timeline
+`tp_occupancy.py` for the GPU-busy fraction, and `render_heartbeat.py` for the step-cadence
 figure above. No GPU is needed to read a captured trace, only to record one. If you would
 rather not install anything, the raw `.json` is a Chrome-trace event list you can parse
 with the standard library; each GPU kernel is an event with a category, a timestamp, and
