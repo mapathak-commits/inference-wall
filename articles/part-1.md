@@ -221,9 +221,10 @@ is what stands between them.
 4. **Warm the server before you believe any number.** The cold p99 was 200x the warm
    one. Publish the cold number and you are describing a server nobody runs.
 
-Next in the series (coming next week): the same 4B model, but now we inject a big prompt
-into a stream of short ones and watch it *freeze the decoders*, then flip one flag and watch
-the freeze shrink by 2.4x, with the trace that shows the stall happening kernel by kernel.
+Next in the series: the same 4B model, but now we inject a big prompt into a stream of
+short ones and watch it *freeze the decoders*, then flip one flag and watch the freeze
+shrink by 2.4x, with the trace that shows the stall happening kernel by kernel —
+[Part 2]({{ '/articles/part-2/' | relative_url }}).
 
 ---
 
@@ -238,7 +239,7 @@ The rig is a single A10G; your absolute numbers will differ, the shape will not.
 
 ---
 
-**Previous:** [Primer — how an LLM actually serves a request]({{ '/articles/primer/' | relative_url }}) · **Next:** Part 2 (coming next week)
+**Previous:** [Primer — how an LLM actually serves a request]({{ '/articles/primer/' | relative_url }}) · **Next:** [Part 2 — The prefill that freezes your decoders]({{ '/articles/part-2/' | relative_url }})
 
 ---
 

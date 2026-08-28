@@ -22,7 +22,7 @@ New parts are published weekly.
 |---|---|---|
 | Primer | [How an LLM actually serves a request](articles/primer.md) | published |
 | 1 | [An 8.6 GB model that serves only 7 requests a second](articles/part-1.md) | published |
-| 2 | The prefill that freezes your decoders | coming |
+| 2 | [The prefill that freezes your decoders](articles/part-2.md) | published |
 | 3 | The batching cliff | coming |
 | 4 | Starving the cache | coming |
 | 5 | Quantization as a fit-enabler | coming |
@@ -81,8 +81,8 @@ fast-forward merge of that branch into `main`. Unlike previews, a publish branch
 carries the real article with Liquid paths plus its `experiments/`, `benchmarks/`,
 and `assets/` material, and the index/nav flips.
 
-Current branches: `publish/part-2` (reviewed, publishes Friday 2026-08-28);
-`preview/part-6` (speculative decoding draft, publishes after parts 3-5).
+Current branches: `preview/part-6` (speculative decoding draft, publishes after
+parts 3-5).
 
 ## Reproducing
 

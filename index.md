@@ -92,7 +92,8 @@ GPU and pushing them back. **New parts are published weekly**; the full arc:
    resource runs out first flips with model size. This post is the thesis; everything after
    pushes against the wall it establishes.
 
-2. **Read why, and push back** *(coming)*. Inject one fat prompt into a stream of short requests and
+2. **[Read why, and push back]({{ '/articles/part-2/' | relative_url }})** *(published)*.
+   Inject one fat prompt into a stream of short requests and
    watch it freeze everyone else's token stream. Then flip the chunked-prefill flag and
    watch the worst-case stutter drop by 2.4x. The twist: the same flag does *nothing* on a small
    model, which teaches you when an optimization is even measurable. The trace shows the

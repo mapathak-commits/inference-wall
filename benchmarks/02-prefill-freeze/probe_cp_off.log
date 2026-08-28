@@ -1,0 +1,17 @@
+### CHUNKED PREFILL OFF ###
+warmup done
+-- light(3) --
+cp_off_light3 victim_tokens=1920 inj_window_tokens=228
+cp_off_light3 ITL_ms p50=21.2 p99=102.8 max=825.0
+cp_off_light3 INJ_WINDOW ITL_ms p50=23.0 p99=825.0 max=825.0
+=== DONE ===
+-- heavy(12) run1 --
+cp_off_heavy12_r1 victim_tokens=1920 inj_window_tokens=288
+cp_off_heavy12_r1 ITL_ms p50=21.2 p99=831.0 max=838.3
+cp_off_heavy12_r1 INJ_WINDOW ITL_ms p50=28.5 p99=837.8 max=838.3
+=== DONE ===
+-- heavy(12) run2 --
+cp_off_heavy12_r2 victim_tokens=1920 inj_window_tokens=276
+cp_off_heavy12_r2 ITL_ms p50=21.2 p99=832.5 max=837.7
+cp_off_heavy12_r2 INJ_WINDOW ITL_ms p50=28.5 p99=837.5 max=837.7
+=== DONE ===
