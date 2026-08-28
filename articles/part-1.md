@@ -8,6 +8,8 @@ permalink: /articles/part-1/
 
 *Manas Pathak · August 21, 2026*
 
+[The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 1**
+
 Say you want to run an open-source language model yourself instead of calling an API:
 you rent one GPU, download the model's weights onto it, and start a server that answers
 requests. This is called *self-hosting*, and the practical question everyone asks first
@@ -239,7 +241,7 @@ The rig is a single A10G; your absolute numbers will differ, the shape will not.
 
 ---
 
-**Previous:** [Primer — how an LLM actually serves a request]({{ '/articles/primer/' | relative_url }}) · **Next:** [Part 2 — The prefill that freezes your decoders]({{ '/articles/part-2/' | relative_url }})
+**Previous:** [Primer: how an LLM serves a request]({{ '/articles/primer/' | relative_url }}) · **Next:** [Part 2: The prefill freeze]({{ '/articles/part-2/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
 
 ---
 

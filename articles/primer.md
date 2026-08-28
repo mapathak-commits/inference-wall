@@ -10,6 +10,8 @@ stops before any of their findings.*
 
 *Manas Pathak · August 21, 2026*
 
+[The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Primer**
+
 The five posts in this series each take a working LLM server, turn one knob until something
 breaks, and read why. To follow *why* each break happens, you need a mechanical picture of
 what the server is doing between the moment a request arrives and the moment its answer
@@ -161,7 +163,7 @@ mine are all welcome: email me at <mapathak@gmail.com> or find me on
 
 ---
 
-**Next:** [Part 1 — An 8.6 GB model that serves only 7 requests a second]({{ '/articles/part-1/' | relative_url }})
+**Next:** [Part 1: Hit the wall]({{ '/articles/part-1/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
 
 ---
 

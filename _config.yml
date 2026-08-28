@@ -10,6 +10,11 @@ baseurl: "/inference-wall"
 theme: minima
 markdown: kramdown
 
+# Header nav: only the posts index. Without this, minima auto-lists every page
+# with a title — including all the experiments/benchmarks READMEs.
+header_pages:
+  - articles/index.md
+
 # Keep repo plumbing out of the rendered site; benchmarks/ and experiments/
 # stay included so posts can link straight to the raw logs and scripts.
 exclude:

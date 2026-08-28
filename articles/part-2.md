@@ -8,6 +8,8 @@ permalink: /articles/part-2/
 
 *Manas Pathak · August 28, 2026*
 
+[The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 2**
+
 When you self-host a language model, the server does not answer one request at a time. It
 runs many requests together on the GPU at once, which is the whole reason one GPU can
 serve many users. But sharing has a downside: one request can degrade the experience of
@@ -264,7 +266,7 @@ a duration.*
 
 ---
 
-**Previous:** [Part 1: An 8.6 GB model that serves only 7 requests a second]({{ '/articles/part-1/' | relative_url }}) · **Next:** Part 3 (coming next week)
+**Previous:** [Part 1: Hit the wall]({{ '/articles/part-1/' | relative_url }}) · **Next:** Part 3, coming next week · [All posts]({{ '/articles/' | relative_url }})
 
 ---
 

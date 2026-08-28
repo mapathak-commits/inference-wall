@@ -83,7 +83,9 @@ and read why. That caveat holds for the whole series; I will not repeat it in ev
 ## The arc
 
 The posts are not a grab-bag. They tell one story about hitting the limits of a single
-GPU and pushing them back. **New parts are published weekly**; the full arc:
+GPU and pushing them back. **New parts are published weekly** — the
+[all-posts page]({{ '/articles/' | relative_url }}) is the quick table of contents;
+the full arc:
 
 1. **[Hit the wall]({{ '/articles/part-1/' | relative_url }})** *(published)*. Put the 4B
    model under load and find exactly where it saturates. The
