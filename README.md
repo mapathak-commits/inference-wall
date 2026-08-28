@@ -23,7 +23,7 @@ New parts are published weekly, on Fridays.
 | Primer | [How an LLM actually serves a request](articles/primer.md) | published 2026-08-22 |
 | 1 | [An 8.6 GB model that serves only 7 requests a second](articles/part-1.md) | published 2026-08-22 |
 | 2 | [The prefill that freezes your decoders](articles/part-2.md) | published 2026-08-28 |
-| 3 | The batching cliff | drafted — 2026-09-04 |
+| 3 | [The batching cliff](articles/part-3.md) | published 2026-09-04 |
 | 4 | Starving the cache | drafted — 2026-09-11 |
 | 5 | Quantization as a fit-enabler | drafted — 2026-09-18 |
 | 6 | Speculative decoding | drafted — 2026-09-25 |
