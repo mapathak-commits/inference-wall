@@ -35,6 +35,18 @@ The mechanism is the one from the [primer]({{ '/articles/primer/' | relative_url
 batch, so the per-request cost falls as the batch grows. Batching does not make any one
 request faster; it spreads a fixed cost over more beneficiaries.
 
+One refinement is worth naming, because it is how vLLM and every modern serving engine
+actually do this. The batch is not formed once and run to completion; it is **recomposed
+at every step**, with new requests joining the moment they arrive and finished ones
+leaving the moment they emit their last token. The technique is called **continuous
+batching**, introduced by the
+[Orca paper](https://www.usenix.org/conference/osdi22/presentation/yu) and standard in
+[vLLM](https://docs.vllm.ai/en/latest/) and its peers ever since. This post does not
+measure continuous against the older run-to-completion style, only batching against no
+batching; but every number below is continuous batching at work, and the per-step
+recomposition is the same machinery that let [Part 2]({{ '/articles/part-2/' | relative_url }})'s
+scheduler slip prefill chunks between decode steps.
+
 That predicts the shape before we measure it: throughput should rise steeply as we allow a
 bigger batch, then flatten once something *else* becomes the bottleneck. Both halves show up.
 
