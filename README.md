@@ -16,16 +16,29 @@ single NVIDIA A10G (23 GB), served by vLLM 0.18.0 and measured under real load w
 
 ## The series
 
-New parts are published weekly.
+New parts are published weekly, on Fridays.
 
 | Part | Title | Status |
 |---|---|---|
-| Primer | [How an LLM actually serves a request](articles/primer.md) | published |
-| 1 | [An 8.6 GB model that serves only 7 requests a second](articles/part-1.md) | published |
-| 2 | [The prefill that freezes your decoders](articles/part-2.md) | published |
-| 3 | The batching cliff | coming |
-| 4 | Starving the cache | coming |
-| 5 | Quantization as a fit-enabler | coming |
+| Primer | [How an LLM actually serves a request](articles/primer.md) | published 2026-08-22 |
+| 1 | [An 8.6 GB model that serves only 7 requests a second](articles/part-1.md) | published 2026-08-22 |
+| 2 | [The prefill that freezes your decoders](articles/part-2.md) | published 2026-08-28 |
+| 3 | The batching cliff | drafted — 2026-09-04 |
+| 4 | Starving the cache | drafted — 2026-09-11 |
+| 5 | Quantization as a fit-enabler | drafted — 2026-09-18 |
+| 6 | Speculative decoding | drafted — 2026-09-25 |
+| 7 | FlashAttention at the scale where it matters | drafted — 2026-10-02 |
+
+The order is content-driven, not just chronological: Part 4's finding (a starved
+cache degrades into a small-batch server) is priced by Part 3's cliff; Part 5
+closes the original arc that 3 and 4 build; Part 6 adds the third lever
+(speculation) to the completed taxonomy and leans on both 3's crossover and 4's
+admission-control signature; Part 7 then generalizes all of it — the same
+bytes-through-memory law one level down — and is also the first part to run a
+dense model alongside the series rig, a departure easier to make after the arc
+has formally closed. Candidates beyond 7: prefix caching (inherits 7's
+long-prompt machinery and pays off 4's cache concepts), then tooling and
+cross-engine comparisons.
 
 ## Layout
 
