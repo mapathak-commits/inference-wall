@@ -75,9 +75,9 @@ does this in two distinct operations run back to back:
    earlier tokens relevant to it. Everywhere else, positions are processed in isolation; attention
    is where they interact.
 2. A **feed-forward network** then processes each token's vector *on its own*, with no reference to
-   any other position: the same small two-layer network applied independently at every position.
-   This is where most of the model's weights sit, and where the model does the bulk of its
-   per-token computation on the context attention just gathered.
+   any other position: the same two-layer network applied independently at every position. This is
+   where most of the model's weights sit, and where the model does the bulk of its per-token
+   computation on the context attention just gathered.
 
 The order is deliberate. Attention first collects the relevant context into each token's vector;
 the feed-forward network then transforms that now-contextual vector. A block is exactly this pair,
@@ -132,9 +132,12 @@ whether the sequence is 51 tokens long or 5,000.
 
 So the model computes each token's key and value once, the first time it processes that token, and
 keeps them. That store is the **KV cache**. When the model later generates token 5,000 it does not
-rerun tokens 1 through 4,999; it forms only the new token's query and looks up the 4,999 keys and
-values already saved. Store the keys and values, discard the queries, never recompute the past. The
-cache is not a bolt-on optimization; it falls straight out of how attention is defined.
+rerun tokens 1 through 4,999; it processes only the new token, forming that token's query, key,
+and value, then scores its query against the 4,999 keys already saved plus its own. The new
+token's key and value are added to the cache for the tokens that come after it, and its query is
+used once and discarded. Compute each token's key and value once and keep them, never recompute
+the past: the cache is not a bolt-on optimization, it falls straight out of how attention is
+defined.
 
 ### More than one at a time: attention heads
 
@@ -208,10 +211,12 @@ one thing, and it is all about attention:
   straight line with how deep the sequence is, but it pays that cost again on every single token it
   emits.
 
-Everything else in a block, the three projections, the feed-forward network, the final scoring, is
-the same per-token work regardless of how long the sequence is. Attention is the single operation
-whose cost depends on sequence length: quadratic while reading a prompt, linear while writing an
-answer. That is the fact behind the second promise at the top of this post.
+Everything else scales gently. Forming each token's query, key, and value, running the
+feed-forward network, and the final scoring are all per-token work: their cost tracks the number
+of tokens, not its square. It is only attention's scoring-and-averaging step, where each token
+looks at every earlier one, whose cost depends on how far back it has to look: quadratic while
+reading a prompt, linear while writing an answer. That is the fact behind the second promise at the
+top of this post.
 
 ## This is the basic version; real models add to it
 
