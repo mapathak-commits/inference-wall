@@ -27,6 +27,8 @@ treats the forward pass as a black box this post opens.
 
 ## The shape of one forward pass
 
+> 🎨 **[Cartoon C1]** — *the forward pass as a workshop line: a word enters, is restrung into a bead-ribbon (its vector), carried through a row of identical benches that each revise it, and read off at the end as the next word.*
+
 Start from the top, before any detail. To produce the next token, the model does three things
 in order:
 
@@ -47,7 +49,12 @@ over a single new token at a time while reusing stored work for the rest. Everyt
 zoom into step 2, because that is the step with the structure worth understanding. We build up one
 block, then stack it.
 
+> 📊 **[Diagram D-FWD]** — *the three-step pipeline: `tokens → embed → row of vectors → stack of N blocks → final vector → score + softmax → probabilities over the vocabulary`.*
+
 ## From tokens to vectors: the embedding
+
+> 📊 **[Diagram D-EMB]** — *a vocabulary table with one number-row per token; the row for `bank` is pulled out as a standalone vector. A lookup, nothing computed yet.*
+
 
 The model keeps a large table with one vector for every token in its vocabulary, learned during
 training. That vector is the token's **embedding**: a fixed-length list of a few thousand numbers
@@ -63,6 +70,8 @@ block to block, revised at each step and passed along. That handoff is the threa
 post follows.
 
 ## What a transformer block does
+
+> 📊 **[Diagram D-BLOCK]** — *inside one block: vectors enter, pass through an `attention` box (arrows cross between token positions — they interact), then a `feed-forward` box (straight parallel lanes — each position on its own), then out.*
 
 Right after the lookup, a token's vector depends only on the token itself. The vector for "bank"
 is identical whether the sentence is about a river or a loan. But predicting the next token
@@ -85,6 +94,8 @@ the feed-forward network then transforms that now-contextual vector. A block is 
 operation in turn.
 
 ## Attention: a weighted average, steered by the tokens themselves
+
+> 🎨 **[Cartoon C2]** — *attention as a reference desk: one token holds a request slip (its query), scans a shelf of labeled folders (the earlier tokens' keys), pulls the most relevant few strongly toward itself, and their contents (values) blend into one new note it carries away.*
 
 Here is the whole operation in one sentence, then the parts. **Attention rewrites each token's
 vector as a weighted average of vectors drawn from the earlier tokens, where each token decides
@@ -114,6 +125,8 @@ exaggerates gaps: a clearly-best match dominates the average while weak matches 
 nothing. Softmax is there because a weighted average needs weights that are positive and sum to
 one, and it is the standard way to turn arbitrary scores into exactly that.
 
+> 📊 **[Diagram D-ATTN]** — *the query/key/value mechanism for token 50, in three stages: token 50's query scores against the keys of tokens 1..50 → softmax turns the raw scores into weights summing to 1 (one bar dominant) → those weights scale the value vectors, which sum into token 50's new vector.*
+
 The last step is the average itself. The block takes each earlier token's **value** vector, scales
 it by that token's softmax weight, and adds them all up. The result is one blended vector, made
 mostly of the values of the tokens token 50 found most relevant, and that blend is written back as
@@ -123,6 +136,8 @@ the operation the [transformer paper](https://arxiv.org/abs/1706.03762) introduc
 is the claim itself, that attention is enough to let tokens share information.
 
 ### Why this is exactly what the KV cache stores
+
+> 📊 **[Diagram D-KV]** — *the KV cache as a growing shelf: tokens 1..4999 already have their key+value cards filed (computed once, reused). New token 5000 forms a query (used once, then discarded) plus its own key+value card, which is appended to the shelf. The past is never recomputed.*
 
 Look at what updating a token needs from the past: the **keys** of the earlier tokens, to score
 them, and their **values**, to average them. It never needs their queries. A token's query is used
@@ -141,6 +156,8 @@ defined.
 
 ### More than one at a time: attention heads
 
+> 📊 **[Diagram D-HEADS]** — *one input vector fans out to several attention heads side by side, each with its own Q/K/V and its own pattern (one tracks the previous token, one a far-back token, one matching brackets); their outputs concatenate back into one vector.*
+
 A block does not run a single query-key-value comparison. It runs several in parallel, each with
 its own query, key, and value matrices, called attention **heads**. One head might learn to track
 the immediately preceding word, another the last time the subject was mentioned, another matching
@@ -150,6 +167,8 @@ holds a separate key and value for *every head of every block*, which is why cac
 in memory as quickly as they do.
 
 ## The feed-forward network: computing on what attention gathered
+
+> 📊 **[Diagram D-FFN]** — *the same two-matrix network (narrow → wide hidden layer → narrow) applied to each token's vector independently, no arrows between positions. Drawn heavier than the attention box to signal that most of the model's weights live here.*
 
 After attention, each token's vector carries information about its context. The second operation
 in the block is a **feed-forward network**: two large weight matrices with a simple nonlinear
@@ -165,6 +184,8 @@ operation is strictly per-token, where attention was strictly about tokens inter
 
 ## Stacking blocks
 
+> 📊 **[Diagram D-STACK]** — *a vertical column: one vector rises through identical (attention + FFN) blocks; beside the main spine a `+` at each block shows the block's result being added into the running vector rather than replacing it. Early blocks → local/grammatical, late blocks → long-range meaning.*
+
 A model is a stack of these blocks, one after another. There is no variety in the wiring: every
 block is built identically, attention then feed-forward. Small models stack a dozen or so; a
 7B-class model has around thirty; the largest current LLMs stack a hundred or more. What differs
@@ -178,6 +199,8 @@ deliberately overwrites it. That is what lets dozens of rounds of editing accumu
 sharper and sharper representation instead of blurring into noise.
 
 ## Turning the last vector into the next token
+
+> 📊 **[Diagram D-NTP]** — *`final vector → one large matrix → scores over the whole vocabulary → softmax → a probability distribution (a few tall bars) → a sampling dial (temperature) picks one → the chosen token loops back as the next input.*
 
 After the final block, the vector at the most recent position holds a heavily revised
 representation of that token in its full context. Turning it into an actual next token is what the
@@ -199,6 +222,8 @@ token, is the decode loop, now with its insides visible.
 
 ## The two phases, from the inside
 
+> 📊 **[Diagram D-PHASES]** — *prefill vs decode attention side by side: LEFT a filled N×N grid (every token scores every earlier one — quadratic); RIGHT a single row (one query against all stored keys — linear per step, paid every token). Same cell style so the grid-vs-row contrast is instant.*
+
 With the block open, the difference between reading a prompt and generating an answer comes down to
 one thing, and it is all about attention:
 
@@ -219,6 +244,8 @@ reading a prompt, linear while writing an answer. That is the fact behind the se
 top of this post.
 
 ## This is the basic version; real models add to it
+
+> 🎨 **[Cartoon C3]** — *the plain transformer as a sturdy bicycle frame with a few bolt-on upgrade parts hovering nearby: a compass (position encodings), a shared gear (grouped-query attention), a rack of partly-used panniers (mixture-of-experts), a shortcut rail (linear/hybrid attention). Same frame underneath; the parts are additions.*
 
 Everything above is the plain transformer, and it is the right skeleton to carry in your head. But
 no production LLM is exactly this. Real models keep the skeleton, attention then feed-forward,
