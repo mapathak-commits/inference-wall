@@ -51,7 +51,7 @@ over a single new token at a time while reusing stored work for the rest. Everyt
 zoom into step 2, because that is the step with the structure worth understanding. We build up one
 block, then stack it.
 
-> 📊 **[Diagram D-FWD]** — *the three-step pipeline: `tokens → embed → row of vectors → stack of N blocks → final vector → score + softmax → probabilities over the vocabulary`.*
+> 📊 **[Diagram DA — the whole pass, with one block opened]** — *top: `prompt tokens → embed → vectors → a stack of N blocks → final vector → score + softmax → probabilities over the vocabulary`. Below, a dotted callout pulls one block out of the stack into a big inset: inside it, vectors flow through an `attention` box where arrows cross between token positions (they mix), then a `feed-forward` box of straight parallel lanes, each token on its own — "attention (tokens mix) then feed-forward (each token alone), repeated N times."*
 
 ## From tokens to vectors: the embedding
 
@@ -69,8 +69,6 @@ block to block, revised at each step and passed along. That handoff is the threa
 post follows.
 
 ## What a transformer block does
-
-> 📊 **[Diagram D-BLOCK]** — *inside one block: vectors enter, pass through an `attention` box (arrows cross between token positions — they interact), then a `feed-forward` box (straight parallel lanes — each position on its own), then out.*
 
 Right after the lookup, a token's vector depends only on the token itself. The vector for "bank"
 is identical whether the sentence is about a river or a loan. But predicting the next token
@@ -126,7 +124,7 @@ exaggerates gaps: a clearly-best match dominates the average while weak matches 
 nothing. Softmax is there because a weighted average needs weights that are positive and sum to
 one, and it is the standard way to turn arbitrary scores into exactly that.
 
-> 📊 **[Diagram D-ATTN]** — *the query/key/value mechanism for token 50, in three stages: token 50's query scores against the keys of tokens 1..50 → softmax turns the raw scores into weights summing to 1 (one bar dominant) → those weights scale the value vectors, which sum into token 50's new vector.*
+> 📊 **[Diagram DB — attention's mechanism, and why the cache exists]** — *updating token 50 in three stages: **score** (token 50's query · the key of every token 1..50 → a raw number each) → **softmax** (those numbers become weights that sum to 1, one dominant) → **weighted sum** (each token's value, scaled by its weight, summed into token 50's new vector). A bracket under it notes: only the earlier tokens' keys (to score) and values (to average) are needed again, so those are stored — the KV cache — while the query is used once and discarded.*
 
 The last step is the average itself. The block takes each earlier token's **value** vector, scales
 it by that token's softmax weight, and adds them all up. The result is one blended vector, made
@@ -137,8 +135,6 @@ the operation the [transformer paper](https://arxiv.org/abs/1706.03762) introduc
 is the claim itself, that attention is enough to let tokens share information.
 
 ### Why this is exactly what the KV cache stores
-
-> 📊 **[Diagram D-KV]** — *the KV cache as a growing shelf: tokens 1..4999 already have their key+value cards filed (computed once, reused). New token 5000 forms a query (used once, then discarded) plus its own key+value card, which is appended to the shelf. The past is never recomputed.*
 
 Look at what updating a token needs from the past: the **keys** of the earlier tokens, to score
 them, and their **values**, to average them. It never needs their queries. A token's query is used
@@ -215,7 +211,7 @@ token, is the decode loop, now with its insides visible.
 
 ## The two phases, from the inside
 
-> 📊 **[Diagram D-PHASES]** — *prefill vs decode attention side by side: LEFT a filled N×N grid (every token scores every earlier one — quadratic); RIGHT a single row (one query against all stored keys — linear per step, paid every token). Same cell style so the grid-vs-row contrast is instant.*
+> 📊 **[Diagram DC — prefill vs decode attention]** — *two panels, same cell style. LEFT (prefill): a filled N×N grid — every prompt token scores every earlier one — "double the prompt, quadruple the work." RIGHT (decode): a single row — one new query against all stored keys — "linear per step, but paid again for every token generated." The grid-vs-row contrast is the point.*
 
 With the block open, the difference between reading a prompt and generating an answer comes down to
 one thing, and it is all about attention:
