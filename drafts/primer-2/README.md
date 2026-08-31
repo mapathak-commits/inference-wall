@@ -57,9 +57,9 @@ The mechanism is a directed lookup. To revise token number 50, the model takes t
 earlier token. Each comparison is a single number, a score, high when this token's query and
 that token's key point in similar directions, which is the model's learned way of saying "that
 earlier token is relevant to this one." Those scores are then squashed into positive weights
-that sum to one (the **softmax** step: it turns raw scores into a set of proportions, so the
-scores become "60% of my attention here, 30% there, 10% spread over the rest"). Finally the
-model takes each earlier token's **value** vector, multiplies it by that token's weight, and
+that sum to one. That is the **softmax** step: it turns the raw scores into proportions, so
+they become something like "60% of my attention here, 30% there, 10% spread over the rest."
+Finally the model takes each earlier token's **value** vector, multiplies it by that token's weight, and
 adds them all up. The result is one blended vector, mostly the values of the tokens this token
 found relevant, and *that* is what gets written back into token 50's lane in the residual
 stream. Query to find, key to match, value to fetch: a token asks a question and pulls in a
@@ -76,8 +76,8 @@ stored.
 
 Look again at what revising a token needs from the past. It needs the **keys** of the earlier
 tokens (to score them) and their **values** (to blend them). It does *not* need their queries;
-a token's query is only ever used to revise that token itself, never to look at it. And a
-crucial point: the key and value a token produces in a given layer *never change* once computed.
+a token's query is only ever used to revise that token itself, never to look at it. And here
+is the load-bearing fact: the key and value a token produces in a given layer *never change* once computed.
 Token 50's key in layer 3 is the same whether the conversation is 51 tokens long or 5,000. So
 the model computes each token's K and V once, the first time it sees that token, and files them
 away. That filing cabinet is the **KV cache**. When the model later generates token 5,000, it
