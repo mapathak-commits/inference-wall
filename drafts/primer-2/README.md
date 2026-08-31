@@ -1,26 +1,29 @@
-*A companion to the [first primer](https://mapathak-commits.github.io/inference-wall/articles/primer/)
-for "The Inference Wall". That one treated the model as a black box you stream weights through, to
-reason about how a server spends its time and memory. This post opens the box and shows what a
-forward pass actually computes: how a token becomes a vector, what a transformer block does to it,
-and how the next token falls out the end. No benchmarks, no math, no equations. You need to be able
-to picture what one pass through the model does.*
+*What a large language model actually computes when it reads your prompt and writes an answer:
+how a token becomes a vector, what a transformer block does to it, and how the next token falls
+out the end. No benchmarks, no math, no equations. You need to be able to picture what one pass
+through the model does.*
 
 *Manas Pathak · September 1, 2026*
 
 # What actually happens inside an LLM
 
-The [first primer](https://mapathak-commits.github.io/inference-wall/articles/primer/) said that
-producing a token means streaming the model's weights through the GPU, and it left the forward
-pass, the thing that does that streaming, as a black box: each token gets multiplied "through every
-weight matrix, layer by layer," and out comes a key and a value that later tokens reuse. That is
-enough to reason about bytes. This post opens the box.
+Ask a language model a question and it answers one token at a time, each token produced by
+running the whole model once. That single run is a **forward pass**, and this post is about what
+happens inside it: what the model is doing between the moment your prompt goes in and the moment
+the next token comes out. The picture is smaller than it looks from outside, and once you have it,
+a lot of otherwise-mysterious behavior stops being mysterious.
 
-Two facts land better once you have seen inside. First, why generating a token does not require
-rereading the whole conversation: the model computes a key and a value for each token once and
-reuses them forever after. Second, why reading a long prompt gets disproportionately expensive:
-one specific step, attention, has a cost that grows with the *square* of the prompt's length,
-while the rest of the model grows only in a straight line with it. Both fall out directly from
-how a block is built, once you have seen it.
+Two examples of that, which this post pays off by the end. First, why generating a token does not
+require rereading the whole conversation: the model computes a key and a value for each token
+once and reuses them forever after. Second, why reading a long prompt gets disproportionately
+expensive: one specific step, attention, has a cost that grows with the *square* of the prompt's
+length, while the rest of the model grows only in a straight line with it. Both fall out directly
+from how the model is built, and both are visible by the last section.
+
+This is a self-contained tour of the model itself. If you also want the serving side, how a GPU
+spends its time and memory turning these forward passes into a live service, the
+[first primer](https://mapathak-commits.github.io/inference-wall/articles/primer/) covers that and
+treats the forward pass as a black box this post opens.
 
 ## The shape of one forward pass
 
@@ -153,10 +156,9 @@ positions.
 
 There is less to describe here, and that is the point. If attention is where a token collects what
 it needs from its neighbors, the feed-forward network is where it computes on what it collected.
-This half holds the large majority of the model's weights, so it is where most of the
-weight-streaming from the first primer actually happens. The one distinction to keep is against
-attention: this operation is strictly per-token, where attention was strictly about tokens
-interacting.
+This half holds the large majority of the model's weights, so on a real GPU it is where most of
+the work of a forward pass ends up. The one distinction to keep is against attention: this
+operation is strictly per-token, where attention was strictly about tokens interacting.
 
 ## Stacking blocks
 
@@ -250,12 +252,15 @@ survey like [Zhao et al., 2023](https://arxiv.org/abs/2303.18223) walks through 
 - The model's output is a **probability over the whole vocabulary**, and picking a token from it is
   a separate, cheap sampling step whose result is fed back to start the next pass.
 
-Keep the first primer's picture for reasoning about throughput and memory; keep this one for any
-time you need to know what the model is actually computing while it moves those bytes.
+That is the whole model: embed, a stack of blocks that mix across tokens and then compute per
+token, and a final scoring into the next token. Keep this picture for any time you need to reason
+about what an LLM is actually computing, rather than treating it as an oracle that turns prompts
+into text.
 
 ---
 
-**Read next:** [The first primer: how an LLM actually serves a request](https://mapathak-commits.github.io/inference-wall/articles/primer/)
+**Read next:** for the serving side, how these forward passes become a live service on a GPU,
+see [the first primer: how an LLM actually serves a request](https://mapathak-commits.github.io/inference-wall/articles/primer/)
 
 ---
 
