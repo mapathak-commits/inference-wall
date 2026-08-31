@@ -29,9 +29,7 @@ treats the forward pass as a black box this post opens.
 
 ![A word-card enters an assembly line, is restrung into a ribbon of colored beads, carried through a row of workbenches that each adjust it, and read off at the end as the next word](cartoon1.jpeg)
 
-*A forward pass as an assembly line. The input token is restrung into a vector, a fixed-length
-list of numbers; that vector is carried through a row of identical blocks, each of which revises it
-in place; and the finished vector at the end is read off as the next token.*
+*The forward pass as an assembly line: a word goes in, is turned into numbers, refined bench by bench, and the next word comes off the end.*
 
 Start from the top, before any detail. To produce the next token, the model does three things
 in order:
@@ -98,9 +96,7 @@ operation in turn.
 
 ![A token at a reference desk holds a request slip and scans a shelf of labeled folders; two folders light up and their contents stream down into a new page on the desk](cartoon2.jpeg)
 
-*Attention, as a token sees it. The token holds a request slip (its query) and scans the earlier
-tokens' folders (their keys); the folders that best match light up, and their contents (the values)
-blend, in proportion to how well each matched, into one new page the token takes away.*
+*Attention as a lookup: a token holds a request, the best-matching folders light up, and their contents blend into one new page.*
 
 Here is the whole operation in one sentence, then the parts. **Attention rewrites each token's
 vector as a weighted average of vectors drawn from the earlier tokens, where each token decides
@@ -244,10 +240,7 @@ top of this post.
 
 ![A sturdy blue bicycle frame with four parts bolted on by dotted lines: a compass, a rear rack, a pair of panniers, and a gear cluster](cartoon3.jpeg)
 
-*Real models keep this frame and bolt parts on. The plain transformer is the frame; production
-models add a compass so it knows token order (position encodings), a shared gear (grouped-query
-attention), extra panniers it uses only a few of at a time (mixture-of-experts), and other parts.
-The frame underneath is the one this post describes.*
+*The plain transformer is the frame; real models keep it and bolt on parts. This post is about the frame.*
 
 Everything above is the plain transformer, and it is the right skeleton to carry in your head. But
 no production LLM is exactly this. Real models keep the skeleton, attention then feed-forward,
