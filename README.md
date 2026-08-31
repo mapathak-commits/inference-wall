@@ -21,9 +21,10 @@ New parts are published weekly, on Fridays.
 | Part | Title | Status |
 |---|---|---|
 | Primer | [How an LLM actually serves a request](articles/primer.md) | published 2026-08-22 |
+| Primer 2 | What actually happens inside the model | drafted — reference companion, publishes alongside Part 7 |
 | 1 | [An 8.6 GB model that serves only 7 requests a second](articles/part-1.md) | published 2026-08-22 |
 | 2 | [The prefill that freezes your decoders](articles/part-2.md) | published 2026-08-28 |
-| 3 | The batching cliff | drafted — 2026-09-04 |
+| 3 | The batching cliff | cued on `publish/part-3`, ready to ship — 2026-09-04 |
 | 4 | Starving the cache | drafted — 2026-09-11 |
 | 5 | Quantization as a fit-enabler | drafted — 2026-09-18 |
 | 6 | Speculative decoding | drafted — 2026-09-25 |
@@ -39,6 +40,14 @@ dense model alongside the series rig, a departure easier to make after the arc
 has formally closed. Candidates beyond 7: prefix caching (inherits 7's
 long-prompt machinery and pays off 4's cache concepts), then tooling and
 cross-engine comparisons.
+
+Primer 2 ("What actually happens inside the model") is a reference companion,
+not a numbered part: it opens the attention black box the first primer left shut
+(query/key/value, the KV cache falling out of them, stacking blocks, and
+next-token prediction), has no benchmarks, and stops before any finding. It is
+written to ship alongside Part 7, which measures the attention scaling this
+primer describes; it will be linked from the first primer's footer and Part 7's
+intro rather than inserted into the weekly arc.
 
 ## Layout
 
@@ -94,8 +103,10 @@ fast-forward merge of that branch into `main`. Unlike previews, a publish branch
 carries the real article with Liquid paths plus its `experiments/`, `benchmarks/`,
 and `assets/` material, and the index/nav flips.
 
-Current branches: `preview/part-6` (speculative decoding draft, publishes after
-parts 3-5).
+Current branches: `publish/part-3` (batching-cliff, ready to fast-forward into
+`main` on 2026-09-04); `preview/part-6` (speculative decoding draft, publishes
+after parts 3-5); `preview/primer-2` (the second primer, previews at
+`drafts/primer-2/README.md`, ships alongside Part 7).
 
 ## Reproducing
 
