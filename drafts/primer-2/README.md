@@ -27,7 +27,11 @@ treats the forward pass as a black box this post opens.
 
 ## The shape of one forward pass
 
-> 🎨 **[Cartoon C1]** — *the forward pass as a workshop line: a word enters, is restrung into a bead-ribbon (its vector), carried through a row of identical benches that each revise it, and read off at the end as the next word.*
+![A word-card enters an assembly line, is restrung into a ribbon of colored beads, carried through a row of workbenches that each adjust it, and read off at the end as the next word](cartoon1.jpeg)
+
+*A forward pass as an assembly line. The input token is restrung into a vector, a fixed-length
+list of numbers; that vector is carried through a row of identical blocks, each of which revises it
+in place; and the finished vector at the end is read off as the next token.*
 
 Start from the top, before any detail. To produce the next token, the model does three things
 in order:
@@ -52,9 +56,6 @@ block, then stack it.
 > 📊 **[Diagram D-FWD]** — *the three-step pipeline: `tokens → embed → row of vectors → stack of N blocks → final vector → score + softmax → probabilities over the vocabulary`.*
 
 ## From tokens to vectors: the embedding
-
-> 📊 **[Diagram D-EMB]** — *a vocabulary table with one number-row per token; the row for `bank` is pulled out as a standalone vector. A lookup, nothing computed yet.*
-
 
 The model keeps a large table with one vector for every token in its vocabulary, learned during
 training. That vector is the token's **embedding**: a fixed-length list of a few thousand numbers
@@ -95,7 +96,11 @@ operation in turn.
 
 ## Attention: a weighted average, steered by the tokens themselves
 
-> 🎨 **[Cartoon C2]** — *attention as a reference desk: one token holds a request slip (its query), scans a shelf of labeled folders (the earlier tokens' keys), pulls the most relevant few strongly toward itself, and their contents (values) blend into one new note it carries away.*
+![A token at a reference desk holds a request slip and scans a shelf of labeled folders; two folders light up and their contents stream down into a new page on the desk](cartoon2.jpeg)
+
+*Attention, as a token sees it. The token holds a request slip (its query) and scans the earlier
+tokens' folders (their keys); the folders that best match light up, and their contents (the values)
+blend, in proportion to how well each matched, into one new page the token takes away.*
 
 Here is the whole operation in one sentence, then the parts. **Attention rewrites each token's
 vector as a weighted average of vectors drawn from the earlier tokens, where each token decides
@@ -156,8 +161,6 @@ defined.
 
 ### More than one at a time: attention heads
 
-> 📊 **[Diagram D-HEADS]** — *one input vector fans out to several attention heads side by side, each with its own Q/K/V and its own pattern (one tracks the previous token, one a far-back token, one matching brackets); their outputs concatenate back into one vector.*
-
 A block does not run a single query-key-value comparison. It runs several in parallel, each with
 its own query, key, and value matrices, called attention **heads**. One head might learn to track
 the immediately preceding word, another the last time the subject was mentioned, another matching
@@ -167,8 +170,6 @@ holds a separate key and value for *every head of every block*, which is why cac
 in memory as quickly as they do.
 
 ## The feed-forward network: computing on what attention gathered
-
-> 📊 **[Diagram D-FFN]** — *the same two-matrix network (narrow → wide hidden layer → narrow) applied to each token's vector independently, no arrows between positions. Drawn heavier than the attention box to signal that most of the model's weights live here.*
 
 After attention, each token's vector carries information about its context. The second operation
 in the block is a **feed-forward network**: two large weight matrices with a simple nonlinear
@@ -184,8 +185,6 @@ operation is strictly per-token, where attention was strictly about tokens inter
 
 ## Stacking blocks
 
-> 📊 **[Diagram D-STACK]** — *a vertical column: one vector rises through identical (attention + FFN) blocks; beside the main spine a `+` at each block shows the block's result being added into the running vector rather than replacing it. Early blocks → local/grammatical, late blocks → long-range meaning.*
-
 A model is a stack of these blocks, one after another. There is no variety in the wiring: every
 block is built identically, attention then feed-forward. Small models stack a dozen or so; a
 7B-class model has around thirty; the largest current LLMs stack a hundred or more. What differs
@@ -199,8 +198,6 @@ deliberately overwrites it. That is what lets dozens of rounds of editing accumu
 sharper and sharper representation instead of blurring into noise.
 
 ## Turning the last vector into the next token
-
-> 📊 **[Diagram D-NTP]** — *`final vector → one large matrix → scores over the whole vocabulary → softmax → a probability distribution (a few tall bars) → a sampling dial (temperature) picks one → the chosen token loops back as the next input.*
 
 After the final block, the vector at the most recent position holds a heavily revised
 representation of that token in its full context. Turning it into an actual next token is what the
@@ -245,7 +242,12 @@ top of this post.
 
 ## This is the basic version; real models add to it
 
-> 🎨 **[Cartoon C3]** — *the plain transformer as a sturdy bicycle frame with a few bolt-on upgrade parts hovering nearby: a compass (position encodings), a shared gear (grouped-query attention), a rack of partly-used panniers (mixture-of-experts), a shortcut rail (linear/hybrid attention). Same frame underneath; the parts are additions.*
+![A sturdy blue bicycle frame with four parts bolted on by dotted lines: a compass, a rear rack, a pair of panniers, and a gear cluster](cartoon3.jpeg)
+
+*Real models keep this frame and bolt parts on. The plain transformer is the frame; production
+models add a compass so it knows token order (position encodings), a shared gear (grouped-query
+attention), extra panniers it uses only a few of at a time (mixture-of-experts), and other parts.
+The frame underneath is the one this post describes.*
 
 Everything above is the plain transformer, and it is the right skeleton to carry in your head. But
 no production LLM is exactly this. Real models keep the skeleton, attention then feed-forward,
