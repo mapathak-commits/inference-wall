@@ -1,243 +1,264 @@
-*A second primer for "The Inference Wall". The
-[first primer](https://mapathak-commits.github.io/inference-wall/articles/primer/) built the
-machine the series runs on, but it kept one box shut: it said each token gets multiplied
-"through every weight matrix, layer by layer," and that the model produces a key and a value
-per token, without saying what those are or what they are for. This primer opens that box. Like
-the first, it has no benchmarks and no surprises; it explains what a forward pass is really
-doing, and stops before any of the findings.*
+*A companion to the [first primer](https://mapathak-commits.github.io/inference-wall/articles/primer/)
+for "The Inference Wall". That one treated the model as a black box you stream weights through, to
+reason about how a server spends its time and memory. This post opens the box and shows what a
+forward pass actually computes: how a token becomes a vector, what a transformer block does to it,
+and how the next token falls out the end. No benchmarks, no math, no equations. You need to be able
+to picture what one pass through the model does.*
 
 *Manas Pathak · September 1, 2026*
 
-# A second primer: what actually happens inside the model
+# What actually happens inside an LLM
 
-The first primer said that producing a token means streaming the model's weights through the
-GPU, and it left the forward pass, the thing that does that streaming, as a black box. For
-reasoning about *bytes*, which is most of this series, that black box is fine. But a couple of
-the series' facts come from inside it, and they are easier to believe once you have seen what
-is in there: that decode reuses a stored **key** and **value** per past token instead of
-rereading the whole conversation, and that one piece of the work grows with the *square* of the
-context while everything else grows in a straight line.
+The [first primer](https://mapathak-commits.github.io/inference-wall/articles/primer/) said that
+producing a token means streaming the model's weights through the GPU, and it left the forward
+pass, the thing that does that streaming, as a black box: each token gets multiplied "through every
+weight matrix, layer by layer," and out comes a key and a value that later tokens reuse. That is
+enough to reason about bytes. This post opens the box.
 
-Two things to set expectations before we start. First, this is the stripped-down version. Real
-models pile on refinements the basics below leave out, things like rotary position encodings,
-grouped-query attention, mixture-of-experts layers, and various normalization tricks; if you
-want the full catalog, a survey like
-[Zhao et al., 2023](https://arxiv.org/abs/2303.18223) walks through them. The skeleton here is
-enough to understand every result in this series, and the refinements are variations on it, not
-replacements. Second, none of this is math-heavy. You do not need to know CUDA or read a single
-equation. You need to be able to picture what one pass through the model does.
+Two facts land better once you have seen inside. First, why generating a token does not require
+rereading the whole conversation: the model computes a key and a value for each token once and
+reuses them forever after. Second, why reading a long prompt gets disproportionately expensive:
+one specific step, attention, has a cost that grows with the *square* of the prompt's length,
+while the rest of the model grows only in a straight line with it. Both fall out directly from
+how a block is built, once you have seen it.
 
 ## The shape of one forward pass
 
 Start from the top, before any detail. To produce the next token, the model does three things
 in order:
 
-1. **Turn each input token into a vector.** A token, a chunk of text, is first converted into a
+1. **Turn each input token into a vector.** A token, a short chunk of text, is converted into a
    list of a few thousand numbers. From here on the model works only on these vectors, never on
    words or letters directly.
-2. **Push the vectors through a stack of identical blocks.** This model has 32 of them, stacked
-   one after another. Each block reads the current vectors and rewrites them, adding a little
-   more information about what each token means *in the context of the others* and what is
-   likely to come next. This is where nearly all the weights, and nearly all the time, go.
+2. **Push the vectors through a stack of identical blocks.** Each block reads the current vectors
+   and rewrites them, adding a little more information about what each token means *in the context
+   of the others* and what is likely to come next. This is where nearly all the weights, and
+   nearly all the time, go.
 3. **Turn the last vector into a guess at the next token.** After the final block, the vector
    sitting at the most recent position is converted into a score for every possible next token,
-   and the highest-scoring ones are the model's prediction.
+   and the highest-scoring candidates are the model's prediction.
 
-That is the entire forward pass. The two phases from the first primer are just two ways of
-running it: **prefill** runs all three steps over every prompt token at once, and **decode**
-runs them over a single new token at a time while reusing stored work for the rest. Everything
-below is a zoom into step 2, because that is the step with the interesting structure. We will
-build up one block, then note that the model is just 32 of them in a row.
+That is the entire forward pass. The two phases you may have heard of are just two ways of running
+it: **prefill** runs all three steps over every prompt token at once, and **decode** runs them
+over a single new token at a time while reusing stored work for the rest. Everything below is a
+zoom into step 2, because that is the step with the structure worth understanding. We build up one
+block, then stack it.
 
 ## From tokens to vectors: the embedding
 
-The model keeps a big table with one vector for every token in its vocabulary, learned during
-training. That vector is the token's **embedding**: a fixed-length list of a few thousand
-numbers that stands in for the token. Turning the prompt into vectors is just a lookup, one
-embedding fetched per token, nothing computed.
+The model keeps a large table with one vector for every token in its vocabulary, learned during
+training. That vector is the token's **embedding**: a fixed-length list of a few thousand numbers
+that stands in for the token. Turning the prompt into vectors is a table lookup, one embedding
+fetched per token, with nothing computed yet.
 
 One property of that vector matters for everything that follows: its length never changes as it
 moves through the model. It enters the first block as a few-thousand-number vector, leaves the
-same length, enters the next block the same length, and comes out of the last block still the
-same length. A block never grows or shrinks the vector; it only **rewrites the numbers in
-place**, nudging them to carry a bit more meaning. So picture one vector per token, handed from
-block to block, revised at each step and passed along. That handoff is the thread the rest of
-this primer follows.
+same length, enters the next block the same length, and comes out of the last block still the same
+length. A block never grows or shrinks the vector; it only **rewrites the numbers in place**,
+adjusting them so they carry a bit more meaning. So picture one vector per token, handed from
+block to block, revised at each step and passed along. That handoff is the thread the rest of this
+post follows.
 
-## Inside a block: gather, then think
+## What a transformer block does
 
-Why does a block need any structure at all? Because of a problem the embedding alone cannot
-solve. Right after the lookup, a token's vector depends only on the token itself. The vector
-for "bank" is the same whether the sentence is about a river or a loan. But to predict what
-comes next, the model has to know *which* meaning is in play, and that depends entirely on the
-surrounding tokens. So each token's vector has to be updated to reflect its neighbors before it
-is any use.
+Right after the lookup, a token's vector depends only on the token itself. The vector for "bank"
+is identical whether the sentence is about a river or a loan. But predicting the next token
+requires knowing which meaning is in play, and that is fixed entirely by the surrounding tokens.
+So a block's job is to update each token's vector using information from the other tokens, and it
+does this in two distinct operations run back to back:
 
-A block does that in two steps, and the split is the one structural idea worth holding onto:
+1. **Attention** is the only operation in the whole model that moves information *between* token
+   positions. It replaces each token's vector with a mixture that draws in information from the
+   earlier tokens relevant to it. Everywhere else, positions are processed in isolation; attention
+   is where they interact.
+2. A **feed-forward network** then processes each token's vector *on its own*, with no reference to
+   any other position: the same small two-layer network applied independently at every position.
+   This is where most of the model's weights sit, and where the model does the bulk of its
+   per-token computation on the context attention just gathered.
 
-- **First, gather.** Let each token look at the earlier tokens and pull in information from the
-  ones that are relevant to it. This step, and only this step, lets tokens see each other. It is
-  called **attention**.
-- **Then, think.** Take each token's now context-aware vector and run it through some further
-  computation on its own, no looking sideways. This is a plain **feed-forward** step, and it is
-  where most of the model's weights live.
+The order is deliberate. Attention first collects the relevant context into each token's vector;
+the feed-forward network then transforms that now-contextual vector. A block is exactly this pair,
+**attention then feed-forward**, and it is the unit that repeats. The next two sections take each
+operation in turn.
 
-Gather across tokens, then compute per token. That pair, attention followed by feed-forward, is
-one **transformer block**. The next two sections open up each step.
+## Attention: a weighted average, steered by the tokens themselves
 
-## Attention: how a token looks at the others
+Here is the whole operation in one sentence, then the parts. **Attention rewrites each token's
+vector as a weighted average of vectors drawn from the earlier tokens, where each token decides
+for itself how much weight to put on each of the others.** The only real question is where those
+weights come from, and that is what the query, key, and value are for.
 
-Suppose you wanted to build the "gather" step yourself. For a given token, you need three
-things. You need a way for that token to express *what it is looking for* in the earlier
-tokens. You need a way for every earlier token to advertise *what it has to offer*. And you need
-the actual *content* each earlier token would pass along if chosen. Three roles, one per need.
+From each token's current vector, the block computes three new vectors by multiplying it against
+three separate learned weight matrices:
 
-Attention builds exactly those three, and this is where the model's matrices finally earn their
-keep. When a token's vector enters the attention step, it is multiplied by three separate
-learned weight matrices, producing three new vectors from it:
+- the **query**: a description of what this token is looking for in the tokens before it,
+- the **key**: a description of what this token contains, in the same terms a query is written in,
+  so that queries and keys can be compared,
+- the **value**: the information this token will contribute to any token that attends to it.
 
-- the **query** (Q): what this token is looking for,
-- the **key** (K): what this token offers to anyone looking, its advertisement,
-- the **value** (V): the content this token hands over if it is chosen.
+To update token number 50, the block takes token 50's **query** and compares it against the
+**key** of every token from 1 to 50. The comparison is a dot product, which is large when two
+vectors point in similar directions and small when they do not, so it measures how well token 50's
+query lines up with each earlier token's key. That produces one raw score per earlier token: how
+relevant is that token to what token 50 is looking for.
 
-The gather itself is a directed lookup. To update token number 50, the model takes token 50's
-**query** and compares it against the **key** of every token from 1 to 50. Each comparison is a
-single number, a score, and it is high when the query and that key point in similar directions,
-which is the model's learned way of saying "that earlier token is relevant here." The scores are
-then turned into positive weights that add up to one. That last step is the **softmax**; it just
-converts raw scores into proportions, so they read as something like "60% of my attention on
-this token, 30% on that one, the rest spread thin." Finally the model takes each earlier token's
-**value** vector, scales it by that token's weight, and adds them all up. The result is one
-blended vector, mostly the values of the tokens this one found relevant, and that blend is what
-gets written back into token 50's vector.
+Those raw scores are not yet usable as averaging weights. They can be negative, and they do not
+sum to anything in particular. **Softmax** is the step that fixes both: it exponentiates each score,
+which forces it positive, then divides by the total, which makes the scores sum to one. What comes
+out is a set of proportions, so the row now reads as something like "70% of my attention on this
+token, 20% on that one, the rest spread thin." A useful side effect of exponentiating is that it
+exaggerates gaps: a clearly-best match dominates the average while weak matches contribute almost
+nothing. Softmax is there because a weighted average needs weights that are positive and sum to
+one, and it is the standard way to turn arbitrary scores into exactly that.
 
-Query to find, key to match, value to fetch: a token poses a question and pulls back a weighted
-blend of what the earlier tokens offer in answer. This is the idea the
-[transformer paper](https://arxiv.org/abs/1706.03762) introduced, and its title says the whole
-thing, that attention is all you need to let tokens share information.
+The last step is the average itself. The block takes each earlier token's **value** vector, scales
+it by that token's softmax weight, and adds them all up. The result is one blended vector, made
+mostly of the values of the tokens token 50 found most relevant, and that blend is written back as
+token 50's updated vector. Query to score, softmax to weight, value to average: each token asks
+what it is looking for and pulls back a weighted blend of what the earlier tokens contain. This is
+the operation the [transformer paper](https://arxiv.org/abs/1706.03762) introduced, and its title
+is the claim itself, that attention is enough to let tokens share information.
 
 ### Why this is exactly what the KV cache stores
 
-The first primer asked you to take on faith that the model stores a key and a value per token
-and reuses them. Now you can see why, and why it is those two and not the query.
-
 Look at what updating a token needs from the past: the **keys** of the earlier tokens, to score
-them, and their **values**, to blend them. It never needs their queries. A token's query is used
-only to update that same token, never to look at it from somewhere else. And the key and value a
-token produces at a given block do not change once computed: token 50's key at block 3 is the
-same whether the conversation is 51 tokens long or 5,000.
+them, and their **values**, to average them. It never needs their queries. A token's query is used
+only to update that same token, never to be looked at from elsewhere. And the key and value a token
+produces at a given block do not change once computed: token 50's key at block 3 is the same
+whether the sequence is 51 tokens long or 5,000.
 
-So the model computes each token's K and V once, the first time it sees that token, and keeps
-them. That store is the **KV cache**. When the model later generates token 5,000, it does not
-rerun tokens 1 through 4,999; it forms only the new token's query and looks up the 4,999 keys
-and values already saved. Store the keys and values, throw the queries away, never recompute the
-past. The cache is not a clever add-on; it falls straight out of how attention is defined.
+So the model computes each token's key and value once, the first time it processes that token, and
+keeps them. That store is the **KV cache**. When the model later generates token 5,000 it does not
+rerun tokens 1 through 4,999; it forms only the new token's query and looks up the 4,999 keys and
+values already saved. Store the keys and values, discard the queries, never recompute the past. The
+cache is not a bolt-on optimization; it falls straight out of how attention is defined.
 
 ### More than one at a time: attention heads
 
-One refinement, because the traces later in the series name it. A block does not run a single
-query-key-value lookup. It runs several in parallel, each with its own Q, K, and V matrices,
-called attention **heads**. One head might learn to track the immediately preceding word,
-another the last time the subject was mentioned, another matching brackets. Each head does its
-own find-match-fetch over the whole context, the results are stitched together, and the vector
-moves on. For counting bytes, the thing to remember is that the KV cache holds a key and a value
-for *every head of every block*, which is why the first primer's "around 130 KB per cached
-token" piles up as fast as it does.
+A block does not run a single query-key-value comparison. It runs several in parallel, each with
+its own query, key, and value matrices, called attention **heads**. One head might learn to track
+the immediately preceding word, another the last time the subject was mentioned, another matching
+brackets or quotation marks. Each head does its own scoring and averaging over the whole sequence,
+the results are concatenated, and the vector moves on. The reason it matters for cost: the KV cache
+holds a separate key and value for *every head of every block*, which is why cached tokens add up
+in memory as quickly as they do.
 
-## The other half: the feed-forward step
+## The feed-forward network: computing on what attention gathered
 
-After gathering, each token's vector carries information about its context. The second half of
-the block is where the model actually does something with it: a **feed-forward** step, two large
-weight matrices with a simple nonlinear function between them, applied to each token's vector on
-its own with no looking sideways.
+After attention, each token's vector carries information about its context. The second operation
+in the block is a **feed-forward network**: two large weight matrices with a simple nonlinear
+function between them, applied to each token's vector independently. It takes the contextual vector
+attention produced and transforms it, position by position, with no further mixing between
+positions.
 
-There is less to say about it mechanically, and that is the point. If attention is where a token
-*collects* what it needs from its neighbors, the feed-forward step is where it *works on* what it
-collected. This half holds the large majority of the model's weights, so it is where most of the
-byte-streaming from the first primer actually happens. The one fact worth keeping is the
-contrast with attention: this step is per-token and independent, where attention was all about
-tokens looking at each other.
+There is less to describe here, and that is the point. If attention is where a token collects what
+it needs from its neighbors, the feed-forward network is where it computes on what it collected.
+This half holds the large majority of the model's weights, so it is where most of the
+weight-streaming from the first primer actually happens. The one distinction to keep is against
+attention: this operation is strictly per-token, where attention was strictly about tokens
+interacting.
 
 ## Stacking blocks
 
-The model is 32 of these blocks in a row, and there is no variety in the wiring: block 12 is
-built exactly like block 3. What differs is the learned weights, and so what each block does to
-the vector. Early blocks tend to settle local, grammatical structure; later ones assemble
-longer-range meaning. Each block reads the vectors the previous block wrote and edits them a
-little further, and because a block adds its result into the vector rather than replacing it,
-what an early block established survives to the end unless a later block deliberately overwrites
-it. That is what keeps 32 rounds of editing from blurring into noise.
+A model is a stack of these blocks, one after another. There is no variety in the wiring: every
+block is built identically, attention then feed-forward. Small models stack a dozen or so; a
+7B-class model has around thirty; the largest current LLMs stack a hundred or more. What differs
+between blocks is the learned weights, and so what each block does to the vector. Early blocks tend
+to resolve local, grammatical structure; later blocks assemble longer-range meaning.
 
-One honest wrinkle, since the series' rig runs straight into it. The clean "every block is
-attention then feed-forward" picture is the textbook transformer, and it is the right thing to
-carry in your head. But this series' 4B model is a *hybrid*: only some of its blocks run the
-full query-against-all-keys attention above, while the rest use a cheaper mixing step whose cost
-stays fixed as the context grows instead of growing with it. That changes none of the intuition
-here, so the primer sticks with the textbook block, but it is the seed of a real result later in
-the series, where the mix of expensive and cheap blocks turns out to move the wall.
+Each block reads the vectors the previous block wrote and edits them a little further. One detail
+keeps the repetition from washing out: a block *adds* its result into the vector rather than
+replacing it, so what an early block established survives to the end unless a later block
+deliberately overwrites it. That is what lets dozens of rounds of editing accumulate into a
+sharper and sharper representation instead of blurring into noise.
 
 ## Turning the last vector into the next token
 
-After the 32nd block, the vector at the most recent position holds a heavily revised
-representation of that token in context. Turning it into an actual next token is what the phrase
-**next-token prediction** names, and it is a smaller step than it sounds.
+After the final block, the vector at the most recent position holds a heavily revised
+representation of that token in its full context. Turning it into an actual next token is what the
+phrase **next-token prediction** names, and it is a smaller step than it sounds.
 
 The model multiplies that final vector by one last large matrix, which produces a single number
-for *every* token in the vocabulary, a score for how well each one fits as the continuation. A
-softmax turns those scores into a probability for each candidate. And that is the model's whole
-output: not a word, but a probability spread across the entire vocabulary. "The model predicts
-the next token" means exactly this, a ranked list of candidates with probabilities attached.
+for *every* token in the vocabulary: a score for how well each one fits as the continuation. A
+softmax turns those scores into a probability for each candidate, the same trick as before, used
+here to turn scores into a probability distribution rather than averaging weights. That
+distribution is the model's entire output: not a word, but a probability spread across the whole
+vocabulary. "The model predicts the next token" means exactly this, a ranked list of candidates
+with probabilities attached.
 
-Picking an actual token from that list is a separate, cheap step called **sampling**, and it is
-where knobs like *temperature* live: take the single most probable token, or roll a weighted die
-over the top few. The token that comes out is then fed back in as the next input, and the whole
-32-block pass runs again for the token after it. That feedback loop, one full pass per output
-token, is the decode loop from the first primer, now with its insides visible.
+Picking an actual token from that distribution is a separate, cheap step called **sampling**, and
+it is where knobs like *temperature* live: take the single most probable token, or roll a weighted
+die over the top few. The token that comes out is fed back in as the newest input, and the whole
+pass runs again for the token after it. That feedback loop, one full forward pass per output
+token, is the decode loop, now with its insides visible.
 
 ## The two phases, from the inside
 
-With the block open, the first primer's two phases sharpen into a single clean difference, and it
-is all about attention:
+With the block open, the difference between reading a prompt and generating an answer comes down to
+one thing, and it is all about attention:
 
-- **Prefill** reads the whole prompt at once, so every one of the N prompt tokens forms a query
-  and looks back at all the others in the same pass. That is N queries against up to N keys, an
-  N-by-N grid of scores. Double the prompt and that grid quadruples. This is the one part of the
-  model that grows with the *square* of the context, and it is why the first primer said a prompt
-  does "roughly N-by-N work."
-- **Decode** writes one token at a time, so each step forms exactly *one* query and scores it
-  against all the keys saved so far. One row, not a grid. Decode's attention grows only in a
-  straight line with how deep the conversation is, but it pays that cost again on every single
-  token it emits.
+- **Prefill** reads the whole prompt at once, so every one of the N prompt tokens forms a query and
+  scores it against the keys of all the others in the same pass. That is N queries against up to N
+  keys: an N-by-N grid of scores. Double the prompt and that grid quadruples. This is the one part
+  of the model whose cost grows with the *square* of the sequence length.
+- **Decode** generates one token at a time, so each step forms exactly *one* query and scores it
+  against all the keys stored so far. One row, not a grid. Decode's attention cost grows only in a
+  straight line with how deep the sequence is, but it pays that cost again on every single token it
+  emits.
 
-Everything else in a block, the three projections, the feed-forward step, the final scoring, is
-the same per-token weight-streaming the first primer already described. Attention is the one
-piece whose cost depends on how much context there is: quadratic while reading a prompt, linear
-while writing an answer. That single fact is what one of the later posts turns a dial to expose;
-this primer just wanted you to see where in the model it comes from.
+Everything else in a block, the three projections, the feed-forward network, the final scoring, is
+the same per-token work regardless of how long the sequence is. Attention is the single operation
+whose cost depends on sequence length: quadratic while reading a prompt, linear while writing an
+answer. That is the fact behind the second promise at the top of this post.
 
-## What you can now see that you could not before
+## This is the basic version; real models add to it
 
-Nothing here changes the first primer's frame, that inference is mostly about moving bytes. It
-fills in the shapes those bytes have:
+Everything above is the plain transformer, and it is the right skeleton to carry in your head. But
+no production LLM is exactly this. Real models keep the skeleton, attention then feed-forward,
+repeated, and add refinements at nearly every step. A few of the common ones, so the names are not
+a surprise when you meet them:
 
-- A forward pass is: embed each token into a vector, push the vectors through a stack of
-  identical blocks that rewrite them, then turn the last vector into a probability over the next
-  token.
-- A block has two halves: **attention**, the only place tokens look at each other, and a
-  **feed-forward** step, where each token is processed on its own and where most of the weights
-  live.
-- Attention makes three vectors from each token, a **query** to look, a **key** to be matched,
-  and a **value** to be fetched, and the **KV cache** exists precisely because a token's key and
-  value never change once computed, so they are saved and reused while the query is thrown away.
-- The model's actual output is a **probability over the whole vocabulary**, and picking a token
-  from it is a separate, cheap sampling step whose result is fed back to start the next pass.
+- **Position information.** The attention described above has no notion of token order; scoring a
+  query against a key does not care which came first. Real models inject order separately, most
+  often with rotary position encodings, so the model knows token 3 from token 300.
+- **Cheaper keys and values.** Grouped-query attention lets several heads share one set of keys and
+  values, which shrinks the KV cache substantially with little quality loss, and is why modern
+  long-context models are practical to serve at all.
+- **More feed-forward, used selectively.** Mixture-of-experts replaces the single feed-forward
+  network with many, and routes each token to just a few of them, so the model can hold far more
+  weights than any one token pays to use.
+- **Cheaper mixing in some blocks.** Some architectures replace full attention in a fraction of
+  their blocks with a mixing step whose cost stays fixed as the sequence grows, trading a little of
+  attention's reach for an escape from its quadratic cost. These hybrid and linear-attention
+  designs are a bet that long context is worth restructuring for.
+- **Normalization.** Small normalization steps sit around each operation to keep the numbers
+  well-behaved so the model trains stably.
 
-Keep the first primer's picture for reasoning about throughput and memory. Keep this one for the
-moment a post starts talking about attention scaling, split-KV, or why a hybrid model dodges a
-wall. Both describe the same model, at two different zoom levels.
+None of these change the picture this post drew; they are variations on it. For the full catalog, a
+survey like [Zhao et al., 2023](https://arxiv.org/abs/2303.18223) walks through them.
+
+## What you can now see
+
+- A forward pass is: embed each token into a vector, push the vectors through a stack of identical
+  blocks that rewrite them, then turn the last vector into a probability over the next token.
+- A block runs two operations in order: **attention**, the only place tokens interact, and a
+  **feed-forward network**, which processes each token on its own and holds most of the weights.
+- Attention rewrites a token's vector as a **weighted average of value vectors**, with weights set
+  by scoring the token's **query** against every earlier token's **key** and passing the scores
+  through a softmax. The **KV cache** exists because a token's key and value never change once
+  computed, so they are stored and reused while the query is discarded.
+- The model's output is a **probability over the whole vocabulary**, and picking a token from it is
+  a separate, cheap sampling step whose result is fed back to start the next pass.
+
+Keep the first primer's picture for reasoning about throughput and memory; keep this one for any
+time you need to know what the model is actually computing while it moves those bytes.
 
 ---
 
-*Disclaimer: This blog is written and published in my personal capacity. The opinions,
-findings, and conclusions expressed herein are solely my own and do not necessarily
-represent the views, policies, or endorsements of my current or past employers.*
+**Read next:** [The first primer: how an LLM actually serves a request](https://mapathak-commits.github.io/inference-wall/articles/primer/)
+
+---
+
+*Disclaimer: This blog is written and published in my personal capacity. The opinions, findings,
+and conclusions expressed herein are solely my own and do not necessarily represent the views,
+policies, or endorsements of my current or past employers.*
