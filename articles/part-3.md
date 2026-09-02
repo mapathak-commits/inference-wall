@@ -33,7 +33,7 @@ batch at all" experiment, and the result is the cliff this post is named for.
 
 The mechanism is the one from the [primer]({{ '/articles/primer/' | relative_url }}): one weight-stream per step, shared across the whole
 batch, so the per-request cost falls as the batch grows. Batching does not make any one
-request faster; it spreads a fixed cost over more beneficiaries.
+request faster; it spreads a fixed cost over more requests.
 
 One refinement is worth naming, because it is how vLLM and every modern serving engine
 actually do this. The batch is not formed once and run to completion; it is **recomposed
@@ -71,7 +71,7 @@ is inter-token latency, the gap between streamed tokens once it does. Both at p5
 
 The headline is the first and last rows of the tok/s column: **going from
 one-request-at-a-time to a full batch takes the server from 49 tokens a second to 1,091, a
-roughly 22x lift** on identical hardware, identical model, identical work. That is the batching cliff.
+roughly 22x lift** with nothing changed but how many requests run at once. That is the batching cliff.
 Turn batching off and you are running a modern GPU at a small fraction of its capacity, not
 because it is busy, but because it keeps re-reading the same 8.6 GB of weights to serve one
 request at a time.
