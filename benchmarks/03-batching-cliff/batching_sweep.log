@@ -1,0 +1,61 @@
+########## max_num_seqs=1 ##########
+Maximum request concurrency: None
+Successful requests:                     48        
+Request throughput (req/s):              0.39      
+Output token throughput (tok/s):         49.37     
+Peak output token throughput (tok/s):    51.00     
+Median TTFT (ms):                        60995.37  
+P99 TTFT (ms):                           120677.76 
+Median ITL (ms):                         19.96     
+P99 ITL (ms):                            20.50     
+Median E2EL (ms):                        63531.75  
+P99 E2EL (ms):                           123214.35 
+########## max_num_seqs=4 ##########
+Maximum request concurrency: None
+Successful requests:                     48        
+Request throughput (req/s):              1.41      
+Output token throughput (tok/s):         181.02    
+Peak output token throughput (tok/s):    192.00    
+Median TTFT (ms):                        15699.64  
+P99 TTFT (ms):                           31284.99  
+Median ITL (ms):                         20.85     
+P99 ITL (ms):                            21.54     
+Median E2EL (ms):                        18399.60  
+P99 E2EL (ms):                           33932.83  
+########## max_num_seqs=16 ##########
+Maximum request concurrency: None
+Successful requests:                     64        
+Request throughput (req/s):              4.29      
+Output token throughput (tok/s):         549.24    
+Peak output token throughput (tok/s):    656.00    
+Median TTFT (ms):                        5977.36   
+P99 TTFT (ms):                           11819.45  
+Median ITL (ms):                         24.31     
+P99 ITL (ms):                            70.84     
+Median E2EL (ms):                        9371.85   
+P99 E2EL (ms):                           14904.49  
+########## max_num_seqs=64 ##########
+Maximum request concurrency: None
+Successful requests:                     256       
+Request throughput (req/s):              8.20      
+Output token throughput (tok/s):         1050.09   
+Peak output token throughput (tok/s):    1664.00   
+Median TTFT (ms):                        13076.35  
+P99 TTFT (ms):                           26238.91  
+Median ITL (ms):                         38.81     
+P99 ITL (ms):                            364.24    
+Median E2EL (ms):                        20537.96  
+P99 E2EL (ms):                           31164.95  
+########## max_num_seqs=256 ##########
+Maximum request concurrency: None
+Successful requests:                     1024      
+Request throughput (req/s):              8.52      
+Output token throughput (tok/s):         1091.12   
+Peak output token throughput (tok/s):    2190.00   
+Median TTFT (ms):                        54360.62  
+P99 TTFT (ms):                           108840.33 
+Median ITL (ms):                         70.38     
+P99 ITL (ms):                            458.55    
+Median E2EL (ms):                        70276.87  
+P99 E2EL (ms):                           117784.74 
+=== BATCHING SWEEP DONE ===

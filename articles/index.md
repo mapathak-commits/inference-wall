@@ -11,7 +11,7 @@ the number, and read the trace that explains why. New parts publish weekly.*
 | **Primer** | [How an LLM actually serves a request]({{ '/articles/primer/' | relative_url }}) | the machine the series breaks: weights, KV cache, prefill, decode, batching |
 | **Part 1** | [Hit the wall]({{ '/articles/part-1/' | relative_url }}) | an 8.6 GB model on a 23 GB GPU tops out at 7 req/s — and the wall isn't memory |
 | **Part 2** | [The prefill freeze]({{ '/articles/part-2/' | relative_url }}) | one fat prompt stalls everyone's stream; one scheduler flag cuts the stutter 2.4x |
-| Part 3 | The batching cliff | *coming Sep 4* |
+| **Part 3** | [The batching cliff]({{ '/articles/part-3/' | relative_url }}) | turning batching off drops the server 22x; the win flattens at batch ~64 |
 | Part 4 | Starving the cache | *coming Sep 11* |
 | Part 5 | Quantization as a fit-enabler | *coming Sep 18* |
 | Part 6 | Speculative decoding | *coming Sep 25* |

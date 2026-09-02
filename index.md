@@ -101,7 +101,8 @@ the full arc:
    model, which teaches you when an optimization is even measurable. The trace shows the
    freeze happening kernel by kernel.
 
-3. **The batching cliff** *(coming)*. Batching is the single lever that turns an idle GPU into a full
+3. **[The batching cliff]({{ '/articles/part-3/' | relative_url }})** *(published)*.
+   Batching is the single lever that turns an idle GPU into a full
    one. Turning it off drops the 4B from ~1,091 to 49 tok/s, a ~22x cliff, and the win
    flattens once each sequence's own un-shareable work fills the step, which is why a bigger
    model gets *less* from batching, not more. What you give up is per-stream smoothness and, without it,
