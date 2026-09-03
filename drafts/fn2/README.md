@@ -67,13 +67,13 @@ Remember the pie has to add up to 1. A head is forced to spend its whole budget 
 
 So it dumps the budget on a word that is always there, always in the same spot, and carries no meaning worth disturbing: the first one. The sink is the model's junk drawer, a safe place to offload attention it doesn't want to spend. The first word gets the job because every later word can see it, and a fixed target is easy for the model to learn. The [StreamingLLM paper](https://arxiv.org/abs/2309.17453) (Xiao et al., 2023) named this effect and showed the model quietly depends on it, which matters in a minute.
 
-## The second surprise: one word's "loudness" explodes
+## The second surprise: one word's magnitude explodes
 
-While I had the internals open, I looked at the other thing the model hands back: the running state it carries for each word. You can boil each word's state down to a single number, how "loud" it is (the length of its vector). Track that number layer by layer and almost every word grows gently and stays in a tight pack. Except one.
+While I had the internals open, I looked at the other thing the model hands back: the running state it carries for each word. Each word's state is a vector, and I can summarize it with a single number: its **magnitude**, how far the vector reaches from zero (the square root of its squared components). Every word's vector has the same number of components, 768 of them in GPT-2, so this isn't about one word having a longer vector than another. It's about how big the numbers inside are. Track that magnitude layer by layer and almost every word grows gently and stays in a tight pack. Except one.
 
-![Per-word loudness across the layers, on a log scale. One line, the first word, shoots far above the pack in the middle layers, rides high, and drops back at the end.](fig_hidden_norm.png)
+![Per-word state magnitude across the layers, on a log scale. One line, the first word, shoots far above the pack in the middle layers, rides high, and drops back at the end.](fig_hidden_norm.png)
 
-*How loud each word's internal state is, layer by layer (log scale, so each gridline is 10x). Every word grows gently except "The," which spikes to about 39 times louder than the rest through the middle of the network, then settles back into the pack right at the end. On a normal scale the spike would flatten every other line to the floor.*
+*The magnitude of each word's internal state, layer by layer (log scale, so each gridline is 10x). Every word grows gently except "The," which spikes to about 39 times larger than the rest through the middle of the network, then settles back into the pack right at the end. On a normal scale the spike would flatten every other line to the floor.*
 
 One word blows up far past the others, the same word again, peaks in the middle of the network, and quietly returns to the pack by the final layer. If you only looked at the model's output, which is all you normally get, you'd never know it happened. You have to watch the middle of the computation to catch it.
 
@@ -95,7 +95,7 @@ Two throwaway observations about an eight-token sentence turn out to sit under t
 
 **The sink is why you can't just forget the start of a long chat.** When a conversation runs past a model's window, the obvious fix is to drop the oldest words. StreamingLLM showed this wrecks the model's quality, and the sink is why: the deep layers are still pouring most of their attention onto those first few words. Delete them and every head's pie has to be re-sliced onto words that were only ever meant to be ignored, and the model falls apart. The fix that works is to *keep* a few opening words forever, however long the chat gets. The junk drawer turns out to be structural.
 
-**The loud word is why shrinking models is hard.** The series finale is about running models in 4 bits instead of 16 or 32, which saves enormous memory but means squeezing every number into a tiny range of values. That squeeze hates outliers: one value 30 or 100 times bigger than its neighbors stretches the range until everything else rounds to mush. The massive-activation word is exactly that outlier, and it shows up on nearly every pass. A big slice of the research on shrinking models is, underneath, elaborate machinery for handling these specific spikes.
+**The high-magnitude word is why shrinking models is hard.** The series finale is about running models in 4 bits instead of 16 or 32, which saves enormous memory but means squeezing every number into a tiny range of values. That squeeze hates outliers: one value 30 or 100 times bigger than its neighbors stretches the range until everything else rounds to mush. The massive-activation word is exactly that outlier, and it shows up on nearly every pass. A big slice of the research on shrinking models is, underneath, elaborate machinery for handling these specific spikes.
 
 Both of these were discovered the hard way, at scale, by teams running models in production. And both are sitting right there in forty lines of code on a single toy sentence, if you're willing to run the slow version that writes down what the fast one erases.
 
@@ -103,4 +103,4 @@ I went looking to watch a model think. What I mostly found was housekeeping: a q
 
 ---
 
-*Method: GPT-2, HuggingFace `transformers` eager attention, full precision, CPU, prompt `"The cat sat on the keyboard again."` The sink score is the last token's attention weight on the first token, per head. The "loudness" spike is the largest per-token state vector length relative to the median, across all layers. Code: [`observe.py`](code/observe.py).*
+*Method: GPT-2, HuggingFace `transformers` eager attention, full precision, CPU, prompt `"The cat sat on the keyboard again."` The sink score is the last token's attention weight on the first token, per head. The magnitude spike is the largest per-token state vector magnitude (L2 norm) relative to the median, across all layers. Code: [`observe.py`](code/observe.py).*
