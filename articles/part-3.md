@@ -78,6 +78,8 @@ request at a time.
 
 ![One decode step at three batch sizes: a fixed shared weight-read segment plus per-sequence work that grows with the batch, overtaking the shared read around batch 64]({{ '/assets/diagrams/d6.jpg' | relative_url }})
 
+*Batching is a bus: one trip carries the whole crowd, but each passenger still walks their own way home.*
+
 ## The cliff has a floor: the per-sequence cost that won't amortize
 
 Look more carefully and the climb is not linear, and it does not go forever. From cap 1 to
