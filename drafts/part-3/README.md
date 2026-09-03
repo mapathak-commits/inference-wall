@@ -16,8 +16,8 @@ here. But there was a quieter claim buried in Part 1: a single request pays abou
 per token, which caps a server handling requests one at a time near 50 tokens a second,
 while a busy server pushes past a thousand. That ~22x gap is not the GPU getting faster under load. It is
 **batching**: the server running many requests together on the same hardware at the same
-time. Batching is the single most important reason one GPU can serve more than one user at
-a time, and this post measures exactly what it buys, and what it costs.
+time. Batching is the main reason one GPU can serve more than one user at
+a time, and this post measures what it buys and what it costs.
 
 The setup is a deliberate act of sabotage. vLLM has a knob, `max_num_seqs`, that caps how
 many requests it will run concurrently, the size of the "running batch." Its default is
@@ -33,7 +33,7 @@ batch, so the per-request cost falls as the batch grows. Batching does not make 
 request faster; it spreads a fixed cost over more requests.
 
 One refinement is worth naming, because it is how vLLM and every modern serving engine
-actually do this. The batch is not formed once and run to completion; it is **recomposed
+do it in practice. The batch is not formed once and run to completion; it is **recomposed
 at every step**, with new requests joining the moment they arrive and finished ones
 leaving the moment they emit their last token. The technique is called **continuous
 batching**, introduced by the
@@ -128,14 +128,13 @@ naming.
 The TTFT column needs one caveat before it tells its story: this sweep floods every cap at
 `--request-rate inf`, so *any* cap builds a standing queue and shows a large TTFT; cap 256
 sits at ~54 s for the same reason. The cross-cap TTFT numbers are therefore not a clean
-comparison; the real batching win is the throughput column, 0.39 vs 8.52 req/s. What
+comparison; the batching win is in the throughput column, 0.39 vs 8.52 req/s. What
 cap 1's number *does* expose is **serialization**. At cap 1, median TTFT is **61 seconds**, not because the
 queue is uniquely deep but because with one running slot requests are served strictly one at
 a time: request 40 must wait for the 39 ahead of it to *finish entirely* before it even
-starts. Without batching a busy server does not just run slow, it runs *serially*, a
-single-file line where latecomers wait out everyone ahead of them, and that is the deepest
-reason batching matters: it lets the server work on many requests at once instead of lining
-them up.
+starts. Without batching a busy server runs *serially*, a
+single-file line where latecomers wait out everyone ahead of them. That is what batching fixes:
+it lets the server work on many requests at once instead of lining them up.
 
 ## Reading it against the knee from Part 1
 
