@@ -15,24 +15,43 @@ S = meta["seq_len"]
 PAPER = "#faf7f2"
 
 # --- Figure 1: attention heatmap, the local head vs. the sink head ---
-lh = meta["local_head_layer0"]
+# Two readability fixes over a plain 0-1 heatmap:
+#   1. mask the upper triangle (causal: those cells are exactly 0 by construction,
+#      not "no attention learned") so real zeros don't read as a checkerboard.
+#   2. use a gamma<1 power norm + per-cell numbers so mid-range weights are legible
+#      instead of everything snapping to pure black or yellow.
+from matplotlib.colors import PowerNorm
+il, ih = meta["interp_head"]
 sl, sh = meta["sink_head"]
-picks = [(0, lh, "a local head\n(looks at neighbors)"),
-         (sl, sh, "the sink head\n(dumps onto 'The')")]
-fig, axes = plt.subplots(1, 2, figsize=(10, 4.8))
+picks = [(il, ih, "an interpretable head\n(later words look back at 'cat')"),
+         (sl, sh, "the sink head\n(every word dumps onto 'The')")]
+labels = [t.strip() for t in tokens]
+fig, axes = plt.subplots(1, 2, figsize=(11, 5.2))
 fig.patch.set_facecolor(PAPER)
+norm = PowerNorm(gamma=0.45, vmin=0, vmax=1)
 for ax, (L, H, sub) in zip(axes, picks):
-    m = attn[L, H]
-    im = ax.imshow(m, cmap="magma", vmin=0, vmax=1, aspect="equal")
-    ax.set_title(f"layer {L}, head {H}\n{sub}", fontsize=11)
+    m = attn[L, H].copy()
+    m[np.triu_indices(S, k=1)] = np.nan          # hide future positions
+    cmap = plt.get_cmap("magma").copy()
+    cmap.set_bad(PAPER)                           # masked cells = paper color
+    im = ax.imshow(m, cmap=cmap, norm=norm, aspect="equal")
+    for i in range(S):                            # print the weight in each live cell
+        for j in range(i + 1):
+            v = attn[L, H, i, j]
+            if v >= 0.005:
+                ax.text(j, i, f"{v:.2f}".lstrip("0"), ha="center", va="center",
+                        fontsize=6.5, color="white" if v < 0.6 else "black")
+    ax.set_title(f"layer {L}, head {H}\n{sub}", fontsize=10.5)
     ax.set_xticks(range(S)); ax.set_yticks(range(S))
-    ax.set_xticklabels([t.strip() for t in tokens], rotation=90, fontsize=8)
-    ax.set_yticklabels([t.strip() for t in tokens], fontsize=8)
+    ax.set_xticklabels(labels, rotation=90, fontsize=8)
+    ax.set_yticklabels(labels, fontsize=8)
     ax.set_xlabel("attends to", fontsize=9)
     ax.set_facecolor(PAPER)
 axes[0].set_ylabel("token doing the attending", fontsize=9)
-fig.colorbar(im, ax=axes, fraction=0.03, pad=0.03, label="attention weight")
-fig.suptitle('GPT-2 attention, one prompt: "%s"' % meta["prompt"], fontsize=12, y=1.02)
+cbar = fig.colorbar(im, ax=axes, fraction=0.03, pad=0.03,
+                    ticks=[0, 0.1, 0.25, 0.5, 1.0])
+cbar.set_label("attention weight (nonlinear scale)")
+fig.suptitle('GPT-2 attention on "%s"' % meta["prompt"], fontsize=12, y=1.02)
 fig.savefig(f"{D}/fig_attention.png", dpi=130, facecolor=PAPER, bbox_inches="tight")
 plt.close(fig)
 
