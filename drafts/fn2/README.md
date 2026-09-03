@@ -4,15 +4,27 @@
 
 ---
 
-Most of this series watches models from the outside. Tokens per second, batch sizes, KV-cache blocks, the shape of a decode step in a trace. That's the serving layer, and it's where the money is.
+Most of this series watches models from the outside. How many tokens per second, how big a batch, how the work looks in a profiler trace. That's the serving layer, the plumbing that turns your prompt into an answer fast, and it's where the money is.
 
-Underneath it sits a layer the serving stack never shows you: the actual arithmetic. The attention weights, the activations moving up the residual stream, the numbers the model computes on its way to a next-token prediction.
+But there's a layer underneath that the plumbing never shows you: the actual thinking. When a model reads your prompt, it does a huge pile of arithmetic. Which earlier words does it look at? How strongly? What is it holding onto as it goes? Those numbers exist for a fraction of a second and then they're gone.
 
-So I asked a simple question. For one prompt, can I just watch what the model is doing inside? It turns out you can, in about forty lines of code, and the picture is stranger than I expected.
+So I asked a simple question. For one prompt, can I just watch what the model is doing inside while it reads? It turns out you can, and the picture is stranger than I expected.
 
-## Getting the matrices out
+## A one-minute refresher on attention
 
-You can't do this with vLLM or Ollama (I'll come back to why). You use plain HuggingFace `transformers` in "eager" mode, and ask it to keep the intermediate values it normally throws away. Three flags do it:
+If you've read [the primer on what happens inside an LLM](https://mapathak-commits.github.io/inference-wall/articles/primer-2/), skip this. If not, here's the only idea you need.
+
+A language model reads your prompt one word at a time (really *tokens*, which are word-pieces, but think "words"). The single trick that lets it understand a sentence rather than a bag of words is **attention**: as the model processes each word, it looks back over the earlier words and decides how much weight to give each one. When it reads "sat" in *the cat sat on the keyboard*, attention is what lets "sat" look back and connect to "cat," the thing doing the sitting.
+
+Each word spreads a fixed budget of attention over the words before it. The budget always adds up to 1, like slicing a pie: give a bigger slice to one word and every other slice shrinks. So an attention pattern is just a set of pie-slices, one per earlier word, saying where this word is looking.
+
+The model doesn't do this once. It has many **heads**, each looking for its own kind of relationship (one might track the subject of the sentence, another the previous word), stacked in **layers** that refine the picture. GPT-2, the small open model I'll use here, has 12 layers with 12 heads each: 144 little attention patterns per word. That's the thing I wanted to see.
+
+## Getting the numbers out
+
+Here's the catch, and it's the whole reason this is a field note. The fast tools everyone actually serves models with, like vLLM or Ollama, *can't* show you this (I'll come back to why). You have to use a slower, more honest library, HuggingFace `transformers`, and ask it to hand back the scratch work it normally throws away.
+
+If you don't care about the code, skip the gray boxes. It's three settings that mean "keep the attention pie-slices, keep the running state, and keep the memory of earlier words":
 
 ```python
 model = AutoModelForCausalLM.from_pretrained(
@@ -21,90 +33,74 @@ model = AutoModelForCausalLM.from_pretrained(
 
 out = model(**enc,
             output_attentions=True,      # keep the attention weights
-            output_hidden_states=True,   # keep every layer's residual stream
-            use_cache=True)              # and the KV cache
+            output_hidden_states=True,   # keep the running state at every layer
+            use_cache=True)              # and the memory of earlier tokens (the KV cache)
 ```
 
-Now everything the model computed is sitting in `out`, and you can stack it into arrays you can index directly:
+That gives back two things worth staring at. The **attention weights**: for my eight-token sentence, a stack of 8x8 grids, one per head, where each row is a word and each cell says how big a slice it gave to an earlier word. And the **running state**: the vector the model carries for each word, snapshotted after every layer, which I'll get to in the second half.
 
-```python
-attn   = np.stack([a[0].numpy() for a in out.attentions])      # [layers, heads, S, S]
-hidden = np.stack([h[0].numpy() for h in out.hidden_states])   # [layers+1, S, dim]
-```
+The full runnable version is [`observe.py`](code/observe.py). Everything below just reads off those two.
 
-For GPT-2 on my prompt, `"The cat sat on the mat."`, that makes `attn` a `[12, 12, 7, 7]` block: twelve layers, twelve heads each, and for every head a 7x7 grid saying how much each token attends to each earlier token. `hidden` is `[13, 7, 768]`, the state of all seven tokens after each layer plus the embedding. The full runnable version is [`observe.py`](code/observe.py); everything below reads off these two arrays.
+## What one head is looking at
 
-## What to look for in the attention grid
+The clean way to read an attention grid: pick a row (that's one word), and the bright cells are the earlier words it leaned on. My prompt for the rest of this note is `"The cat sat on the keyboard again."`, chosen because some heads do something genuinely readable with it.
 
-Each row of an attention matrix answers one question for one token: of everything I'm allowed to look at, where do I put my attention? The row is a softmax, so it sums to exactly 1. Read left to right, and the bright cells are where that token is looking.
+Take layer 4, head 3. It's a "who did what" head: several later words reach back and grab the subject of the sentence. "sat" looks at "cat" with a slice of 0.96, "on" looks at "cat" at 0.89, even the final period points back at "cat." You can watch the model tie the sentence together, exactly the intuition you'd hope for. Now score every head by a different number: how big a slice does the *last* word hand to the *first* word? One head wins outright. Layer 5, head 1 gives the first word a slice of 1.00, the whole pie. Here the two sit side by side:
 
-There are 144 heads, so I don't eyeball them. I score them. A good score for finding the interesting behavior is how much of the *last* token's attention, the token about to predict the next word, lands on the *first* token:
+![Two GPT-2 attention grids side by side. On the left, layer 4 head 3, several rows point back at the "cat" column with printed weights like 0.96 and 0.89. On the right, layer 5 head 1, one solid bright column on the first word, every cell reading 1.00.](fig_attention.png)
 
-```python
-sink = attn[:, :, -1, 0]                          # [layers, heads]
-layer, head = np.unravel_index(sink.argmax(), sink.shape)
-```
+*Each row is a word doing the looking; each cell is the slice it gave an earlier word (numbers printed in, darker means smaller; the blank upper triangle is just the future, which no word is allowed to see). Left, layer 4, head 3: a readable head, where later words reach back to the subject, "cat." Right, layer 5, head 1: the surprise. Every word, whatever it means, hands its entire slice to the first word, "The."*
 
-For GPT-2, the winner is layer 5, head 1, and its score is 1.00. That head puts *all* of the final token's attention on the word "The." Here it is next to a normal-looking head from layer 0:
+The left panel is what I assumed all attention looked like: words wiring up to each other, meaning getting assembled. The right panel is the surprise. A whole head, deep in the network, has decided the single most useful place to look is a throwaway article at the front of the sentence.
 
-![Two GPT-2 attention heads side by side. The layer-0 head shows a bright diagonal; the layer-5 head shows one bright column on the first token.](fig_attention.png)
+And it isn't one odd head. If I score all 144 by that same first-word measure and lay them out as a grid, the back half of the network lights up almost entirely:
 
-*Left: layer 0, head 1, a local head. The bright diagonal means each token mostly attends to itself and its neighbor, the intuitive picture. Right: layer 5, head 1, the sink head. One bright column: every token, whatever its own meaning, dumps its attention onto the first token. Everything else is dark.*
+![A 12-by-12 grid of layer versus head, shaded by how much each head's last word looks at the first word. The top rows (early layers) are dark; the bottom rows (deep layers) are mostly bright.](fig_sink_grid.png)
 
-The left panel is what I naively expected all attention to look like. A diagonal, tokens wiring up to their neighbors. The right panel is the surprise. A whole head, deep in the network, has decided the most useful place to point is a meaningless article at the start of the sentence.
-
-It isn't one rogue head either. If I plot the sink score for all 144 of them, the back half of the network lights up almost completely:
-
-![A 12 by 12 grid of layer versus head, colored by how much each head's last-token attention lands on token 0. Early layers are dark, deep layers are bright.](fig_sink_grid.png)
-
-*Each cell is one head, colored by how much of the last token's attention it parks on token 0. Early layers (top) still do local work. In the deep layers (bottom), most heads have gone bright. The boxed cell is layer 5, head 1. Across the back half of the network, 92% of heads put more than half their attention on the first token.*
+*Each square is one head, shaded by how much of the last word's attention it dumps on the first word. Early layers (top) still do real local work like the "cat" head above. In the deep layers (bottom), most heads have gone bright. The boxed square is layer 5, head 1. Across the back half of the network, 92% of heads send more than half their attention to the first word.*
 
 ## Why it does that
 
-This is called an **attention sink**, and there's a clean mechanical reason for it.
+This is a known effect, called an **attention sink**, and once you see the reason it stops being mysterious.
 
-The softmax is the culprit. Every token's attention weights are forced to sum to 1, so a head has to spend a full unit of attention on the earlier tokens whether or not any of them are relevant. But heads are specialists. A lot of the time a head's particular job, say "find the verb three tokens back," just isn't happening in this sentence. It still has to put its unit of attention somewhere.
+Remember the pie has to add up to 1. A head is forced to spend its whole budget on the earlier words, whether or not any of them are relevant to its job. But heads are specialists. A head that hunts for, say, the verb three words back has nothing to do in a sentence where that pattern doesn't appear. It still has to put its pie somewhere.
 
-So it dumps it on a token that is always present, always in the same place, and carries no meaning worth corrupting: the first one. The sink is the model's junk drawer, a fixed and safe place to offload attention it doesn't want to spend. Token 0 gets the job because causal masking makes it visible to every later token, and a constant target is easy to learn. The [StreamingLLM paper](https://arxiv.org/abs/2309.17453) (Xiao et al., 2023) named the effect and showed the model quietly depends on it, which matters later.
+So it dumps the budget on a word that is always there, always in the same spot, and carries no meaning worth disturbing: the first one. The sink is the model's junk drawer, a safe place to offload attention it doesn't want to spend. The first word gets the job because every later word can see it, and a fixed target is easy for the model to learn. The [StreamingLLM paper](https://arxiv.org/abs/2309.17453) (Xiao et al., 2023) named this effect and showed the model quietly depends on it, which matters in a minute.
 
-## The second thing: one token's activations explode
+## The second surprise: one word's "loudness" explodes
 
-While the internals were open, I looked at the other array. For each token at each layer I measured the size of its vector, the L2 norm, and watched how it grows through the network. One line:
+While I had the internals open, I looked at the other thing the model hands back: the running state it carries for each word. You can boil each word's state down to a single number, how "loud" it is (the length of its vector). Track that number layer by layer and almost every word grows gently and stays in a tight pack. Except one.
 
-```python
-norms = np.linalg.norm(hidden, axis=-1)           # [layers+1, tokens]
-```
+![Per-word loudness across the layers, on a log scale. One line, the first word, shoots far above the pack in the middle layers, rides high, and drops back at the end.](fig_hidden_norm.png)
 
-![Per-token residual-stream norm across layers on a log scale. One token spikes far above the others in the middle layers, then settles back by the output.](fig_hidden_norm.png)
+*How loud each word's internal state is, layer by layer (log scale, so each gridline is 10x). Every word grows gently except "The," which spikes to about 39 times louder than the rest through the middle of the network, then settles back into the pack right at the end. On a normal scale the spike would flatten every other line to the floor.*
 
-*Residual-stream norm, per token, layer by layer, log scale. Every token grows gently except "The," which spikes to about 38x the others in the early-middle layers, rides high, then settles back to the pack by the final layer. On a linear axis the spike would flatten every other line to the floor.*
+One word blows up far past the others, the same word again, peaks in the middle of the network, and quietly returns to the pack by the final layer. If you only looked at the model's output, which is all you normally get, you'd never know it happened. You have to watch the middle of the computation to catch it.
 
-One token's vector blows up far past the rest, the same token again, peaks in the middle of the network, and returns to the pack by the output. If you only looked at the final-layer vectors, which is all you'd have without `output_hidden_states=True`, you'd never know it happened. You have to watch the middle of the computation.
+These spikes are called **massive activations** ([Sun et al., 2024](https://arxiv.org/abs/2402.17762)), and they're the flip side of the sink. The model parks a big, roughly constant scratch value on one word and then points its spare attention there. The junk drawer and the scratch pad are the same word.
 
-These are called **massive activations** ([Sun et al., 2024](https://arxiv.org/abs/2402.17762)), and they're tied to the sink. The model builds a big, roughly constant "bias" vector on one token and then parks attention there. The junk drawer and the scratch register are the same drawer.
+(I ran the same check across a handful of other models, from Meta's OPT to Alibaba's Qwen, and both effects showed up every time. But the point here is the intuition and how to look, not a survey, so one clean example carries it.)
 
-I ran the same probe across Pythia, OPT, Qwen2.5, TinyLlama, and a few others, and both effects showed up every time. But the point of this note is the intuition and how to look, not a survey, so one clean example carries it.
+## Why the fast tools can't show you this
 
-## Why your serving stack can't show you this
+Here's the tie back to the rest of the series. I found all of this without touching vLLM or Ollama, the tools I use everywhere else, because they never build the picture I just showed you.
 
-Here's the tie back to the rest of the series. I found all of this without ever touching vLLM or Ollama, the tools I use everywhere else, because they never build the thing I plotted.
+That 8x8 grid, one weight for every pair of words, is the expensive part of attention. For a real prompt of thousands of words it's a grid of millions of cells, and its size grows with the *square* of the length. The entire art of fast serving is to get the *result* of attention without ever writing that giant grid down. FlashAttention, the subject of the next full post, computes it in small tiles and never stores the full grid. PagedAttention, the trick vLLM is built on, streams the earlier words' memory through the chip as fast as it can and would never stop to hand you a labeled table. Speed comes precisely from throwing away the scratch work I wanted to read.
 
-The attention matrix is an N-by-N object: for every token, a weight on every earlier token. That O(N²) grid is exactly what the fast serving path exists to avoid materializing. FlashAttention, the subject of the next full post, computes the softmax in tiles and produces the attention *output* without ever writing down the attention *weights*. PagedAttention, the trick vLLM is built on, streams keys and values through the kernel as fast as it can and isn't going to hand you a labeled 7x7 grid. The whole craft of fast inference is to compute the answer while discarding the intermediates I wanted to see.
-
-So those numbers exist for a few microseconds inside a fused GPU kernel and then they're gone. The serving layer stays fully observable. You can watch batches form, KV blocks get allocated, prefill and decode steps tick by, which is most of what this series does. But the math layer is deliberately optimized out of existence in production. To see it you run the slow, honest path: eager mode, fp32, on CPU, with the flags that keep everything. It's far slower and it would never ship. It's also the only path that stops to write down what the model is thinking.
+So the numbers I plotted exist for a few microseconds inside a fused chip operation and then they're gone. The serving layer stays perfectly observable, and watching it is most of what this series does. But this deeper math layer is deliberately optimized out of existence in the fast path. To see it, you run the slow, honest version: one small model, full precision, on a CPU, with the flags that keep everything. It would never survive in production. It's also the only version that stops to write down what the model is thinking.
 
 ## Why it matters
 
-Two throwaway observations about a toy sentence turn out to touch two of the most expensive problems in efficient serving.
+Two throwaway observations about an eight-token sentence turn out to sit under two of the hardest problems in running these models cheaply.
 
-The sink is why you can't just chop off the front of a long context. The obvious way to handle a conversation longer than the window is to drop the oldest tokens. StreamingLLM showed that this collapses quality, and the reason is the sink: the deep layers are still dumping most of their attention on those first tokens. Delete them and every head's softmax has to renormalize onto tokens that were only ever meant to be ignored. The fix that works is to keep a few initial sink tokens permanently, however long the conversation runs. The junk drawer is structural.
+**The sink is why you can't just forget the start of a long chat.** When a conversation runs past a model's window, the obvious fix is to drop the oldest words. StreamingLLM showed this wrecks the model's quality, and the sink is why: the deep layers are still pouring most of their attention onto those first few words. Delete them and every head's pie has to be re-sliced onto words that were only ever meant to be ignored, and the model falls apart. The fix that works is to *keep* a few opening words forever, however long the chat gets. The junk drawer turns out to be structural.
 
-The massive activations are why quantization is hard. The series finale is about running models in 4 bits. Quantization fits a tensor's values into a small numeric range, and it hates outliers, because one value 30 or 100 times larger than the rest stretches the range until everything else rounds to mush. The massive-activation token is exactly that outlier, present on nearly every forward pass. A large chunk of the quantization literature is machinery for handling these specific spikes without letting them wreck the precision of everything around them.
+**The loud word is why shrinking models is hard.** The series finale is about running models in 4 bits instead of 16 or 32, which saves enormous memory but means squeezing every number into a tiny range of values. That squeeze hates outliers: one value 30 or 100 times bigger than its neighbors stretches the range until everything else rounds to mush. The massive-activation word is exactly that outlier, and it shows up on nearly every pass. A big slice of the research on shrinking models is, underneath, elaborate machinery for handling these specific spikes.
 
-Both were discovered the hard way, at scale, in production. Both are visible in forty lines of CPU code on a single seven-token sentence, if you run the slow path that writes down what the fast path throws away.
+Both of these were discovered the hard way, at scale, by teams running models in production. And both are sitting right there in forty lines of code on a single toy sentence, if you're willing to run the slow version that writes down what the fast one erases.
 
-I went looking to watch a model think. What I mostly found was bookkeeping: a quiet place to park attention it doesn't need, and a scratch register built on the nearest throwaway token. The interesting part isn't that the model does something profound on the word "The." It's that this unglamorous housekeeping matters enough that two of the hardest problems in serving are, underneath, just fights with it.
+I went looking to watch a model think. What I mostly found was housekeeping: a quiet place to dump attention it doesn't need, and a scratch value stuck on the nearest throwaway word. The fun part isn't that the model is doing something deep with the word "The." It's that this unglamorous bookkeeping matters enough that two of the nastiest problems in serving are, underneath, just fights with it.
 
 ---
 
-*Method: GPT-2, HuggingFace `transformers` eager attention, fp32, CPU, prompt `"The cat sat on the mat."` Sink score is the last token's attention weight on token 0, per head. Activation spike is the peak per-token residual-stream L2 norm relative to the median across tokens. Code: [`observe.py`](code/observe.py).*
+*Method: GPT-2, HuggingFace `transformers` eager attention, full precision, CPU, prompt `"The cat sat on the keyboard again."` The sink score is the last token's attention weight on the first token, per head. The "loudness" spike is the largest per-token state vector length relative to the median, across all layers. Code: [`observe.py`](code/observe.py).*

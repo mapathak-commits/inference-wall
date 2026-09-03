@@ -15,7 +15,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 MODEL = "gpt2"
-PROMPT = "The cat sat on the mat."   # simpler: no coreference bait, 7 tokens
+PROMPT = "The cat sat on the keyboard again."   # funny + a clear subject-tracking head
 OUT = "/home/mpathak/code/research/tools/tailfin/fn-observe-prototype"
 
 tok = AutoTokenizer.from_pretrained(MODEL)
@@ -36,17 +36,38 @@ L, H, _, _ = attn.shape
 # sink strength per head: last token's attention weight onto token 0
 sink = attn[:, :, -1, 0]                        # [L, H]
 li, hi = np.unravel_index(sink.argmax(), sink.shape)
-# a diffuse/local contrast head: smallest sink among layer-0 heads
-local_h = int(sink[0].argmin())
+
+# the "interpretable" contrast head: the one with the strongest real word-pair
+# links, i.e. big off-diagonal weight that is NOT self, the immediate neighbor,
+# or the sink column (token 0). This is the head that shows meaning being wired
+# up (e.g. several later words pointing back at the subject).
+mask = np.ones((L, H))
+best_link = -1.0
+int_l, int_h = 0, 0
+for a in range(L):
+    for b in range(H):
+        m = attn[a, b]
+        score = 0.0
+        for i in range(2, S):
+            for j in range(1, i - 1):    # skip self, neighbor, token 0
+                score = max(score, m[i, j])
+        if score > best_link:
+            best_link, int_l, int_h = score, a, b
 
 print(f"prompt: {PROMPT!r}   tokens: {tokens}   ({S} tokens)")
 print(f"layers={L} heads={H}\n")
 print(f"strongest sink head: layer {li}, head {hi}  "
       f"-> {sink[li, hi]:.0%} of last token's attention on token 0 ({tokens[0]!r})")
-print(f"contrast (local) head: layer 0, head {local_h}  "
-      f"-> only {sink[0, local_h]:.0%} on token 0")
+print(f"interpretable head: layer {int_l}, head {int_h}  "
+      f"-> strongest word-pair link {best_link:.2f}")
+# report that head's links back to the subject
+m = attn[int_l, int_h]
+for qi in range(2, S):
+    row = m[qi].copy(); row[qi] = 0; row[0] = 0
+    kj = int(row.argmax())
+    if row[kj] > 0.3:
+        print(f"    {tokens[qi]!r:>10} -> {tokens[kj]!r:<10} {row[kj]:.2f}")
 print()
-# how common is the sink? fraction of heads (deep half) with >50% on token 0
 deep = attn[L // 2:, :, -1, 0]
 print(f"heads in the deep half with >50% of last-token attention on token 0: "
       f"{(deep > 0.5).mean():.0%}")
@@ -57,7 +78,7 @@ meta = {
     "model": MODEL, "prompt": PROMPT, "tokens": tokens, "seq_len": S,
     "n_layers": L, "n_heads": H,
     "sink_head": [int(li), int(hi)], "sink_strength": float(sink[li, hi]),
-    "local_head_layer0": local_h, "local_strength": float(sink[0, local_h]),
+    "interp_head": [int(int_l), int(int_h)], "interp_link": float(best_link),
     "attn_row_sum_check": float(attn[li, hi, -1].sum()),
     "hidden_dim": int(hidden.shape[-1]),
 }

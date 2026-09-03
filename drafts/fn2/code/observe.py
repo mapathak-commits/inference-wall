@@ -18,7 +18,7 @@ model = AutoModelForCausalLM.from_pretrained(
     torch_dtype=torch.float32,
 ).eval()
 
-prompt = "The cat sat on the mat."
+prompt = "The cat sat on the keyboard again."
 enc = tok(prompt, return_tensors="pt")
 tokens = [tok.decode([t]) for t in enc.input_ids[0].tolist()]
 
