@@ -76,7 +76,7 @@ Turn batching off and you are running a modern GPU at a small fraction of its ca
 because it is busy, but because it keeps re-reading the same 8.6 GB of weights to serve one
 request at a time.
 
-![One decode step at three batch sizes: a fixed shared weight-read segment plus per-sequence work that grows with the batch, overtaking the shared read around batch 64]({{ '/assets/diagrams/d6.jpg' | relative_url }})
+![A packed bus pulls away from a crowded stop; past the stop the riders scatter along their own tangled paths to houses spread across the map]({{ '/assets/diagrams/d6.jpg' | relative_url }})
 
 *Batching is a bus: one trip carries the whole crowd, but each passenger still walks their own way home.*
 
