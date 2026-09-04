@@ -35,6 +35,10 @@ The mechanism is the one from the [primer]({{ '/articles/primer/' | relative_url
 batch, so the per-request cost falls as the batch grows. Batching does not make any one
 request faster; it spreads a fixed cost over more beneficiaries.
 
+![A packed bus pulls away from a crowded stop; past the stop the riders scatter along their own tangled paths to houses spread across the map]({{ '/assets/diagrams/d6.jpg' | relative_url }})
+
+*Batching is a bus: one trip carries the whole crowd, but each passenger still walks their own way home.*
+
 One refinement is worth naming, because it is how vLLM and every modern serving engine
 actually do this. The batch is not formed once and run to completion; it is **recomposed
 at every step**, with new requests joining the moment they arrive and finished ones
@@ -65,10 +69,6 @@ is inter-token latency, the gap between streamed tokens once it does. Both at p5
 | 16 | 4.29 | 549 | 5,977 ms | 24.3 ms | 70.8 ms |
 | 64 | 8.20 | 1,050 | 13,076 ms | 38.8 ms | 364 ms |
 | **256** (default) | 8.52 | **1,091** | 54,361 ms | 70.4 ms | 458 ms |
-
-![A packed bus pulls away from a crowded stop; past the stop the riders scatter along their own tangled paths to houses spread across the map]({{ '/assets/diagrams/d6.jpg' | relative_url }})
-
-*Batching is a bus: one trip carries the whole crowd, but each passenger still walks their own way home.*
 
 ![Throughput against the running-batch cap on a log axis: a steep weight-read amortization climb from 49 to 1,050 tokens a second, then flat to 1,091 where per-sequence work dominates]({{ '/assets/figures/fig3-batching-cliff.png' | relative_url }})
 
