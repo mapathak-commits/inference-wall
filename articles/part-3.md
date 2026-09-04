@@ -22,7 +22,7 @@ while a busy server pushes past a thousand. That ~22x gap is not the GPU getting
 time. Batching is the single most important reason one GPU can serve more than one user at
 a time, and this post measures exactly what it buys, and what it costs.
 
-The setup deliberately cripples the server. vLLM has a knob, `max_num_seqs`, that caps how
+To measure what batching buys, I turn it off on purpose. vLLM has a knob, `max_num_seqs`, that caps how
 many requests it will run concurrently, the size of the "running batch." Its default is
 a generous 256. I turned it down, all the way to 1, meaning requests are handled
 strictly one at a time, and swept upward, flooding the server at each setting with the
@@ -125,8 +125,7 @@ between streamed tokens, the "is it typing smoothly" feeling):
 So batching trades **per-stream smoothness for aggregate throughput.** The batched server
 serves 22x more tokens per second in total, but any one user's stream is choppier than it
 would be on an idle machine. That is almost always the right trade: one smooth user on an
-idle GPU is a rounding error of the machine's value. But it is a real trade and worth
-naming.
+idle GPU is a rounding error of the machine's value.
 
 The TTFT column needs one caveat before it tells its story: this sweep floods every cap at
 `--request-rate inf`, so *any* cap builds a standing queue and shows a large TTFT; cap 256
@@ -144,14 +143,14 @@ them up.
 
 This sweep also gives us a consistency check. Part 1 found the 4B saturates around 7 to
 8.5 req/s under a request-rate sweep. This post, sweeping batch size under a flood, tops out
-at **8.20 to 8.52 req/s** at caps 64 and 256. Same ceiling, reached two different ways,
-which is the reassuring sign that we are measuring a real property of the model-plus-GPU and
+at **8.20 to 8.52 req/s** at caps 64 and 256. Same ceiling, reached two different ways: that
+tells us we are measuring a real property of the model-plus-GPU and
 not an artifact of how we drove it. The wall is the wall regardless of which knob you
 approach it with.
 
 ## What to take away
 
-1. **Batching is the difference between a GPU that earns its rent and one that idles.**
+1. **Batching is the difference between a busy GPU and a mostly idle one.**
    One-at-a-time: 49 tok/s. Full batch: 1,091 tok/s. Same hardware, ~22x, purely from
    sharing each weight read across the requests in flight.
 2. **The batching win has a ceiling: the per-sequence cost that will not amortize.**
