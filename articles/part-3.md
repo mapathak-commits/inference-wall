@@ -1,6 +1,7 @@
 ---
 title: "The batching cliff: what running requests together actually buys you"
 permalink: /articles/part-3/
+image: /assets/diagrams/d6.jpg
 ---
 
 *Part 3 of "The Inference Wall". Same rig as the rest of the series: Qwen3.5-4B, fp16,
