@@ -11,14 +11,29 @@ Ask a language model a question and it answers one token at a time, each token p
 running the whole model once. That single run is a **forward pass**, and this post is about what
 happens inside it: what the model is doing between the moment your prompt goes in and the moment
 the next token comes out. The picture is smaller than it looks from outside, and once you have it,
-a lot of otherwise-mysterious behavior stops being mysterious.
+a lot of the model's behavior that seemed arbitrary turns out to follow directly from how it is built.
+
+A token, throughout, is the unit the model reads and writes: a short chunk of text, often a whole
+word but sometimes a word-piece or a punctuation mark. The model never sees letters or words as
+such; it sees a sequence of tokens, and it produces one token at a time.
+
+A note on scope before we start. This is a picture, not a specification. It deliberately skips the
+notation, the linear algebra, and a good deal of the engineering, and in a few places it says
+"this is roughly what happens" where the truth is more involved. The goal is to give you a working
+sense of what a model does under the hood, solid enough to reason with; where you want the exact
+version, the papers and surveys linked along the way have it.
 
 Two examples of that, which this post pays off by the end. First, why generating a token does not
 require rereading the whole conversation: the model computes a key and a value for each token
 once and reuses them forever after. Second, why reading a long prompt gets disproportionately
-expensive: one specific step, attention, has a cost that grows with the *square* of the prompt's
-length, while the rest of the model grows only in a straight line with it. Both fall out directly
-from how the model is built, and both are visible by the last section.
+expensive: one specific step, attention, does an amount of work that grows with the *square* of
+the prompt's length, while the rest of the model grows only in a straight line with it. That
+square-law is a property of the plain algorithm we walk through here, and it is the right way to
+understand *why* attention is the expensive part. In practice, production inference systems do not
+run attention exactly this way: methods like FlashAttention compute the same result without ever
+building the full square grid in memory, so their memory cost stays linear even though the
+arithmetic is still quadratic. We come back to that at the end. Both facts fall out directly from
+how the model is built, and both are visible by the last section.
 
 This is a self-contained tour of the model itself. If you also want the serving side, how a GPU
 spends its time and memory turning these forward passes into a live service, the
@@ -34,9 +49,8 @@ treats the forward pass as a black box this post opens.
 Start from the top, before any detail. To produce the next token, the model does three things
 in order:
 
-1. **Turn each input token into a vector.** A token, a short chunk of text, is converted into a
-   list of a few thousand numbers. From here on the model works only on these vectors, never on
-   words or letters directly.
+1. **Turn each input token into a vector.** Each token is converted into a vector. From here on the
+   model works only on these vectors, never on the text directly.
 2. **Push the vectors through a stack of identical blocks.** Each block reads the current vectors
    and rewrites them, adding a little more information about what each token means *in the context
    of the others* and what is likely to come next. This is where nearly all the weights, and
@@ -45,9 +59,9 @@ in order:
    sitting at the most recent position is converted into a score for every possible next token,
    and the highest-scoring candidates are the model's prediction.
 
-That is the entire forward pass. The two phases you may have heard of are just two ways of running
-it: **prefill** runs all three steps over every prompt token at once, and **decode** runs them
-over a single new token at a time while reusing stored work for the rest. Everything below is a
+That is the entire forward pass. A model runs it in two modes: **prefill** runs all three steps
+over every prompt token at once, and **decode** runs them over a single new token at a time while
+reusing stored work for the rest. Everything below is a
 zoom into step 2, because that is the step with the structure worth understanding. We build up one
 block, then stack it.
 
@@ -56,25 +70,25 @@ block, then stack it.
 ## From tokens to vectors: the embedding
 
 The model keeps a large table with one vector for every token in its vocabulary, learned during
-training. That vector is the token's **embedding**: a fixed-length list of a few thousand numbers
-that stands in for the token. Turning the prompt into vectors is a table lookup, one embedding
-fetched per token, with nothing computed yet.
+training. That vector is the token's **embedding**, and it stands in for the token. Turning the
+prompt into vectors is a table lookup, one embedding fetched per token, with nothing computed yet.
 
-One property of that vector matters for everything that follows: its length never changes as it
-moves through the model. It enters the first block as a few-thousand-number vector, leaves the
-same length, enters the next block the same length, and comes out of the last block still the same
-length. A block never grows or shrinks the vector; it only **rewrites the numbers in place**,
-adjusting them so they carry a bit more meaning. So picture one vector per token, handed from
-block to block, revised at each step and passed along. That handoff is the thread the rest of this
-post follows.
+One property of that vector matters for everything that follows: its size never changes as it
+moves through the model. It enters the first block, leaves the same size, enters the next block the
+same size, and comes out of the last block still the same size. A block never grows or shrinks the
+vector; it only **rewrites the numbers in place**, adjusting them so they carry a bit more meaning.
+So picture one vector per token, handed from block to block, revised at each step and passed along.
+That handoff is the thread the rest of this post follows.
 
 ## What a transformer block does
 
-Right after the lookup, a token's vector depends only on the token itself. The vector for "bank"
-is identical whether the sentence is about a river or a loan. But predicting the next token
-requires knowing which meaning is in play, and that is fixed entirely by the surrounding tokens.
-So a block's job is to update each token's vector using information from the other tokens, and it
-does this in two distinct operations run back to back:
+Right after the lookup, a token's vector depends only on the token itself, not on where it sits or
+what surrounds it. Consider the token "bank": at this point its vector is the same whether the
+sentence is "the river bank" or "the savings bank," because the lookup has no way to see the rest
+of the sentence. But predicting the next token requires knowing which meaning is in play, and that
+is fixed entirely by the surrounding tokens. So a block's job is to update each token's vector
+using information from the other tokens, and it does this in two distinct operations run back to
+back:
 
 1. **Attention** is the only operation in the whole model that moves information *between* token
    positions. It replaces each token's vector with a mixture that draws in information from the
@@ -90,7 +104,7 @@ the feed-forward network then transforms that now-contextual vector. A block is 
 **attention then feed-forward**, and it is the unit that repeats. The next two sections take each
 operation in turn.
 
-## Attention: a weighted average, steered by the tokens themselves
+## Attention: a weighted average each token computes for itself
 
 ![A token at a reference desk holds a request slip and scans a shelf of labeled folders; two folders light up and their contents stream down into a new page on the desk](cartoon2.jpeg)
 
@@ -101,12 +115,22 @@ vector as a weighted average of vectors drawn from the earlier tokens, where eac
 for itself how much weight to put on each of the others.** The only real question is where those
 weights come from, and that is what the query, key, and value are for.
 
-From each token's current vector, the block computes three new vectors by multiplying it against
-three separate learned weight matrices:
+An analogy first, because the three-way split is the part that tripped me up when I first learned
+this. Think of a library search. You walk in with a **query**, a description of what you are after.
+Every book on the shelf has a **key** printed on its spine, a short description of what it is about,
+written in the same vocabulary as your query so the two can be compared. You match your query
+against every spine, and the books whose keys fit best are the ones you pull down. What you
+actually read and take away is not the spine label but the book's contents, its **value**. Query is
+what I'm looking for, key is what I advertise, value is what I hand over. The rest of this section
+is that same idea made mechanical, so take the three names on faith for a moment; the way they fit
+together will be concrete by the end of the section.
 
-- the **query**: a description of what this token is looking for in the tokens before it,
-- the **key**: a description of what this token contains, in the same terms a query is written in,
-  so that queries and keys can be compared,
+Now the mechanism. From each token's current vector, the block computes three new vectors by
+multiplying it against three separate learned weight matrices. "Computes a description" here just
+means it produces another vector, one whose role is set by which matrix made it:
+
+- the **query**: what this token is looking for in the tokens before it,
+- the **key**: what this token offers, written so that it can be compared against a query,
 - the **value**: the information this token will contribute to any token that attends to it.
 
 To update token number 50, the block takes token 50's **query** and compares it against the
@@ -115,24 +139,26 @@ vectors point in similar directions and small when they do not, so it measures h
 query lines up with each earlier token's key. That produces one raw score per earlier token: how
 relevant is that token to what token 50 is looking for.
 
-Those raw scores are not yet usable as averaging weights. They can be negative, and they do not
-sum to anything in particular. **Softmax** is the step that fixes both: it exponentiates each score,
-which forces it positive, then divides by the total, which makes the scores sum to one. What comes
-out is a set of proportions, so the row now reads as something like "70% of my attention on this
-token, 20% on that one, the rest spread thin." A useful side effect of exponentiating is that it
-exaggerates gaps: a clearly-best match dominates the average while weak matches contribute almost
-nothing. Softmax is there because a weighted average needs weights that are positive and sum to
-one, and it is the standard way to turn arbitrary scores into exactly that.
+Those raw scores are not yet usable as averaging weights: some are negative, and they do not add up
+to anything in particular. **Softmax** is the step that turns them into weights, converting the row
+of raw scores into a set of proportions that are all positive and sum to one. The row now reads as
+something like "70% of my attention on this token, 20% on that one, the rest spread thin." It also
+sharpens the contrast, so a clearly-best match dominates the blend while weak matches contribute
+almost nothing. Whenever you see softmax in this post, read it as "turn a list of scores into a
+list of probabilities."
 
 > 📊 **[Diagram DB — attention's mechanism, and why the cache exists]** — *updating token 50 in three stages: **score** (token 50's query · the key of every token 1..50 → a raw number each) → **softmax** (those numbers become weights that sum to 1, one dominant) → **weighted sum** (each token's value, scaled by its weight, summed into token 50's new vector). A bracket under it notes: only the earlier tokens' keys (to score) and values (to average) are needed again, so those are stored — the KV cache — while the query is used once and discarded.*
 
 The last step is the average itself. The block takes each earlier token's **value** vector, scales
 it by that token's softmax weight, and adds them all up. The result is one blended vector, made
 mostly of the values of the tokens token 50 found most relevant, and that blend is written back as
-token 50's updated vector. Query to score, softmax to weight, value to average: each token asks
-what it is looking for and pulls back a weighted blend of what the earlier tokens contain. This is
-the operation the [transformer paper](https://arxiv.org/abs/1706.03762) introduced, and its title
-is the claim itself, that attention is enough to let tokens share information.
+token 50's updated vector. This is the operation the
+[transformer paper](https://arxiv.org/abs/1706.03762) introduced, and its title is the claim
+itself, that attention is enough to let tokens share information.
+
+To restate the whole thing in one line: each token uses its **query** to score every earlier
+token's **key**, softmax turns those scores into weights, and the token's new vector is the
+weighted blend of the earlier tokens' **values**. That is attention, start to finish.
 
 ### Why this is exactly what the KV cache stores
 
@@ -151,29 +177,37 @@ used once and discarded. Compute each token's key and value once and keep them, 
 the past: the cache is not a bolt-on optimization, it falls straight out of how attention is
 defined.
 
-### More than one at a time: attention heads
+### Many comparisons in parallel: attention heads
 
 A block does not run a single query-key-value comparison. It runs several in parallel, each with
 its own query, key, and value matrices, called attention **heads**. One head might learn to track
-the immediately preceding word, another the last time the subject was mentioned, another matching
+the immediately preceding token, another the last time the subject was mentioned, another matching
 brackets or quotation marks. Each head does its own scoring and averaging over the whole sequence,
-the results are concatenated, and the vector moves on. The reason it matters for cost: the KV cache
+the results are combined, and the vector moves on. The reason it matters for cost: the KV cache
 holds a separate key and value for *every head of every block*, which is why cached tokens add up
 in memory as quickly as they do.
+
+One constraint has been quietly doing work this whole time: when updating token 50, the block
+scores it against tokens 1 through 50, never against tokens that come after. A token is only ever
+allowed to look backward, because at generation time the later tokens do not exist yet. This is
+**masked** (or **causal**) attention, and the mask is exactly what enforces "earlier tokens only"
+in every score above.
 
 ## The feed-forward network: computing on what attention gathered
 
 After attention, each token's vector carries information about its context. The second operation
-in the block is a **feed-forward network**: two large weight matrices with a simple nonlinear
-function between them, applied to each token's vector independently. It takes the contextual vector
-attention produced and transforms it, position by position, with no further mixing between
-positions.
+in the block is a **feed-forward network**, also called the **MLP** (multi-layer perceptron): two
+large weight matrices with a simple nonlinear function between them, applied to each token's vector
+independently. It takes the contextual vector attention produced and transforms it, position by
+position, with no further mixing between positions.
 
-There is less to describe here, and that is the point. If attention is where a token collects what
-it needs from its neighbors, the feed-forward network is where it computes on what it collected.
-This half holds the large majority of the model's weights, so on a real GPU it is where most of
-the work of a forward pass ends up. The one distinction to keep is against attention: this
-operation is strictly per-token, where attention was strictly about tokens interacting.
+Its mechanics are simpler than attention's, but do not read that as unimportant: this half holds
+the large majority of the model's weights, so on a real GPU it is where most of the work of a
+forward pass ends up, and it is where a lot of what the model *knows* is stored. A rough way to
+hold the division of labor: attention is where tokens work out how they relate to each other, and
+the feed-forward network is where the model does its thinking about what the result means. The one
+distinction to keep is that this operation is strictly per-token, where attention was strictly
+about tokens interacting.
 
 ## Stacking blocks
 
@@ -229,8 +263,8 @@ Everything else scales gently. Forming each token's query, key, and value, runni
 feed-forward network, and the final scoring are all per-token work: their cost tracks the number
 of tokens, not its square. It is only attention's scoring-and-averaging step, where each token
 looks at every earlier one, whose cost depends on how far back it has to look: quadratic while
-reading a prompt, linear while writing an answer. That is the fact behind the second promise at the
-top of this post.
+reading a prompt, linear while writing an answer. That is why reading a long prompt gets
+disproportionately expensive, the second thing this post set out to explain.
 
 ## This is the basic version; real models add to it
 
@@ -259,8 +293,18 @@ a surprise when you meet them:
 - **Normalization.** Small normalization steps sit around each operation to keep the numbers
   well-behaved so the model trains stably.
 
-None of these change the picture this post drew; they are variations on it. For the full catalog, a
-survey like [Zhao et al., 2023](https://arxiv.org/abs/2303.18223) walks through them.
+One more addition is not a change to the model at all, but to how attention is computed, and it is
+the one promised back in the intro. The N-by-N grid of scores from the prefill section is the
+plain algorithm's way of doing attention; it is also a lot of memory to hold at once. **FlashAttention**
+computes the exact same weighted average without ever building that full grid in memory, streaming
+through the keys and values in tiles instead. The arithmetic is still quadratic, but the memory it
+touches grows only in a straight line, which is what makes long prompts practical to serve. It is a
+faithful shortcut, not an approximation: the numbers that come out are the same.
+
+These refinements do not overturn the picture this post drew. The skeleton, attention then
+feed-forward, repeated, embed at the front and score at the back, is still exactly what a real model
+runs. For the full catalog, a survey like [Zhao et al., 2023](https://arxiv.org/abs/2303.18223)
+walks through them.
 
 ## What you can now see
 
