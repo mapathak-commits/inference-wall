@@ -22,7 +22,7 @@ while a busy server pushes past a thousand. That ~22x gap is not the GPU getting
 time. Batching is the single most important reason one GPU can serve more than one user at
 a time, and this post measures exactly what it buys, and what it costs.
 
-The setup is a deliberate act of sabotage. vLLM has a knob, `max_num_seqs`, that caps how
+The setup deliberately cripples the server. vLLM has a knob, `max_num_seqs`, that caps how
 many requests it will run concurrently, the size of the "running batch." Its default is
 a generous 256. I turned it down, all the way to 1, meaning requests are handled
 strictly one at a time, and swept upward, flooding the server at each setting with the
@@ -76,7 +76,9 @@ Turn batching off and you are running a modern GPU at a small fraction of its ca
 because it is busy, but because it keeps re-reading the same 8.6 GB of weights to serve one
 request at a time.
 
-![One decode step at three batch sizes: a fixed shared weight-read segment plus per-sequence work that grows with the batch, overtaking the shared read around batch 64]({{ '/assets/diagrams/d6.jpg' | relative_url }})
+![A packed bus pulls away from a crowded stop; past the stop the riders scatter along their own tangled paths to houses spread across the map]({{ '/assets/diagrams/d6.jpg' | relative_url }})
+
+*Batching is a bus: one trip carries the whole crowd, but each passenger still walks their own way home.*
 
 ## The cliff has a floor: the per-sequence cost that won't amortize
 
@@ -97,7 +99,7 @@ per-sequence figure barely changes whether the batch is 64 or 150. So the useful
 `max_num_seqs` on this model is "big enough to fill the batch" (around 64 here), and
 cranking it higher does nothing for throughput.
 
-**This is why the 4B's cliff is 22x and not the 0.5B's 49x.** I ran the same
+The per-sequence cost also explains why the 4B's cliff is 22x and not the 0.5B's 49x. I ran the same
 `max_num_seqs` sweep on a 0.5B, and its cliff was ~49x. On a tiny 0.5B model the
 per-sequence cost is so small that you can pack an enormous batch before it dominates,
 so the shared weight read gets amortized much further, hence a steeper cliff. On the 4B the
