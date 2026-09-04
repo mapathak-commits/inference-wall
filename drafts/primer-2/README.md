@@ -50,8 +50,8 @@ of text, often a whole word but sometimes a word-piece or a punctuation mark. Th
 letters or words as such; it sees a sequence of tokens, and it produces one token at a time. To
 produce the next one, the model does three things in order:
 
-1. **Turn each input token into a vector.** Each token is converted into a vector. From here on the
-   model works only on these vectors, never on the text directly.
+1. **Turn each input token into a vector.** From here on the model works only on these vectors,
+   never on the text directly.
 2. **Push the vectors through a stack of identical blocks.** Each block reads the current vectors
    and rewrites them, adding a little more information about what each token means *in the context
    of the others* and what is likely to come next. This is where nearly all the weights, and
@@ -128,7 +128,7 @@ they fit together will be concrete by the end of the section.
 
 ![A reader stands at a library shelf holding a slip of paper (the query); they run it along the printed spine labels (the keys), two books whose spines match best glow, and the reader opens them and copies their pages (the values) into one new page](cartoon2.jpeg)
 
-*Attention as a library search: you match your query against every spine, pull the books whose keys fit best, and blend their contents — the values — into one new page.*
+*Attention as a library search: you match your query against every spine, pull the books whose keys fit best, and blend their contents (the values) into one new page.*
 
 Now the mechanism. From each token's current vector, the block computes three new vectors by
 multiplying it against three separate learned weight matrices. "Computes a description" here just
@@ -182,10 +182,11 @@ defined.
 
 ### Many comparisons in parallel: attention heads
 
-A block does not run a single query-key-value comparison. It runs several in parallel, each with
-its own query, key, and value matrices, called attention **heads**. One head might learn to track
-the immediately preceding token, another the last time the subject was mentioned, another matching
-brackets or quotation marks. Each head does its own scoring and averaging over the whole sequence,
+Up to this point we have used a single query-key-value comparison for illustration, but in practice
+a block does not run just one. It runs several in parallel, each with its own query, key, and value
+matrices, called attention **heads**. One head might learn to track
+the immediately preceding token, another the last time the subject was mentioned, another the
+matching bracket or quotation mark. Each head does its own scoring and averaging over the whole sequence,
 the results are combined, and the vector moves on. The reason it matters for cost: the KV cache
 holds a separate key and value for *every head of every block*, which is why cached tokens add up
 in memory as quickly as they do.
@@ -332,35 +333,23 @@ into text.
 
 The terms this post introduced, in one place:
 
-- **Token** — the unit the model reads and writes: a short chunk of text, often a whole word but
-  sometimes a word-piece or punctuation. The model works in tokens, not letters.
-- **Forward pass** — one full run of the model, start to finish, that produces one output token.
-- **Embedding** — the vector a token is looked up as, before any block has touched it.
-- **Vector** — the fixed-size list of numbers that stands in for a token and gets rewritten in
-  place by each block; its size never changes as it moves through the model.
-- **Transformer block** — the repeated unit, attention then feed-forward, that a model stacks; each
-  block reads the current vectors and edits them a little further.
-- **Attention** — the only operation that moves information between token positions; it rewrites
-  each token's vector as a weighted average of the earlier tokens' values.
-- **Query, key, value** — the three vectors each token produces: the query is what it is looking
-  for, the key is what it advertises to be matched against, the value is what it contributes to a
-  token that attends to it.
-- **Softmax** — the step that turns a list of raw scores into a list of positive weights that sum to
-  one; read it as "scores to probabilities."
-- **KV cache** — the store of every token's key and value, kept because they never change once
-  computed, so the model reuses them instead of recomputing the past.
-- **Attention head** — one of several parallel query-key-value comparisons a block runs at once,
-  each learning to track a different relationship.
-- **Masked (causal) attention** — the rule that a token may only attend to earlier tokens, never to
-  ones that come after it.
-- **Feed-forward network (MLP)** — the second operation in a block: a per-token network, holding
-  most of the model's weights, that computes on the context attention gathered.
-- **Prefill / decode** — the two modes of the forward pass: prefill reads the whole prompt at once
-  (quadratic attention), decode generates one token at a time (one row of attention per step).
-- **Next-token prediction / sampling** — turning the last vector into a probability over the whole
-  vocabulary, then picking one token from that distribution to feed back in.
-- **FlashAttention** — a way to compute attention's exact result without ever building the full
-  score grid in memory, keeping memory use linear though the arithmetic stays quadratic.
+| Term | Meaning |
+|---|---|
+| **Token** | the unit the model reads and writes: a short chunk of text, often a whole word but sometimes a word-piece or punctuation. The model works in tokens, not letters. |
+| **Forward pass** | one full run of the model, start to finish, that produces one output token. |
+| **Embedding** | the vector a token is looked up as, before any block has touched it. |
+| **Vector** | the fixed-size list of numbers that stands in for a token and gets rewritten in place by each block; its size never changes as it moves through the model. |
+| **Transformer block** | the repeated unit, attention then feed-forward, that a model stacks; each block reads the current vectors and edits them a little further. |
+| **Attention** | the only operation that moves information between token positions; it rewrites each token's vector as a weighted average of the earlier tokens' values. |
+| **Query, key, value** | the three vectors each token produces: the query is what it is looking for, the key is what it advertises to be matched against, the value is what it contributes to a token that attends to it. |
+| **Softmax** | the step that turns a list of raw scores into a list of positive weights that sum to one; read it as "scores to probabilities." |
+| **KV cache** | the store of every token's key and value, kept because they never change once computed, so the model reuses them instead of recomputing the past. |
+| **Attention head** | one of several parallel query-key-value comparisons a block runs at once, each learning to track a different relationship. |
+| **Masked (causal) attention** | the rule that a token may only attend to earlier tokens, never to ones that come after it. |
+| **Feed-forward network (MLP)** | the second operation in a block: a per-token network, holding most of the model's weights, that computes on the context attention gathered. |
+| **Prefill / decode** | the two modes of the forward pass: prefill reads the whole prompt at once (quadratic attention), decode generates one token at a time (one row of attention per step). |
+| **Next-token prediction / sampling** | turning the last vector into a probability over the whole vocabulary, then picking one token from that distribution to feed back in. |
+| **FlashAttention** | a way to compute attention's exact result without ever building the full score grid in memory, keeping memory use linear though the arithmetic stays quadratic. |
 
 ---
 
