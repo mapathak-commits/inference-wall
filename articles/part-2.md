@@ -235,7 +235,7 @@ budget in Part 1, now seen from the GPU's side.
    bounded, not a full halt. When an independent trace shows the same mechanism the client
    numbers implied, you can trust it.
 
-Next in the series, coming next week: the flag from this post protected the decoders from
+Next in the series: the flag from this post protected the decoders from
 *one* fat prompt, but the deeper lever is running many requests together at all. I turn
 batching off entirely and watch throughput fall off a cliff, then measure exactly what
 running requests side by side buys you and where that stops helping.
@@ -266,7 +266,7 @@ a duration.*
 
 ---
 
-**Previous:** [Part 1: Hit the wall]({{ '/articles/part-1/' | relative_url }}) · **Next:** Part 3, coming next week · [All posts]({{ '/articles/' | relative_url }})
+**Previous:** [Part 1: Hit the wall]({{ '/articles/part-1/' | relative_url }}) · **Next:** [Part 3: The batching cliff]({{ '/articles/part-3/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
 
 ---
 

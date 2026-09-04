@@ -24,7 +24,7 @@ New parts are published weekly, on Fridays.
 | Primer 2 | What actually happens inside the model | drafted — reference companion, publishes alongside Part 3 (2026-09-04) |
 | 1 | [An 8.6 GB model that serves only 7 requests a second](articles/part-1.md) | published 2026-08-22 |
 | 2 | [The prefill that freezes your decoders](articles/part-2.md) | published 2026-08-28 |
-| 3 | The batching cliff | cued on `publish/part-3`, ready to ship — 2026-09-04 |
+| 3 | [The batching cliff](articles/part-3.md) | published 2026-09-04 |
 | 4 | Starving the cache | drafted — 2026-09-11 |
 | 5 | Quantization as a fit-enabler | drafted — 2026-09-18 |
 | 6 | Speculative decoding | drafted — 2026-09-25 |
@@ -103,10 +103,9 @@ fast-forward merge of that branch into `main`. Unlike previews, a publish branch
 carries the real article with Liquid paths plus its `experiments/`, `benchmarks/`,
 and `assets/` material, and the index/nav flips.
 
-Current branches: `publish/part-3` (batching-cliff, ready to fast-forward into
-`main` on 2026-09-04); `preview/part-6` (speculative decoding draft, publishes
+Current branches: `preview/part-6` (speculative decoding draft, publishes
 after parts 3-5); `preview/primer-2` (the second primer, previews at
-`drafts/primer-2/README.md`, ships alongside Part 3 on 2026-09-04).
+`drafts/primer-2/README.md`).
 
 ## Reproducing
 
