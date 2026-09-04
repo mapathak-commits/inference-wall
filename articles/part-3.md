@@ -66,6 +66,10 @@ is inter-token latency, the gap between streamed tokens once it does. Both at p5
 | 64 | 8.20 | 1,050 | 13,076 ms | 38.8 ms | 364 ms |
 | **256** (default) | 8.52 | **1,091** | 54,361 ms | 70.4 ms | 458 ms |
 
+![A packed bus pulls away from a crowded stop; past the stop the riders scatter along their own tangled paths to houses spread across the map]({{ '/assets/diagrams/d6.jpg' | relative_url }})
+
+*Batching is a bus: one trip carries the whole crowd, but each passenger still walks their own way home.*
+
 ![Throughput against the running-batch cap on a log axis: a steep weight-read amortization climb from 49 to 1,050 tokens a second, then flat to 1,091 where per-sequence work dominates]({{ '/assets/figures/fig3-batching-cliff.png' | relative_url }})
 
 
@@ -75,10 +79,6 @@ roughly 22x lift** on identical hardware, identical model, identical work. That 
 Turn batching off and you are running a modern GPU at a small fraction of its capacity, not
 because it is busy, but because it keeps re-reading the same 8.6 GB of weights to serve one
 request at a time.
-
-![A packed bus pulls away from a crowded stop; past the stop the riders scatter along their own tangled paths to houses spread across the map]({{ '/assets/diagrams/d6.jpg' | relative_url }})
-
-*Batching is a bus: one trip carries the whole crowd, but each passenger still walks their own way home.*
 
 ## The cliff has a floor: the per-sequence cost that won't amortize
 
