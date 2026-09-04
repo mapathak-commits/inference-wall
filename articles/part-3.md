@@ -15,7 +15,7 @@ back not by running out of memory but by *the decode loop*, the raw rate at whic
 can generate output tokens. If this is the first post you have landed on, the short
 version: the model answers in two phases, reading your prompt, then emitting the answer
 one token at a time. That second phase is "decode," and it is the one that sets the pace
-here. But there was a quieter claim buried in Part 1: a single request pays about 20 ms
+here. Part 1 also gave us the numbers this post turns on: a single request pays about 20 ms
 per token, which caps a server handling requests one at a time near 50 tokens a second,
 while a busy server pushes past a thousand. That ~22x gap is not the GPU getting faster under load. It is
 **batching**: the server running many requests together on the same hardware at the same
@@ -140,7 +140,7 @@ them up.
 
 ## Reading it against the knee from Part 1
 
-There is a clean consistency check hiding here. Part 1 found the 4B saturates around 7 to
+This sweep also gives us a consistency check. Part 1 found the 4B saturates around 7 to
 8.5 req/s under a request-rate sweep. This post, sweeping batch size under a flood, tops out
 at **8.20 to 8.52 req/s** at caps 64 and 256. Same ceiling, reached two different ways,
 which is the reassuring sign that we are measuring a real property of the model-plus-GPU and
