@@ -66,7 +66,9 @@ reusing stored work for the rest. Everything below is a
 zoom into step 2, because that is the step with the structure worth understanding. We build up one
 block, then stack it.
 
-> 📊 **[Diagram DA — the whole pass, with one block opened]** — *top: `prompt tokens → embed → vectors → a stack of N blocks → final vector → score + softmax → probabilities over the vocabulary`. Below, a dotted callout pulls one block out of the stack into a big inset: inside it, vectors flow through an `attention` box where arrows cross between token positions (they mix), then a `feed-forward` box of straight parallel lanes, each token on its own — "attention (tokens mix) then feed-forward (each token alone), repeated N times."*
+![The forward pass as one left-to-right pipeline: five prompt tokens go into an EMBED (table lookup) box and come out as five equal-height vectors, pass through a STACK OF N IDENTICAL BLOCKS, and emerge as five vectors of which only the last is highlighted; that last vector feeds an UNEMBED (score every vocab word) box, producing a probability bar over candidate words with "mat" the tallest](diagram1.jpeg)
+
+*The whole forward pass: embed each token to a vector, push all vectors through a stack of identical blocks, and turn only the last vector into a probability over the next token.*
 
 ## From tokens to vectors: the embedding
 
@@ -104,6 +106,8 @@ The order is deliberate. Attention first collects the relevant context into each
 the feed-forward network then transforms that now-contextual vector. A block is exactly this pair,
 **attention then feed-forward**, and it is the unit that repeats. The next two sections take each
 operation in turn.
+
+![One transformer block: four token vectors enter at the left, pass through an ATTENTION box where thin lines cross between the four positions (they mix), then a FEED-FORWARD box of four straight parallel lanes that never touch (each token alone), and four vectors exit at the right](diagram2.jpeg)
 
 ## Attention: a weighted average each token computes for itself
 
@@ -147,8 +151,6 @@ something like "70% of my attention on this token, 20% on that one, the rest spr
 sharpens the contrast, so a clearly-best match dominates the blend while weak matches contribute
 almost nothing. Whenever you see softmax in this post, read it as "turn a list of scores into a
 list of probabilities."
-
-> 📊 **[Diagram DB — attention's mechanism, and why the cache exists]** — *updating token 50 in three stages: **score** (token 50's query · the key of every token 1..50 → a raw number each) → **softmax** (those numbers become weights that sum to 1, one dominant) → **weighted sum** (each token's value, scaled by its weight, summed into token 50's new vector). A bracket under it notes: only the earlier tokens' keys (to score) and values (to average) are needed again, so those are stored — the KV cache — while the query is used once and discarded.*
 
 The last step is the average itself. The block takes each earlier token's **value** vector, scales
 it by that token's softmax weight, and adds them all up. The result is one blended vector, made
@@ -247,7 +249,7 @@ token, is the decode loop, now with its insides visible.
 
 ## The two phases, from the inside
 
-> 📊 **[Diagram DC — prefill vs decode attention]** — *two panels, same cell style. LEFT (prefill): a filled N×N grid — every prompt token scores every earlier one — "double the prompt, quadruple the work." RIGHT (decode): a single row — one new query against all stored keys — "linear per step, but paid again for every token generated." The grid-vs-row contrast is the point.*
+![Prefill versus decode attention, two panels in the same cell style. Left (prefill): a filled six-by-six lower-triangular grid of cells — N queries against N keys — captioned "N queries × N keys = an N×N grid. Double the prompt, quadruple the work." Right (decode): a single row of six cells — one query against all stored keys — captioned "1 query × all keys = one row. Linear per step, but paid again for every token generated."](diagram5.jpeg)
 
 With the block open, the difference between reading a prompt and generating an answer comes down to
 one thing, and it is all about attention:
