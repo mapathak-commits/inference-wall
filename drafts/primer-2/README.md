@@ -13,27 +13,26 @@ happens inside it: what the model is doing between the moment your prompt goes i
 the next token comes out. The picture is smaller than it looks from outside, and once you have it,
 a lot of the model's behavior that seemed arbitrary turns out to follow directly from how it is built.
 
-A token, throughout, is the unit the model reads and writes: a short chunk of text, often a whole
-word but sometimes a word-piece or a punctuation mark. The model never sees letters or words as
-such; it sees a sequence of tokens, and it produces one token at a time.
-
 A note on scope before we start. This is a picture, not a specification. It deliberately skips the
 notation, the linear algebra, and a good deal of the engineering, and in a few places it says
 "this is roughly what happens" where the truth is more involved. The goal is to give you a working
 sense of what a model does under the hood, solid enough to reason with; where you want the exact
 version, the papers and surveys linked along the way have it.
 
-Two examples of that, which this post pays off by the end. First, why generating a token does not
-require rereading the whole conversation: the model computes a key and a value for each token
-once and reuses them forever after. Second, why reading a long prompt gets disproportionately
-expensive: one specific step, attention, does an amount of work that grows with the *square* of
-the prompt's length, while the rest of the model grows only in a straight line with it. That
-square-law is a property of the plain algorithm we walk through here, and it is the right way to
-understand *why* attention is the expensive part. In practice, production inference systems do not
-run attention exactly this way: methods like FlashAttention compute the same result without ever
-building the full square grid in memory, so their memory cost stays linear even though the
-arithmetic is still quadratic. We come back to that at the end. Both facts fall out directly from
-how the model is built, and both are visible by the last section.
+Two facts in particular seem arbitrary from outside, and this post pays off both by the end:
+
+- **Why generating a token does not require rereading the whole conversation.** The model computes
+  a key and a value for each token once and reuses them forever after.
+- **Why reading a long prompt gets disproportionately expensive.** One specific step, attention,
+  does an amount of work that grows with the *square* of the prompt's length, while the rest of the
+  model grows only in a straight line with it. That square-law is a property of the plain algorithm
+  we walk through here, and it is the right way to understand *why* attention is the expensive part.
+  In practice, production inference systems do not run attention exactly this way: methods like
+  FlashAttention compute the same result without ever building the full square grid in memory, so
+  their memory cost stays linear even though the arithmetic is still quadratic. We come back to that
+  at the end.
+
+Both facts fall out directly from how the model is built, and both are visible by the last section.
 
 This is a self-contained tour of the model itself. If you also want the serving side, how a GPU
 spends its time and memory turning these forward passes into a live service, the
@@ -42,12 +41,14 @@ treats the forward pass as a black box this post opens.
 
 ## The shape of one forward pass
 
-![A word-card enters an assembly line, is restrung into a ribbon of colored beads, carried through a row of workbenches that each adjust it, and read off at the end as the next word](cartoon1.jpeg)
+![A word-card drops onto an assembly line and becomes a rough, cloudy uncut gemstone; a row of workers at benches each facet and polish the same stone a little more as it passes, and at the end a worker reads the clear, finished gem and writes the next word](cartoon1.jpeg)
 
-*The forward pass as an assembly line: a word goes in, is turned into numbers, refined bench by bench, and the next word comes off the end.*
+*The forward pass as an assembly line: a word goes in as a rough stone, is faceted and polished bench by bench until the last worker can read it, and the next word comes off the end.*
 
-Start from the top, before any detail. To produce the next token, the model does three things
-in order:
+Start from the top, before any detail. The unit the model works in is the **token**: a short chunk
+of text, often a whole word but sometimes a word-piece or a punctuation mark. The model never sees
+letters or words as such; it sees a sequence of tokens, and it produces one token at a time. To
+produce the next one, the model does three things in order:
 
 1. **Turn each input token into a vector.** Each token is converted into a vector. From here on the
    model works only on these vectors, never on the text directly.
@@ -106,24 +107,24 @@ operation in turn.
 
 ## Attention: a weighted average each token computes for itself
 
-![A token at a reference desk holds a request slip and scans a shelf of labeled folders; two folders light up and their contents stream down into a new page on the desk](cartoon2.jpeg)
-
-*Attention as a lookup: a token holds a request, the best-matching folders light up, and their contents blend into one new page.*
-
 Here is the whole operation in one sentence, then the parts. **Attention rewrites each token's
 vector as a weighted average of vectors drawn from the earlier tokens, where each token decides
 for itself how much weight to put on each of the others.** The only real question is where those
 weights come from, and that is what the query, key, and value are for.
 
 An analogy first, because the three-way split is the part that tripped me up when I first learned
-this. Think of a library search. You walk in with a **query**, a description of what you are after.
-Every book on the shelf has a **key** printed on its spine, a short description of what it is about,
-written in the same vocabulary as your query so the two can be compared. You match your query
-against every spine, and the books whose keys fit best are the ones you pull down. What you
-actually read and take away is not the spine label but the book's contents, its **value**. Query is
-what I'm looking for, key is what I advertise, value is what I hand over. The rest of this section
-is that same idea made mechanical, so take the three names on faith for a moment; the way they fit
-together will be concrete by the end of the section.
+this. Think of searching for a book in a library. You walk in with a **query**, a description of
+what you are after. Every book on the shelf has a **key** printed on its spine, a short description
+of what it is about, written in the same vocabulary as your query so the two can be compared. You
+match your query against every spine, and the books whose keys fit best are the ones you pull down.
+What you actually read and take away is not the spine label but the book's contents, its **value**.
+Query is what I'm looking for, key is what I advertise, value is what I hand over. The rest of this
+section is that same idea made mechanical, so take the three names on faith for a moment; the way
+they fit together will be concrete by the end of the section.
+
+![A reader stands at a library shelf holding a slip of paper (the query); they run it along the printed spine labels (the keys), two books whose spines match best glow, and the reader opens them and copies their pages (the values) into one new page](cartoon2.jpeg)
+
+*Attention as a library search: you match your query against every spine, pull the books whose keys fit best, and blend their contents — the values — into one new page.*
 
 Now the mechanism. From each token's current vector, the block computes three new vectors by
 multiplying it against three separate learned weight matrices. "Computes a description" here just
@@ -201,21 +202,22 @@ large weight matrices with a simple nonlinear function between them, applied to 
 independently. It takes the contextual vector attention produced and transforms it, position by
 position, with no further mixing between positions.
 
-Its mechanics are simpler than attention's, but do not read that as unimportant: this half holds
-the large majority of the model's weights, so on a real GPU it is where most of the work of a
-forward pass ends up, and it is where a lot of what the model *knows* is stored. A rough way to
-hold the division of labor: attention is where tokens work out how they relate to each other, and
-the feed-forward network is where the model does its thinking about what the result means. The one
-distinction to keep is that this operation is strictly per-token, where attention was strictly
-about tokens interacting.
+Its mechanics are simpler than attention's, but do not read that as unimportant: in a typical block
+the feed-forward network holds about two-thirds of the weights to attention's one-third, so on a
+real GPU it is where most of the work of a forward pass ends up, and it is where a lot of what the
+model *knows* is stored. A rough way to hold the division of labor: attention is where tokens work
+out how they relate to each other, and the feed-forward network is where the model does its thinking
+about what the result means. The one distinction to keep is that this operation is strictly
+per-token, where attention was strictly about tokens interacting.
 
 ## Stacking blocks
 
 A model is a stack of these blocks, one after another. There is no variety in the wiring: every
-block is built identically, attention then feed-forward. Small models stack a dozen or so; a
-7B-class model has around thirty; the largest current LLMs stack a hundred or more. What differs
-between blocks is the learned weights, and so what each block does to the vector. Early blocks tend
-to resolve local, grammatical structure; later blocks assemble longer-range meaning.
+block is built identically, attention then feed-forward. Small models stack a dozen or so; most
+current LLMs run somewhere between about 32 and 126 of them, with the largest at the top of that
+range. What differs between blocks is the learned weights, and so what each block does to the
+vector. Early blocks tend to resolve local, grammatical structure; later blocks assemble
+longer-range meaning.
 
 Each block reads the vectors the previous block wrote and edits them a little further. One detail
 keeps the repetition from washing out: a block *adds* its result into the vector rather than
@@ -323,6 +325,40 @@ That is the whole model: embed, a stack of blocks that mix across tokens and the
 token, and a final scoring into the next token. Keep this picture for any time you need to reason
 about what an LLM is actually computing, rather than treating it as an oracle that turns prompts
 into text.
+
+## Glossary
+
+The terms this post introduced, in one place:
+
+- **Token** — the unit the model reads and writes: a short chunk of text, often a whole word but
+  sometimes a word-piece or punctuation. The model works in tokens, not letters.
+- **Forward pass** — one full run of the model, start to finish, that produces one output token.
+- **Embedding** — the vector a token is looked up as, before any block has touched it.
+- **Vector** — the fixed-size list of numbers that stands in for a token and gets rewritten in
+  place by each block; its size never changes as it moves through the model.
+- **Transformer block** — the repeated unit, attention then feed-forward, that a model stacks; each
+  block reads the current vectors and edits them a little further.
+- **Attention** — the only operation that moves information between token positions; it rewrites
+  each token's vector as a weighted average of the earlier tokens' values.
+- **Query, key, value** — the three vectors each token produces: the query is what it is looking
+  for, the key is what it advertises to be matched against, the value is what it contributes to a
+  token that attends to it.
+- **Softmax** — the step that turns a list of raw scores into a list of positive weights that sum to
+  one; read it as "scores to probabilities."
+- **KV cache** — the store of every token's key and value, kept because they never change once
+  computed, so the model reuses them instead of recomputing the past.
+- **Attention head** — one of several parallel query-key-value comparisons a block runs at once,
+  each learning to track a different relationship.
+- **Masked (causal) attention** — the rule that a token may only attend to earlier tokens, never to
+  ones that come after it.
+- **Feed-forward network (MLP)** — the second operation in a block: a per-token network, holding
+  most of the model's weights, that computes on the context attention gathered.
+- **Prefill / decode** — the two modes of the forward pass: prefill reads the whole prompt at once
+  (quadratic attention), decode generates one token at a time (one row of attention per step).
+- **Next-token prediction / sampling** — turning the last vector into a probability over the whole
+  vocabulary, then picking one token from that distribution to feed back in.
+- **FlashAttention** — a way to compute attention's exact result without ever building the full
+  score grid in memory, keeping memory use linear though the arithmetic stays quadratic.
 
 ---
 
