@@ -1,7 +1,7 @@
 ---
 title: "What actually happens inside an LLM"
 permalink: /articles/primer-2/
-image: /assets/diagrams/primer2-d1-forward-pass.jpg
+image: /assets/diagrams/primer2-forward-pass-line.jpg
 ---
 
 *A reference companion for "The Inference Wall". What a large language model actually computes when
