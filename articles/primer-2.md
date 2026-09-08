@@ -1,14 +1,12 @@
 ---
-title: "A second primer: what actually happens inside an LLM"
+title: "What actually happens inside an LLM"
 permalink: /articles/primer-2/
 image: /assets/diagrams/primer2-d1-forward-pass.jpg
 ---
 
-*A reference companion for "The Inference Wall". It opens the black box the
-[first primer]({{ '/articles/primer/' | relative_url }}) left shut: how a token becomes a
-vector, what a transformer block does to it, and how the next token falls out the end. No
-benchmarks, no equations, no notation. You need to be able to picture what one pass through the
-model does.*
+*A reference companion for "The Inference Wall". What a large language model actually computes when
+it reads your prompt and writes an answer: how a token becomes a vector, what a transformer block
+does to it, and how the next token falls out the end. No benchmarks, no equations, no notation.*
 
 *Manas Pathak · September 8, 2026*
 

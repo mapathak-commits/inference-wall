@@ -41,7 +41,7 @@ has formally closed. Candidates beyond 7: prefix caching (inherits 7's
 long-prompt machinery and pays off 4's cache concepts), then tooling and
 cross-engine comparisons.
 
-Primer 2 ("What actually happens inside the model") is a reference companion,
+Primer 2 ("What actually happens inside an LLM") is a reference companion,
 not a numbered part: it opens the attention black box the first primer left shut
 (query/key/value, the KV cache falling out of them, stacking blocks, and
 next-token prediction), has no benchmarks, and stops before any finding. It
