@@ -163,7 +163,7 @@ mine are all welcome: email me at <mapathak@gmail.com> or find me on
 
 ---
 
-**Next:** [Part 1: Hit the wall]({{ '/articles/part-1/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
+**Next:** [Part 1: Hit the wall]({{ '/articles/part-1/' | relative_url }}) · **Going deeper:** [Primer 2: what actually happens inside an LLM]({{ '/articles/primer-2/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
 
 ---
 

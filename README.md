@@ -21,7 +21,7 @@ New parts are published weekly, on Fridays.
 | Part | Title | Status |
 |---|---|---|
 | Primer | [How an LLM actually serves a request](articles/primer.md) | published 2026-08-22 |
-| Primer 2 | What actually happens inside the model | drafted — reference companion, publishes alongside Part 3 (2026-09-04) |
+| Primer 2 | [What actually happens inside an LLM](articles/primer-2.md) | published 2026-09-08 — reference companion |
 | 1 | [An 8.6 GB model that serves only 7 requests a second](articles/part-1.md) | published 2026-08-22 |
 | 2 | [The prefill that freezes your decoders](articles/part-2.md) | published 2026-08-28 |
 | 3 | [The batching cliff](articles/part-3.md) | published 2026-09-04 |
@@ -104,8 +104,7 @@ carries the real article with Liquid paths plus its `experiments/`, `benchmarks/
 and `assets/` material, and the index/nav flips.
 
 Current branches: `preview/part-6` (speculative decoding draft, publishes
-after parts 3-5); `preview/primer-2` (the second primer, previews at
-`drafts/primer-2/README.md`).
+after parts 3-5).
 
 ## Reproducing
 
