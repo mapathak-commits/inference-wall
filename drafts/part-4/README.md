@@ -1,23 +1,21 @@
-# Starving the cache: the server that refused to break the way I expected
+# What a starved KV cache does to a server
 
 *Draft 1. Part 4 of "The Inference Wall." Same rig: Qwen3.5-4B, fp16,
 one NVIDIA A10G (23 GB), under real load.*
 
 ---
 
-Every post in this series so far has been about the same bottleneck seen from different
-angles: how fast the GPU can generate tokens, the decode loop of Part 1.
-Part 1 found the wall, Part 2 watched one big prompt stall everyone else's answer, Part 3
-measured what running requests together buys against that wall. This post was supposed to
-be about the *other* resource, the one everybody warns you about first when you self-host:
-the **KV cache** (the model's short-term memory of the conversation so far) running out of
-GPU memory. I set out to starve it and watch the server break.
+Every post so far has looked at the same bottleneck from a different angle: how fast the GPU
+generates tokens in the decode loop. Part 1 found that wall, Part 2 watched one big prompt
+stall everyone else's stream, and Part 3 measured what batching requests together buys
+against it. This post was meant to cover the *other* resource you get warned about first when
+you self-host: the **KV cache** (the model's short-term memory of the conversation so far)
+running out of GPU memory. The plan was to starve it and measure how the server breaks.
 
-It broke, but not the way I predicted, and the gap between what I expected and what
-happened is the whole lesson. I will tell it in that order, because the wrong prediction is
-the useful part.
+It broke, but not the way I predicted. The gap between the two is worth walking through, so
+this post follows the order I hit it in.
 
-## The thing I expected: graceful preemption
+## What I expected: graceful preemption
 
 Recall the KV cache from the primer: the per-token K and V vectors the model stores so it
 need not reprocess the whole conversation each step. Unlike the fixed weights, it **grows with
@@ -31,8 +29,8 @@ scratch when room opens up. The point of the design is that the server degrades 
 under memory pressure it does not crash or reject requests, it just does some work twice,
 so you pay in throughput rather than in errors.
 
-So the plan was simple: starve this 4B's KV cache and put a number on the preemption
-penalty. It did not survive contact with the model.
+So the plan was to starve this 4B's KV cache and put a number on the preemption penalty.
+That plan ran into the model first.
 
 ## The problem: on this model, KV is almost impossible to exhaust
 
@@ -59,12 +57,12 @@ server:
    it.
 
 If preemption was ever going to fire, the 40-block server flooded with 1,536-token requests
-was the setup to make it happen. It should have been drowning.
+was the setup to force it.
 
-## What actually happened: it throttled admission instead
+## What happened: it throttled admission instead
 
-Here is the comparison. Roomy versus the two starved configs, flooded with 200 of the long
-requests. (TTFT is time-to-first-token, the wait before the answer starts; E2E is
+Here is the comparison. The roomy config and the two starved ones, each flooded with 200 of
+the long requests. (TTFT is time-to-first-token, the wait before the answer starts; E2E is
 end-to-end, the total time for the whole answer.)
 
 | Config | KV budget | Achieved req/s | Output tok/s | Median TTFT | P99 E2E | Preemptions logged |
@@ -73,24 +71,20 @@ end-to-end, the total time for the whole answer.)
 | Starved | 67,584 tok (73.1x) | 1.81 | 928 | 46,121 ms | 110,289 ms | **0** |
 | **Severely starved** | 5,280 tok (5.7x) | 0.49 | 253 | 196,836 ms | 404,039 ms | **0** |
 
-Two things fall out, and the second is the whole post.
+Starvation is real, and it is graceful. The severely-starved server did not crash, did not
+reject a single request (all 200 succeeded in every run), and did not error. It just got
+much slower: throughput fell **3.7x** (947 to 253 tok/s) and median TTFT rose **10x** (19 s
+to 197 s). That is the graceful degradation I was after: a memory-starved server slows to a
+crawl instead of falling over. If you have ever watched production latency creep up under
+load with no errors in the logs, this is one of the shapes it takes.
 
-**First, starvation is real and it is graceful.** The severely-starved server did not
-crash, did not reject a single request (all 200 succeeded in every run), and did not error.
-It just got dramatically slower: throughput fell **3.7x** (947 → 253 tok/s) and median TTFT
-rose **10x** (19 s → 197 s). That is the graceful-degradation headline the post was after,
-a memory-starved server slows to a crawl instead of falling over. If you have ever watched
-production latency creep up under load with no errors in the logs, this is one of the shapes
-it takes.
-
-**Second, and this is the surprise: preemption never fired.** Zero preemption events in
-every log, including the brutally-starved one. The mechanism I came to measure did not
-happen at all. The server got slow a *completely different way*, and I only understood how
-by reading the scheduler's own status lines instead of trusting my assumption.
+But preemption never fired. Zero preemption events in every log, including the
+brutally-starved one. The mechanism I set out to measure did not happen at all; the server
+slowed down by another route, which the scheduler's own status lines spell out.
 
 ![Two panels contrasting the failure modes: on the left, preemption yanks a running request out mid-generation and throws away its work to recompute later; on the right, a calm bouncer at a velvet rope admits only as many requests as the cache can seat and holds the rest in a waiting line, never evicting anyone](d7.jpg)
 
-## Reading the scheduler: admission control, not eviction
+## Reading the scheduler: it caps admission
 
 vLLM prints a status line every few seconds. On the 40-block server, deep into the flood,
 they all look like this:
@@ -99,14 +93,13 @@ they all look like this:
 Running: 6 reqs, Waiting: 194 reqs, GPU KV cache usage: 92.3%
 ```
 
-That line is the entire explanation. Of the 200 requests flooding in, the scheduler admits
+That line explains the whole thing. Of the 200 requests flooding in, the scheduler admits
 exactly **6 into the running batch**, parks the other **194 in a waiting queue**, and holds
-KV usage at ~92% without ever exceeding it. It is doing **admission control**: it looks at
-the tiny cache, calculates that only about six of these 1,536-token requests can fit their
-KV at once, and simply *refuses to start the seventh* until one of the six finishes and
-frees its blocks. Because it never over-commits the cache, it never has to evict anyone.
-Preemption is the recovery mechanism for when you admit too much; if you never admit too
-much, you never recover.
+KV usage at ~92% without exceeding it. This is **admission control**: it looks at the tiny
+cache, works out that only about six of these 1,536-token requests can fit their KV at once,
+and refuses to start the seventh until one of the six finishes and frees its blocks. Because
+it never over-commits the cache, it never has to evict anyone. Preemption is the recovery
+mechanism for when you admit too much; if you never admit too much, you never recover.
 
 ![A time series through the 200-request flood on the severely-starved server: the Running line is pinned flat at about 6 requests while the Waiting line falls steadily from 194 to 0 as the queue drains single-file, with zero preemptions logged across every run](fig4-admission-control.png)
 
@@ -127,49 +120,47 @@ from the start, so it never got into the over-committed state preemption exists 
 Preemption is the mechanism when demand *surprises* the scheduler; here demand was
 saturating but never surprising.
 
-## What this actually means
+## What this means in practice
 
-The real result is less tidy than the preemption story, and more useful: **under memory
-pressure this server does not thrash on eviction, it throttles admission.** The failure mode
-is a collapsed running batch, not a storm of preemptions. So the symptom to watch for in the
-logs is not "preempted" lines, it is a `Running:` count far below your `max_num_seqs` while a
-`Waiting:` queue piles up.
+The result is less tidy than the preemption story, and more useful: **under memory pressure
+this server throttles admission and lets the running batch collapse.** So the symptom to
+watch for in the logs is a `Running:` count far below your `max_num_seqs` while a `Waiting:`
+queue piles up, rather than any "preempted" lines.
 
-Two caveats on how far this generalizes. First, Qwen3.5-4B is **hybrid-attention** (Part 1);
-the **dense** transformers most readers run, such as Llama or Mistral, pay per-token KV on
-*every* layer. A dense model of similar size holds far less in the same cache, so it would
-hit this admission-control wall much sooner, without the 15x cut it took to pressure this
-one. But it should hit the *same* wall:
-admission control, not eviction.
+How far does this generalize? Qwen3.5-4B is **hybrid-attention** (Part 1); the **dense**
+transformers most readers run, such as Llama or Mistral, pay per-token KV on *every* layer.
+A dense model of similar size holds far less in the same cache, so it would hit this
+admission wall much sooner, without the 15x cut it took to pressure this one. It should still
+hit the same wall, where the scheduler caps admission rather than evicting.
 
-Second, and this is the bigger caveat: the workload was fixed-length, which let the scheduler
-size the batch safely from the start, exactly the condition (from the section above) under
-which it never has to evict. Real traffic, where generation lengths vary and a request can
-outrun the batch it was admitted into, is the case that can actually force preemption, and
-this experiment engineered that away. So read the headline as scoped to predictable-length
-load; a variable-length run is the experiment that would test it, and this was not one.
+The bigger limit is the workload. It was fixed-length, which let the scheduler size the batch
+safely from the start, exactly the condition (from the section above) under which it never
+has to evict. Real traffic, where generation lengths vary and a request can outrun the batch
+it was admitted into, is the case that can actually force preemption, and this experiment
+engineered that away. So read the finding as scoped to predictable-length load; a
+variable-length run is the experiment that would test it, and this was not one.
 
 ## What to take away
 
 1. **A memory-starved LLM server degrades gracefully, not catastrophically.** Cutting the
    KV cache 15x slowed the 4B by 3.7x in throughput and 10x in TTFT, with zero errors and
    zero rejected requests. Silent slowdown, not a crash, is the signature of KV pressure.
-2. **The mechanism was admission control, not preemption.** The scheduler capped the running
-   batch at what the tiny cache could hold (6 requests) and queued the rest, rather than
-   over-committing and evicting. Preemption is a recovery path for over-commitment; a
-   conservative scheduler that never over-commits never needs it.
+2. **The mechanism was admission control.** The scheduler capped the running batch at what
+   the tiny cache could hold (6 requests) and queued the rest, rather than over-committing
+   and evicting. Preemption is a recovery path for over-commitment; a conservative scheduler
+   that never over-commits never needs it.
 3. **A starved cache is really a small-batch problem.** The slowdown is Part 3's cliff in
    disguise: fewer concurrent requests means less weight-read amortization and a longer
    serial queue. KV capacity and batch size are two dials that move the same underlying
    thing, how many requests run at once.
-4. **Watch `Running:` vs `Waiting:`, not just "preempted."** On this class of model the tell
-   for memory pressure is a running batch stuck far below your configured cap with a growing
-   waiting queue, KV usage pinned near 100%. That is the server quietly telling you the cache
-   is the bottleneck.
-5. **The wrong prediction was the point.** I expected preemption and measured its absence.
-   Reporting what the server actually did, instead of the tidier story I planned to tell,
-   is where the real finding was, that on a hybrid model KV is hard to exhaust, and when you
-   do, it throttles admission rather than thrashing on eviction.
+4. **Watch the `Running:` and `Waiting:` counts.** On this class of model the tell for memory
+   pressure is a running batch stuck far below your configured cap with a growing waiting
+   queue, KV usage pinned near 100%. That is the server quietly telling you the cache is the
+   bottleneck.
+5. **On a hybrid model, KV is hard to exhaust.** It took a 15x cache cut and a 4x longer
+   workload to put this 4B under real KV pressure, and even then the server throttled
+   admission rather than thrashing on eviction. The measured absence of preemption is the
+   result, not a failed experiment.
 
 Next, and last, in the series: the finale, where a 9B model that fp16 cannot serve *usefully*
 on this GPU (its weights leave too little room for a working KV cache) is quantized to 4-bit,
