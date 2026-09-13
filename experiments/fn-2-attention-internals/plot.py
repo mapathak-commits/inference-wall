@@ -55,18 +55,31 @@ fig.suptitle('GPT-2 attention on "%s"' % meta["prompt"], fontsize=12, y=1.02)
 fig.savefig(f"{D}/fig_attention.png", dpi=130, facecolor=PAPER, bbox_inches="tight")
 plt.close(fig)
 
-# --- Figure 2: hidden-state norm growing across layers ---
+# --- Figure 2: peak residual-state magnitude per token ---
+# The layer axis invited a time-series reading; the finding is spatial, so collapse
+# layers and show each token's PEAK L2 norm across the stack as one bar. One token
+# ("The") towers over the rest.
 norms = np.linalg.norm(hidden, axis=-1)  # [L+1, S]
+peak = norms.max(axis=0)                 # [S]  largest magnitude any layer gives each token
+order = np.argsort(peak)                 # small -> large, so biggest bar sits on top
+y = np.arange(S)
 fig, ax = plt.subplots(figsize=(8, 4.6))
 fig.patch.set_facecolor(PAPER); ax.set_facecolor(PAPER)
-for s in range(S):
-    ax.plot(range(hidden.shape[0]), norms[:, s], marker="o", ms=3,
-            label=tokens[s].strip())
-ax.set_yscale("log")
-ax.set_xlabel("layer (0 = embedding, %d = final)" % (hidden.shape[0] - 1))
-ax.set_ylabel("hidden-state L2 norm (log scale)")
-ax.set_title("One token's residual norm spikes far above the rest (per token)")
-ax.legend(fontsize=7, ncol=2, frameon=False)
+colors = ["#c0392b" if i == int(peak.argmax()) else "#b8b2a7" for i in order]
+ax.barh(y, peak[order], color=colors)
+ax.set_yticks(y)
+ax.set_yticklabels([tokens[i].strip() for i in order], fontsize=9)
+ax.set_xlabel("peak residual-state L2 norm across all layers")
+med = float(np.median(peak))
+top = int(peak.argmax())
+ax.set_title('One token\'s state magnitude towers over the rest\n'
+             '("%s" peaks at %.0fx the median token)'
+             % (tokens[top].strip(), peak[top] / med))
+for i, idx in enumerate(order):          # print the value at each bar end
+    ax.text(peak[idx], i, f" {peak[idx]:.0f}", va="center", fontsize=8)
+ax.margins(x=0.12)
+for spine in ("top", "right"):
+    ax.spines[spine].set_visible(False)
 fig.savefig(f"{D}/fig_hidden_norm.png", dpi=130, facecolor=PAPER, bbox_inches="tight")
 plt.close(fig)
 
@@ -94,7 +107,7 @@ plt.close(fig)
 print("wrote fig_attention.png, fig_hidden_norm.png, fig_sink_grid.png")
 print("attention row-sum check (should be ~1.0):",
       round(float(attn[0, 0, -1].sum()), 4))
-print("last-layer norm range:", round(float(norms[-1].min()), 1),
-      "to", round(float(norms[-1].max()), 1))
+print("peak-norm ratio (max token / median token):",
+      round(float(peak.max() / np.median(peak)), 1))
 print("deep-half heads with >50%% on token 0:",
       round(float((sink[L // 2:] > 0.5).mean()) * 100), "%")

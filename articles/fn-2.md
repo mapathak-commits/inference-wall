@@ -1,16 +1,16 @@
 ---
-title: "Field note: I opened up one prompt to see what the model was thinking. It was thinking about the word \"The.\""
+title: "I opened up one prompt to see what the model was thinking. It was thinking about the word \"The.\""
 permalink: /articles/fn-2/
 image: /assets/figures/fn2-sink-grid.png
 ---
 
-*Field note from "The Inference Wall". Field notes are the short lane of the series: one
-prompt, one measurement, one thing I didn't expect. No production stack, no benchmark suite.
-Just a look inside.*
+*Part of "The Inference Wall". A detour from the usual rig: instead of Qwen3.5-4B under load on
+an A10G, this one opens up a small model, GPT-2, on a CPU, keeping every intermediate value so
+the arithmetic is slow enough and small enough to read.*
 
 *Manas Pathak · September 13, 2026*
 
-[The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Field note 2**
+[The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
 
 Most of this series watches models from the outside. How many tokens per second, how big a
 batch, how the work looks in a profiler trace. That's the serving layer, the plumbing that turns
@@ -21,23 +21,24 @@ model reads your prompt, it does a huge pile of arithmetic. Which earlier tokens
 How strongly? What is it holding onto as it goes? Those numbers exist for a fraction of a second
 and then they're gone.
 
-So I asked a simple question. For one prompt, can I just watch what the model is doing inside
-while it reads? It turns out you can, and the picture is stranger than I expected.
+I asked a simple question: for one prompt, can I just watch what the model is doing inside while
+it reads? It turns out you can, and the picture is stranger than I expected.
 
 ## What attention is doing
 
 If you've read [the primer on what happens inside an LLM]({{ '/articles/primer-2/' | relative_url }}),
 skip ahead. If not, take one sentence: *The cat sat on the keyboard again.* The model reads it one
-token at a time (here each token is just a word), and when it gets to "sat" it has a problem.
-"Sat" on its own means nothing; what sat is back at "cat." So the model reaches back over the
-tokens it has already read and pulls "cat" toward "sat." That reaching back is **attention**, and
-it is the whole reason a model handles a sentence rather than an unordered pile of tokens.
+token at a time; for simplicity, let's say each word is a token. When it reaches "sat" it has a
+problem. On its own, "sat" means nothing; what sat is back at "cat." To resolve it, the model
+reaches back over the tokens it has already read and pulls "cat" toward "sat." That reaching back
+is **attention**, and it is the whole reason a model handles a sentence rather than an unordered
+pile of tokens.
 
-It doesn't just pick one earlier token. Each token hands out a fixed amount of weight across all
-the tokens before it, and that weight sums to 1: a probability distribution over the earlier
-tokens. I'll call it the token's pie, one slice per earlier token, where a fat slice means "I'm
-leaning hard on that one" and a sliver means "barely." When the model reads "sat," a good pie hands
-most of itself to "cat" and a little to "the."
+It doesn't attend to just one earlier token. Each token spreads a fixed budget of weight across
+all the tokens before it, a probability distribution over the earlier tokens: non-negative weights
+that sum to 1. I'll call one token's distribution its pie, since attention divides it into slices,
+one per earlier token. When the model processes "sat," a well-behaved pie puts most of its mass on
+"cat" and a little on "the."
 
 And the model does this many times over in parallel. Each pass is a **head**, and different heads
 look for different things: one might chase the subject of the verb, another just the token right
@@ -48,12 +49,12 @@ token. That was the thing I wanted to see.
 ## Getting the numbers out
 
 The fast tools everyone serves models with, like vLLM or Ollama, *can't* show you this: their
-whole job is to reach the answer fast and skip the scratch work on the way, which is the whole
-reason this is a field note. You have to use a slower library, HuggingFace `transformers`, and ask
-it to hand back the numbers the fast tools throw away.
+whole job is to reach the answer fast and skip the scratch work on the way. To see it you have to
+use a slower library, HuggingFace `transformers`, and ask it to hand back the numbers the fast
+tools throw away.
 
-If you don't care about the code, skip the gray boxes. It's three settings that mean "keep the
-attention pie-slices, keep the running state, and keep the memory of earlier tokens":
+If you don't care about the code, skip the gray boxes. It comes down to three settings that mean
+keep the attention pie-slices, keep the running state, and keep the memory of earlier tokens:
 
 ```python
 model = AutoModelForCausalLM.from_pretrained(
@@ -74,11 +75,11 @@ each token, snapshotted after every layer. The full runnable version is
 
 ## What one head is looking at
 
-The clean way to read an attention grid: pick a row (that's one token), and the bright cells are
+The clean way to read an attention grid: pick a row, which is one token, and the bright cells are
 the earlier tokens it leaned on. I picked `"The cat sat on the keyboard again."` because some heads
 do something genuinely readable with it.
 
-Take layer 4, head 3. It's a "who did what" head: several later tokens reach back and grab the
+Take layer 4, head 3. It's a subject-tracking head: several later tokens reach back and grab the
 subject of the sentence. "sat" looks at "cat" with a slice of 0.96, "on" looks at "cat" at 0.89,
 even the final period points back at "cat." You can watch the model tie the sentence together,
 exactly the intuition you'd hope for. Now score every head by a different number: how big a slice
@@ -87,10 +88,10 @@ first token a slice of 1.00, the whole pie. Here the two sit side by side:
 
 ![Two GPT-2 attention grids side by side. On the left, layer 4 head 3, several rows point back at the "cat" column with printed weights like 0.96 and 0.89. On the right, layer 5 head 1, one solid bright column on the first token, every cell reading 1.00.]({{ '/assets/figures/fn2-attention-grids.png' | relative_url }})
 
-*Each row is a token doing the looking; each cell is the slice it gave an earlier token (numbers
-printed in, darker means smaller; the blank upper triangle is just the future, which no token is
-allowed to see). Left, layer 4, head 3: a readable head, where later tokens reach back to the
-subject, "cat." Right, layer 5, head 1: the surprise. Every token, whatever it means, hands its
+*Each row is a token doing the looking; each cell is the slice it gave an earlier token. Numbers
+are printed in, darker means smaller, and the blank upper triangle is just the future, which no
+token is allowed to see. Left, layer 4, head 3: a readable head, where later tokens reach back to
+the subject, "cat." Right, layer 5, head 1: the surprise. Every token, whatever it means, hands its
 entire slice to the first token, "The."*
 
 The left panel is what I assumed all attention looked like: tokens wiring up to each other, meaning
@@ -103,9 +104,9 @@ a grid, the back half of the network lights up almost entirely:
 ![A 12-by-12 grid of layer versus head, shaded by how much each head's last token looks at the first token. The top rows (early layers) are dark; the bottom rows (deep layers) are mostly bright.]({{ '/assets/figures/fn2-sink-grid.png' | relative_url }})
 
 *Each square is one head, shaded by how much of the last token's attention it dumps on the first
-token. Early layers (top) still do real local work like the "cat" head above. In the deep layers
-(bottom), most heads have gone bright. The boxed square is layer 5, head 1. Across the back half of
-the network, 92% of heads send more than half their attention to the first token.*
+token. The early layers up top still do real local work like the subject-tracking head above.
+Deeper in the network, most heads have gone bright. The boxed square is layer 5, head 1. Across the
+back half of the network, 92% of heads send more than half their attention to the first token.*
 
 ## Why it does that
 
@@ -117,43 +118,41 @@ tokens, whether or not any of them are relevant to its job. But heads are specia
 hunts for, say, the verb three tokens back has nothing to do in a sentence where that pattern
 doesn't appear. It still has to put its pie somewhere.
 
-So it dumps the budget on a token that is always there, always in the same spot, and carries no
-meaning worth disturbing: the first one. The sink is the model's junk drawer, a safe place to
+It dumps the budget instead on a token that is always there, always in the same spot, and carries
+no meaning worth disturbing: the first one. The sink is the model's junk drawer, a safe place to
 offload attention it doesn't want to spend. The first token gets the job because every later token
 can see it, and a fixed target is easy for the model to learn. The
-[StreamingLLM paper](https://arxiv.org/abs/2309.17453) (Xiao et al., 2023) named this effect and
+[StreamingLLM paper](https://arxiv.org/abs/2309.17453) by Xiao et al. in 2023 named this effect and
 showed that the model depends on it.
 
 ## The second surprise: one token's magnitude explodes
 
 While I had the internals open, I looked at the other thing the model hands back: the running state
 it carries for each token. Each token's state is a vector, and I can summarize it with a single
-number: its **magnitude**, the plain length of that vector (its L2 norm, the square root of the sum
-of its squared components). Every token's vector has the same number of components, 768 of them in
+number: its **magnitude**, the plain length of that vector, its L2 norm: the square root of the sum
+of its squared components. Every token's vector has the same number of components, 768 of them in
 GPT-2, so this isn't about one token having a longer vector than another. It's about how big the
-numbers inside are. Track that magnitude layer by layer and almost every token grows gently and
-stays in a tight pack. Except one.
+numbers inside are. For each token I take the largest magnitude it reaches at any layer. Seven of
+the eight land within a narrow band. One does not.
 
-![Per-token state magnitude across the layers, on a log scale. One line, the first token, shoots far above the pack in the middle layers, rides high, and drops back at the end.]({{ '/assets/figures/fn2-magnitude.png' | relative_url }})
+![A horizontal bar chart of eight tokens, each bar the token's largest state magnitude across all layers. Seven bars are short and about equal; the bar for the first token, "The," is more than ten times longer than any other.]({{ '/assets/figures/fn2-magnitude.png' | relative_url }})
 
-*The magnitude of each token's internal state, layer by layer (log scale, so each gridline is 10x).
-Every token grows gently except "The," which spikes to about 39 times larger than the rest through
-the middle of the network, then settles back into the pack right at the end. On a normal scale the
-spike would flatten every other line to the floor.*
+*Each bar is one token's largest internal-state magnitude across all layers. Seven tokens sit in a
+tight band near a magnitude of 250. "The" reaches about 3,100, roughly 12 times the median token.
+That single value is large enough to dominate everything the network carries at that position.*
 
-One token blows up far past the others, the same one again, peaks in the middle of the network, and
-returns to the pack by the final layer. If you only looked at the model's output, which is all you
-normally get, you'd never know it happened. You have to watch the middle of the computation to
-catch it.
+The outlier is the first token again. Its magnitude also climbs highest in the middle layers and
+eases back toward the pack by the final one, so if you only read the model's output, which is all
+you normally get, you'd never see it. You have to look inside the computation to catch it.
 
-These spikes are called **massive activations** ([Sun et al., 2024](https://arxiv.org/abs/2402.17762)),
-and they're the flip side of the sink. The model parks a big, roughly constant scratch value on one
-token and then points its spare attention there. The junk drawer and the scratch pad are the same
-token.
+These spikes are called **massive activations**, named by
+[Sun et al. in 2024](https://arxiv.org/abs/2402.17762), and they're the flip side of the sink. The
+model parks a big, roughly constant scratch value on one token and then points its spare attention
+there. The junk drawer and the scratch pad are the same token.
 
-(I ran the same check across a handful of other models, including Meta's OPT and Alibaba's Qwen,
-and both effects showed up every time. But the point here is the intuition and how to look, not a
-survey, so one clean example carries it.)
+I ran the same check across a handful of other models, including Meta's OPT and Alibaba's Qwen, and
+both effects showed up every time. The point here is the intuition and how to look, not a survey,
+so one clean example carries it.
 
 ## Why the fast tools can't show you this
 
@@ -163,17 +162,17 @@ never build the picture I just showed you.
 That 8x8 grid, one weight for every pair of tokens, is the expensive part of attention. For a real
 prompt of thousands of tokens it's a grid of millions of cells, and its size grows with the
 *square* of the length. The entire art of fast serving is to get the *result* of attention without
-ever writing that giant grid down. FlashAttention, the subject of the next full post, computes it in
+ever writing that giant grid down. FlashAttention, the subject of a coming post, computes it in
 small tiles and never stores the full grid. PagedAttention, the trick vLLM is built on, streams the
 earlier tokens' memory through the chip as fast as it can and would never stop to hand you a
 labeled table. Speed comes precisely from throwing away the scratch work I wanted to read.
 
-So the numbers I plotted exist for a few microseconds inside a fused chip operation and then
+The numbers I plotted exist for only a few microseconds inside a fused chip operation and then
 they're gone. The serving layer stays perfectly observable, and watching it is most of what this
 series does. But this deeper math layer is deliberately optimized out of existence in the fast
-path. To see it, you run the slow version: one small model, full precision, on a CPU, with
-the flags that keep everything. It would never survive in production. It's also the only version
-that stops to write down what the model is thinking.
+path. To see it, you run the slow version: one small model, full precision, on a CPU, with the
+flags that keep everything. It would never survive in production. It's also the only version that
+stops to write down what the model is thinking.
 
 ## Why it matters
 
@@ -184,11 +183,12 @@ problems in running these models cheaply.
 model's window, the obvious fix is to drop the oldest tokens. StreamingLLM showed this wrecks the
 model's quality, and the sink is why: the deep layers are still pouring most of their attention
 onto those first few tokens. Delete them and every head's pie has to be re-sliced onto tokens that
-were only ever meant to be ignored, and the model falls apart. The fix that works is to *keep* a
-few opening tokens forever, however long the chat gets. The junk drawer turns out to be structural.
+were only ever meant to be ignored, and the model falls apart. The fix is to always keep the first
+few tokens in the window, no matter how long the conversation grows, so the sink never disappears
+from under the deep layers.
 
-**The high-magnitude token is why shrinking models is hard.** The series finale is about running
-models in 4 bits instead of 16 or 32, which saves enormous memory but means squeezing every number
+**The high-magnitude token is why shrinking models is hard.** Part 5 of this series, still to come,
+runs models in 4 bits instead of 16, which saves enormous memory but means squeezing every number
 into a tiny range of values. That squeeze hates outliers: one value 30 or 100 times bigger than its
 neighbors stretches the range until everything else rounds to mush. The massive-activation token is
 exactly that outlier, and it shows up on nearly every pass. A big slice of the research on shrinking
@@ -198,18 +198,19 @@ Both of these were discovered the hard way, at scale, by teams running models in
 both are sitting right there in forty lines of code on a single toy sentence, if you're willing to
 run the slow version that writes down what the fast one erases.
 
-I went looking to watch a model think. What I mostly found was housekeeping: a place to dump
-attention it doesn't need, and a scratch value stuck on the nearest throwaway token. The fun part
-isn't that the model is doing something deep with the word "The." It's that this unglamorous
-bookkeeping matters enough that two of the nastiest problems in serving are, underneath, just
-fights with it.
+The two effects are one phenomenon seen from two sides. A large, roughly constant value sits on the
+first token, and the network's spare attention drains onto it. Neither has anything to do with the
+word "The" in particular; the first token is simply a convenient, always-present place to park what
+the model doesn't need. That bookkeeping is not a curiosity. It sets a hard limit on two of the
+nastiest problems in serving these models: what you can evict from a long context, and how far you
+can compress the weights.
 
 ---
 
 *Method: GPT-2, HuggingFace `transformers` eager attention, full precision, CPU, prompt
 `"The cat sat on the keyboard again."` The sink score is the last token's attention weight on the
-first token, per head. The magnitude spike is the largest per-token state vector magnitude (L2
-norm) relative to the median, across all layers. The code that produces both figures lives in
+first token, per head. The magnitude spike is the largest per-token state vector magnitude, its L2
+norm, relative to the median, across all layers. The code that produces both figures lives in
 [`experiments/fn-2-attention-internals/`](https://github.com/mapathak-commits/inference-wall/tree/main/experiments/fn-2-attention-internals):
 `observe.py` pulls the weights and running state out of the model, and `plot.py` renders the three
 figures above. No GPU needed; it runs on a CPU in a few seconds.*
