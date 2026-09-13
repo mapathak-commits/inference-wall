@@ -36,7 +36,7 @@ profiler and has no gut feel for where the latency actually goes. You do not nee
 CUDA, or how an attention kernel works inside; you need to be curious about why the server
 is slower than you expected.
 
-Underneath all five posts is one claim, worth stating up front so you can watch it recur:
+Underneath every post is one claim, worth stating up front so you can watch it recur:
 **on this hardware, inference is a bytes-through-memory problem more than a
 math problem.** The GPU spends its time moving the model's weights through memory to emit
 each token, so nearly every limit you hit, and every win you get, comes down to how many
@@ -48,7 +48,7 @@ different face of it.
 Everything in the series runs on the same setup, so the results compose into one story:
 
 - **Model:** `Qwen/Qwen3.5-4B`, fp16, served text-only. A real hybrid-attention model,
-  not a toy. The finale swaps in `Qwen3.5-9B-AWQ` to make a point about quantization.
+  not a toy. The quantization post swaps in `Qwen3.5-9B-AWQ` to make its point.
 - **GPU:** a single NVIDIA A10G, 23 GB. Mid-range, the kind of GPU a small team actually
   has, not an H100 cluster.
 - **Server:** `vllm serve` driven by `vllm bench serve` under a request-rate sweep, so
@@ -108,24 +108,46 @@ the full arc:
    model gets *less* from batching, not more. What you give up is per-stream smoothness and, without it,
    fairness entirely.
 
-4. **Cache starvation** *(coming)*. How a server slows down gracefully instead of crashing when memory
-   gets tight, and the surprise underneath: on this hybrid model the KV cache is so hard to
-   exhaust that forcing pressure took a 15x cache cut, and even then the scheduler throttled
-   *admission* (a collapsed running batch) rather than firing the preemption the post set out
-   to measure. The wrong prediction is the finding.
+4. **Open the box: attention internals** *(coming)*. A detour off the rig. Instead of Qwen
+   under load, run a small model, GPT-2, on a CPU in full precision and keep every
+   intermediate value, so you can watch what the model does inside as it reads one sentence.
+   Two things jump out: a deep head that dumps almost all its attention onto the first token
+   (the "attention sink"), and one token whose internal-state magnitude towers ~12x over the
+   rest (a "massive activation"). They turn out to be one phenomenon, and they sit under two
+   of the hardest problems in serving: what you can evict from a long context, and how far you
+   can compress the weights.
 
-5. **Overcome the limit: quantization** *(coming)*. The finale. A 9B model that fp16 cannot serve
+5. **Cache starvation** *(coming)*. How a server slows down gracefully instead of crashing when memory
+   gets tight, and the surprise underneath: vLLM's eviction backstop fires far more readily
+   than its docs' tone suggests, on every workload rather than only the pathological one, and
+   the cost is latency you can see coming from the memory math, not a crash. A measurement
+   detour rides along: the obvious way to count preemptions, grepping the server log, is
+   silently broken, which is its own lesson about trusting an instrument that reads zero.
+
+6. **Overcome the limit: quantization** *(coming)*. A 9B model that fp16 cannot serve
    *usefully* on this GPU is made to fit *and* serve at roughly 80% of the 4B's speed, using
    4-bit weights. Decode is bandwidth-bound, so what matters is bytes moved per token, and
    the 4-bit 9B's weights come out to only ~1.3x the 4B's fp16 weights (measured, not the
-   2.25x its parameter count implies). The payoff of the whole arc: how you beat a hardware
-   limit instead of just measuring it.
+   2.25x its parameter count implies): beating a hardware limit instead of just measuring it.
 
-All five posts are backed by measurements on this exact model. Parts 3 and 4 were the
-"earn-it" slots, strong ideas held back until re-measured on the 4B rather than back-filled
-from the earlier small-model study, and that discipline paid off: Part 4's headline flipped
-under re-measurement (the preemption it expected never fired), which is exactly the kind of
-finding back-filling would have buried.
+7. **Speculative decoding** *(coming)*. The third lever for getting more tokens out of one
+   stream of weight bytes: let a cheap guesser propose several tokens and have the big model
+   verify them in a single pass. Unlike batching and quantization, this one is a bet placed
+   per token, and the post measures where the bet stops paying, and even inverts, under load.
+
+8. **FlashAttention** *(planned)*. Generalizes the bytes-through-memory law one level down,
+   into the attention kernel itself, and is the first part to run a dense model alongside the
+   rig.
+
+9. **Off the rig: decode on a CPU** *(coming)*. What the same model looks like when the GPU is
+   gone entirely, and what that teaches about which of the series' walls are about the GPU
+   specifically and which are about the arithmetic.
+
+Every post is backed by measurements on this exact rig. Parts 3 and 5 were the "earn-it"
+slots, strong ideas held back until re-measured on the 4B rather than back-filled from the
+earlier small-model study, and that discipline paid off: the cache post's headline flipped
+once its measurement was corrected, which is exactly the kind of finding back-filling would
+have buried.
 
 ## How to read it
 

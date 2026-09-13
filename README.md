@@ -10,9 +10,9 @@ The method, in one line: take one real model on one ordinary GPU, turn a single 
 something breaks, report the before-and-after number, and read the profiler trace that
 explains why. A break, a number, and a trace.
 
-The rig: `Qwen/Qwen3.5-4B` (fp16, with a `Qwen3.5-9B-AWQ` companion for the finale) on a
-single NVIDIA A10G (23 GB), served by vLLM 0.18.0 and measured under real load with
-`vllm bench serve`.
+The rig: `Qwen/Qwen3.5-4B` (fp16, with a `Qwen3.5-9B-AWQ` companion for the quantization
+post) on a single NVIDIA A10G (23 GB), served by vLLM 0.18.0 and measured under real load
+with `vllm bench serve`.
 
 ## The series
 
@@ -28,61 +28,76 @@ New parts are published weekly, on Fridays.
 | 2 | [The prefill that freezes your decoders](articles/part-2.md) | published 2026-08-28 |
 | 3 | [The batching cliff](articles/part-3.md) | published 2026-09-04 |
 
-**Drafted, not yet live** (branch → recommended publish slot):
+**Drafted, not yet live** (publish order = part number; branches carry the draft):
 
-| Slot | Title | Branch | State |
+| Part | Title | Branch | State |
 |---|---|---|---|
-| Field note | I opened up one prompt to see what the model was thinking | `preview/fn2` | reviewed, ready |
-| 4 | Starving the cache: how a server degrades when it runs out of KV | `preview/part-4-corrected` | full draft (article form) |
-| 5 | Quantization as a fit-enabler | `preview/part-5` | full draft |
-| 6 | Speculative decoding | `preview/part-6` | full draft |
-| 7 | FlashAttention at the scale where it matters | — | **not yet drafted** |
-| 8 | Off the rig: decode on a CPU | untracked `articles/part-8.md` | full draft |
+| 4 | I opened up one prompt to see what the model was thinking | `preview/fn2` | reviewed, ready |
+| 5 | Starving the cache: how a server degrades when it runs out of KV | `preview/part-4-corrected` | full draft (article form) |
+| 6 | Quantization as a fit-enabler | `preview/part-5` | full draft |
+| 7 | Speculative decoding | `preview/part-6` | full draft |
+| 8 | FlashAttention at the scale where it matters | — | **not yet drafted** |
+| 9 | Off the rig: decode on a CPU | `preview/part-9` | full draft |
+
+> **Branch names lag the numbering.** The renumbering (below) shifted every draft
+> down by one, but the `preview/<part>` branch names still read as they were first
+> cut: `preview/fn2` → Part 4, `preview/part-4-corrected` → Part 5, `preview/part-5`
+> → Part 6, `preview/part-6` → Part 7, `preview/part-9` → Part 9. Each draft's own
+> body carries the correct new number; the branch name is just a stable handle.
+
+### The renumbering (2026-09-13)
+
+The attention-internals post began life as an unnumbered "field note," a detour
+outside the weekly arc. It was folded into the numbered series as **Part 4** to
+avoid introducing a third content category beyond *post* and *primer*. That shifted
+every later draft down by one:
+
+| Post | Was | Now |
+|---|---|---|
+| Attention internals (was "field note") | — | **4** |
+| Starving the cache | 4 | **5** |
+| Quantization | 5 | **6** |
+| Speculative decoding | 6 | **7** |
+| FlashAttention *(undrafted)* | 7 | **8** |
+| Off the rig (CPU) | 8 | **9** |
+
+Every draft's self-reference and cross-references were updated on its branch to
+match. The "finale" framing the quantization post once carried was also dropped:
+the series has grown past a fixed five-post arc, so no single post closes it.
 
 ### Recommended publishing order
 
-The order is content-driven, not just chronological, and the drafts' own
-cross-references pin most of it:
+The order is content-driven, not just chronological, and equals the part numbers
+above. The drafts' own cross-references pin most of it:
 
-1. **Field note (attention internals)** — ready now, standalone, depends only on
-   Primer 2 (live). Ship it next: it forward-references "Part 5, still to come"
-   and "FlashAttention, a coming post," so publishing it before those keeps both
-   references honest, and it is a light detour between the batching cliff and the
-   heavier cache/quantization posts. Unnumbered, like the primers, so it never
-   blocks the numbered arc.
-2. **Part 4 — Starving the cache.** The natural continuation of the arc: its
-   finding (a starved cache degrades into a small-batch server) is priced by Part
-   3's cliff, and it completes the two-walls picture — Part 1's bandwidth wall
-   plus this capacity wall.
-3. **Part 5 — Quantization.** Closes the original arc that 1→3→4 build (fewer
-   bytes per token attacks both walls at once). The draft calls itself the finale
-   of that arc.
-4. **Part 6 — Speculative decoding.** Must follow 4 and 5: the draft explicitly
-   leans on Part 4's admission-control signature and references Part 5 and Part
-   3's crossover.
-5. **Part 7 — FlashAttention** *(needs drafting)*. Generalizes the
+1. **Part 4 — Attention internals.** Ready now, standalone, depends only on
+   Primer 2 (live). Ship it next: it forward-references "Part 6, still to come"
+   (quantization) and "FlashAttention, a coming post," so publishing it before
+   those keeps both references honest, and it is a light detour between the
+   batching cliff and the heavier cache/quantization posts.
+2. **Part 5 — Starving the cache.** Its finding (a starved cache degrades into a
+   small-batch server) is priced by Part 3's cliff, and it completes the two-walls
+   picture — Part 1's bandwidth wall plus this capacity wall.
+3. **Part 6 — Quantization.** Fewer bytes per token attacks both walls at once;
+   ties back to where the series started.
+4. **Part 7 — Speculative decoding.** Must follow 5 and 6: the draft explicitly
+   leans on the cache post's admission-control signature (Part 5) and references
+   quantization (Part 6) and Part 3's crossover.
+5. **Part 8 — FlashAttention** *(needs drafting)*. Generalizes the
    bytes-through-memory law one level down and is the first part to run a dense
    model alongside the rig. This is the one gap: there is no draft yet, so it is
    the sequencing risk if the CPU post is ready first.
-6. **Part 8 — Off the rig (CPU).** Complete and depends only on Part 1, so it can
+6. **Part 9 — Off the rig (CPU).** Complete and depends only on Part 1, so it can
    slot anywhere after Part 1, but reads best as the "after the arc closes"
    excursion. Candidates beyond it: prefix caching, tooling, cross-engine
    comparisons.
 
-**Two things to resolve before shipping in this order:**
+**One thing to resolve before shipping in this order:** Part 8 (FlashAttention)
+is not yet drafted while Part 9 (CPU) is complete. Either draft FlashAttention
+before shipping the CPU post, or accept the CPU post shipping ahead of its number.
 
-- **The 7-before-8 gap.** Part 8 (CPU) is drafted but Part 7 (FlashAttention) is
-  not. Either draft FlashAttention before shipping the CPU post, or renumber the
-  CPU post to 7 (which then requires editing Part 4's body, below).
-- **Part 4 ↔ Part 8 reference.** Part 4's body cites "the same lesson Part 8
-  arrived at from the other direction" in the past tense, which reads as if Part 8
-  already shipped. Publishing 4 before 8 needs that reworded to neutral/present
-  tense (or publish 8 first).
-
-Also worth a cleanup: `preview/part-6` still carries stale `drafts/part-2/` and
-`drafts/part-3/` copies of already-published posts; and Part 4's draft is in
-article form (Liquid paths) on its branch rather than the `drafts/<part>/README.md`
-preview convention the other drafts use.
+Also worth noting: Part 5's draft is in article form (Liquid paths) on its branch
+rather than the `drafts/<part>/README.md` preview convention the other drafts use.
 
 Primer 2 ("What actually happens inside an LLM") is a reference companion,
 not a numbered part: it opens the attention black box the first primer left shut
@@ -146,11 +161,13 @@ fast-forward merge of that branch into `main`. Unlike previews, a publish branch
 carries the real article with Liquid paths plus its `experiments/`, `benchmarks/`,
 and `assets/` material, and the index/nav flips.
 
-Current preview branches: `preview/fn2` (attention-internals field note, ready),
-`preview/part-4-corrected` (Starving the cache — note this one holds an
-article-form draft, not the `drafts/<part>/README.md` convention),
-`preview/part-5` (quantization), `preview/part-6` (speculative decoding). See the
-recommended publishing order under [The series](#the-series).
+Current preview branches (branch name → part number; see the renumbering note under
+[The series](#the-series)): `preview/fn2` (Part 4, attention internals, ready),
+`preview/part-4-corrected` (Part 5, Starving the cache — note this one holds an
+article-form draft, not the `drafts/<part>/README.md` convention), `preview/part-5`
+(Part 6, quantization), `preview/part-6` (Part 7, speculative decoding),
+`preview/part-9` (Part 9, decode on a CPU). See the recommended publishing order
+under [The series](#the-series).
 
 ## Reproducing
 
