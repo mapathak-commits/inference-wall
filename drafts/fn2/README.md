@@ -1,6 +1,6 @@
 # I opened up one prompt to see what the model was thinking. It was thinking about the word "The."
 
-*Part of The Inference Wall. A detour from the usual rig: instead of Qwen3.5-4B under load on an A10G, this one opens up a small model, GPT-2, on a CPU, keeping every intermediate value so the arithmetic is slow enough and small enough to read.*
+*Part 4 of The Inference Wall. A detour from the usual rig: instead of Qwen3.5-4B under load on an A10G, this one opens up a small model, GPT-2, on a CPU, keeping every intermediate value so the arithmetic is slow enough and small enough to read.*
 
 ---
 
@@ -91,7 +91,7 @@ Two throwaway observations about an eight-token sentence turn out to sit under t
 
 **The sink is why you can't just forget the start of a long chat.** When a conversation runs past a model's window, the obvious fix is to drop the oldest tokens. StreamingLLM showed this wrecks the model's quality, and the sink is why: the deep layers are still pouring most of their attention onto those first few tokens. Delete them and every head's pie has to be re-sliced onto tokens that were only ever meant to be ignored, and the model falls apart. The fix is to always keep the first few tokens in the window, no matter how long the conversation grows, so the sink never disappears from under the deep layers.
 
-**The high-magnitude token is why shrinking models is hard.** Part 5 of this series, still to come, runs models in 4 bits instead of 16, which saves enormous memory but means squeezing every number into a tiny range of values. That squeeze hates outliers: one value 30 or 100 times bigger than its neighbors stretches the range until everything else rounds to mush. The massive-activation token is exactly that outlier, and it shows up on nearly every pass. A big slice of the research on shrinking models is, underneath, elaborate machinery for handling these specific spikes.
+**The high-magnitude token is why shrinking models is hard.** Part 6 of this series, still to come, runs models in 4 bits instead of 16, which saves enormous memory but means squeezing every number into a tiny range of values. That squeeze hates outliers: one value 30 or 100 times bigger than its neighbors stretches the range until everything else rounds to mush. The massive-activation token is exactly that outlier, and it shows up on nearly every pass. A big slice of the research on shrinking models is, underneath, elaborate machinery for handling these specific spikes.
 
 Both of these were discovered the hard way, at scale, by teams running models in production. And both are sitting right there in forty lines of code on a single toy sentence, if you're willing to run the slow version that writes down what the fast one erases.
 

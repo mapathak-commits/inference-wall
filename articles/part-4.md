@@ -1,16 +1,16 @@
 ---
 title: "I opened up one prompt to see what the model was thinking. It was thinking about the word \"The.\""
-permalink: /articles/fn-2/
+permalink: /articles/part-4/
 image: /assets/figures/fn2-sink-grid.png
 ---
 
-*Part of "The Inference Wall". A detour from the usual rig: instead of Qwen3.5-4B under load on
+*Part 4 of "The Inference Wall". A detour from the usual rig: instead of Qwen3.5-4B under load on
 an A10G, this one opens up a small model, GPT-2, on a CPU, keeping every intermediate value so
 the arithmetic is slow enough and small enough to read.*
 
 *Manas Pathak · September 13, 2026*
 
-[The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
+[The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 4**
 
 Most of this series watches models from the outside. How many tokens per second, how big a
 batch, how the work looks in a profiler trace. That's the serving layer, the plumbing that turns
@@ -187,7 +187,7 @@ were only ever meant to be ignored, and the model falls apart. The fix is to alw
 few tokens in the window, no matter how long the conversation grows, so the sink never disappears
 from under the deep layers.
 
-**The high-magnitude token is why shrinking models is hard.** Part 5 of this series, still to come,
+**The high-magnitude token is why shrinking models is hard.** Part 6 of this series, still to come,
 runs models in 4 bits instead of 16, which saves enormous memory but means squeezing every number
 into a tiny range of values. That squeeze hates outliers: one value 30 or 100 times bigger than its
 neighbors stretches the range until everything else rounds to mush. The massive-activation token is
@@ -217,7 +217,7 @@ figures above. No GPU needed; it runs on a CPU in a few seconds.*
 
 ---
 
-**Previous:** [Part 3: The batching cliff]({{ '/articles/part-3/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
+**Previous:** [Part 3: The batching cliff]({{ '/articles/part-3/' | relative_url }}) · **Next:** Part 5, coming next Friday · [All posts]({{ '/articles/' | relative_url }})
 
 ---
 
