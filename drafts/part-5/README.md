@@ -1,6 +1,6 @@
 # Quantization as a fit-enabler: how a 9B model serves at 80% of a 4B's speed
 
-*Draft 1. Part 5 of "The Inference Wall." Same rig
+*Draft 1. Part 6 of "The Inference Wall." Same rig
 throughout: one NVIDIA A10G (23 GB). Qwen3.5-4B (fp16) vs Qwen3.5-9B (4-bit AWQ).*
 
 ---
