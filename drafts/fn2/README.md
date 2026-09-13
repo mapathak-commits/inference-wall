@@ -12,7 +12,7 @@ So I asked a simple question. For one prompt, can I just watch what the model is
 
 ## What attention is doing
 
-If you've read [the primer on what happens inside an LLM](https://mapathak-commits.github.io/inference-wall/articles/primer-2/), skip ahead. If not, take one sentence: *the cat sat on the keyboard*. The model reads it one word at a time, and when it gets to "sat" it has a problem. "Sat" on its own means nothing; what sat is back at "cat." So the model reaches back over the words it has already read and pulls "cat" toward "sat." That reaching back is **attention**, and it is the whole reason a model handles a sentence rather than an unordered pile of words.
+If you've read [the primer on what happens inside an LLM](https://mapathak-commits.github.io/inference-wall/articles/primer-2/), skip ahead. If not, take one sentence: *The cat sat on the keyboard again.* The model reads it one word at a time, and when it gets to "sat" it has a problem. "Sat" on its own means nothing; what sat is back at "cat." So the model reaches back over the words it has already read and pulls "cat" toward "sat." That reaching back is **attention**, and it is the whole reason a model handles a sentence rather than an unordered pile of words.
 
 It doesn't just pick one earlier word. Each word hands out a fixed amount of weight across all the words before it, and that weight sums to 1: a probability distribution over the earlier words. I'll call it the word's pie, one slice per earlier word, where a fat slice means "I'm leaning hard on that word" and a sliver means "barely." When the model reads "sat," a good pie hands most of itself to "cat" and a little to "the."
 

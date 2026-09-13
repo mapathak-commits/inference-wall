@@ -27,11 +27,11 @@ while it reads? It turns out you can, and the picture is stranger than I expecte
 ## What attention is doing
 
 If you've read [the primer on what happens inside an LLM]({{ '/articles/primer-2/' | relative_url }}),
-skip ahead. If not, take one sentence: *the cat sat on the keyboard*. The model reads it one word
-at a time, and when it gets to "sat" it has a problem. "Sat" on its own means nothing; what sat is
-back at "cat." So the model reaches back over the words it has already read and pulls "cat" toward
-"sat." That reaching back is **attention**, and it is the whole reason a model handles a sentence
-rather than an unordered pile of words.
+skip ahead. If not, take one sentence: *The cat sat on the keyboard again.* The model reads it one
+word at a time, and when it gets to "sat" it has a problem. "Sat" on its own means nothing; what
+sat is back at "cat." So the model reaches back over the words it has already read and pulls "cat"
+toward "sat." That reaching back is **attention**, and it is the whole reason a model handles a
+sentence rather than an unordered pile of words.
 
 It doesn't just pick one earlier word. Each word hands out a fixed amount of weight across all the
 words before it, and that weight sums to 1: a probability distribution over the earlier words. I'll
