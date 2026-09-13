@@ -24,26 +24,26 @@ and then they're gone.
 So I asked a simple question. For one prompt, can I just watch what the model is doing inside
 while it reads? It turns out you can, and the picture is stranger than I expected.
 
-## A one-minute refresher on attention
+## What attention is doing
 
 If you've read [the primer on what happens inside an LLM]({{ '/articles/primer-2/' | relative_url }}),
-skip this. If not, here's the only idea you need.
+skip ahead. If not, take one sentence: *the cat sat on the keyboard*. The model reads it one word
+at a time, and when it gets to "sat" it has a problem. "Sat" on its own means nothing; what sat is
+back at "cat." So the model reaches back over the words it has already read and pulls "cat" toward
+"sat." That reaching back is **attention**, and it is the whole reason a model handles a sentence
+rather than an unordered pile of words.
 
-A language model reads your prompt one token at a time; for the short sentence I'll use, the
-tokens are just the words. The mechanism that lets each word draw on the others, instead of the
-model treating the prompt as an unordered bag of words, is **attention**: as the model processes
-each word, it looks back over the earlier words and decides how much weight to give each one. When
-it reads "sat" in *the cat sat on the keyboard*, attention is what lets "sat" look back and connect
-to "cat," the thing doing the sitting.
+It doesn't just pick one earlier word. Each word hands out a fixed amount of weight across all the
+words before it, and that weight sums to 1: a probability distribution over the earlier words. I'll
+call it the word's pie, one slice per earlier word, where a fat slice means "I'm leaning hard on
+that word" and a sliver means "barely." When the model reads "sat," a good pie hands most of itself
+to "cat" and a little to "the."
 
-Each word spreads a fixed weight over the words before it, and those weights sum to 1: a
-probability distribution over the earlier words. I'll call it the word's pie, one slice per earlier
-word, and the size of a slice is how much this word is looking at that one.
-
-The model doesn't do this once. It has many **heads**, each looking for its own kind of
-relationship (one might track the subject of the sentence, another the previous word), stacked in
-**layers** that refine the picture. GPT-2, the small open model I'll use here, has 12 layers with
-12 heads each: 144 little attention patterns per word. That's the thing I wanted to see.
+And the model does this many times over in parallel. Each pass is a **head**, and different heads
+look for different things: one might chase the subject of the verb, another just the word right
+before. Stack those heads into **layers** that refine the picture, and a small model already holds
+a lot of them. GPT-2, the one I'll use here, has 12 layers of 12 heads: 144 separate pies for every
+word. That was the thing I wanted to see.
 
 ## Getting the numbers out
 
