@@ -1,6 +1,6 @@
 # The optimization that speeds up an idle server and slows down a busy one
 
-*Draft 2, rev 4. Part 6 of "The Inference Wall." Same rig as the whole series:
+*Draft 2, rev 4. Part 7 of "The Inference Wall." Same rig as the whole series:
 Qwen3.5-4B, fp16, one NVIDIA A10G with 23 GB, measured under real load.*
 
 ---
@@ -26,7 +26,7 @@ throughout this series, out of its memory, and that streaming is what a token co
 this rig, about 20 ms. Every real speedup in serving is some way of getting more tokens
 out of one stream of those bytes. Batching shares one stream across many users'
 requests; that was [Part 3]. Quantization shrinks the bytes in the stream; that was
-[Part 5]. Speculative decoding is the third lever: getting several tokens *of the same
+[Part 6]. Speculative decoding is the third lever: getting several tokens *of the same
 request* out of one stream. That is the whole frame you need. The rig is one NVIDIA
 A10G with 23 GB serving Qwen3.5-4B in fp16, and every number here is measured on it,
 warm, under real load.
@@ -235,10 +235,10 @@ six, and the effect shows up at startup, before a single request is served:
 ![Two bar panels comparing spec off with k5: maximum concurrency falls from 83.7x to 24.6x at startup, and the running batch under flood falls from 146 requests to 28](fig-p6b-seat-collapse.png)
 
 The speculating server admits 28 concurrent requests where the plain server ran 146, and
-parks the rest in a waiting queue. Readers of Part 4 will recognize the signature: when
+parks the rest in a waiting queue. Readers of Part 5 will recognize the signature: when
 this scheduler cannot fit another request's memory, it does not crash or evict, it
 quietly stops admitting, and the tell is a `Running:` count pinned far below the
-configured cap while `Waiting:` piles up. In Part 4 it took a deliberate 15x cache cut
+configured cap while `Waiting:` piles up. In Part 5 it took a deliberate 15x cache cut
 to force that behavior. Here an optimization flag did it. And the price is set by the
 batching arithmetic above, before a single wasted draft is counted: 28 requests sharing
 each weight-stream cannot approach the throughput of 146 sharing it. The two mechanisms
@@ -340,7 +340,7 @@ is a different way of getting more tokens out of the same stream of bytes. The f
 spend little and stack cleanly. This one is a bet, placed per token, with the odds set
 by your traffic, and the house edge grows with load.
 
-<!-- NEXT-TEASER: to be written once Part 7 is chosen (candidate: the same knobs on
+<!-- NEXT-TEASER: to be written once Part 8 is chosen (candidate: the same knobs on
      other serving engines, SGLang / TensorRT-LLM, using the trt/ groundwork). -->
 
 ---
