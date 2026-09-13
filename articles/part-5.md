@@ -1,14 +1,14 @@
 ---
 title: "Starving the cache: how a server degrades when it runs out of KV"
-permalink: /articles/part-4/
+permalink: /articles/part-5/
 ---
 
-*Part 4 of "The Inference Wall", on the series' usual rig: Qwen2.5-7B and Qwen3.5-4B on a
+*Part 5 of "The Inference Wall", on the series' usual rig: Qwen2.5-7B and Qwen3.5-4B on a
 single 23 GB NVIDIA A10G, served under vLLM. Draft.*
 
 *Manas Pathak · draft, September 2026*
 
-[The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 4**
+[The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 5**
 
 An inference server has a fixed amount of memory for KV cache, the running scratchpad it keeps
 for every request in flight. When more requests want to run than the cache can seat, something
@@ -218,9 +218,9 @@ fire.
 
 The fix is to read the Prometheus counter `vllm:num_preemptions_total` from the `/metrics`
 endpoint instead, which is incremented at the source and survives. Every number in this post is
-the delta of that counter across a flood. The general lesson is the same one Part 8 arrived at
-from the other direction: **a measurement that reads zero is not evidence of absence until you
-have confirmed the instrument can produce a non-zero.** A positive control, deliberately forcing
+the delta of that counter across a flood. The general lesson is one this series keeps running
+into from more than one direction: **a measurement that reads zero is not evidence of absence
+until you have confirmed the instrument can produce a non-zero.** A positive control, deliberately forcing
 the behavior and checking that the counter moves, is not a formality; here it is the entire
 difference between the right conclusion and its exact opposite.
 
