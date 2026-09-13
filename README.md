@@ -27,12 +27,12 @@ New parts are published weekly, on Fridays.
 | 1 | [An 8.6 GB model that serves only 7 requests a second](articles/part-1.md) | published 2026-08-22 |
 | 2 | [The prefill that freezes your decoders](articles/part-2.md) | published 2026-08-28 |
 | 3 | [The batching cliff](articles/part-3.md) | published 2026-09-04 |
+| 4 | [I opened up one prompt to see what the model was thinking](articles/part-4.md) | published 2026-09-18 |
 
 **Drafted, not yet live** (publish order = part number; branches carry the draft):
 
 | Part | Title | Branch | State |
 |---|---|---|---|
-| 4 | The attention sink: why deep layers pour their weight onto the first token | `preview/fn2` | reviewed, ready |
 | 5 | Starving the cache: how a server degrades when it runs out of KV | `preview/part-4-corrected` | full draft (article form) |
 | 6 | Quantization as a fit-enabler | `preview/part-5` | full draft |
 | 7 | Speculative decoding | `preview/part-6` | full draft |
@@ -41,9 +41,10 @@ New parts are published weekly, on Fridays.
 
 > **Branch names lag the numbering.** The renumbering (below) shifted every draft
 > down by one, but the `preview/<part>` branch names still read as they were first
-> cut: `preview/fn2` → Part 4, `preview/part-4-corrected` → Part 5, `preview/part-5`
-> → Part 6, `preview/part-6` → Part 7, `preview/part-9` → Part 9. Each draft's own
-> body carries the correct new number; the branch name is just a stable handle.
+> cut: `preview/part-4-corrected` → Part 5, `preview/part-5` → Part 6, `preview/part-6`
+> → Part 7, `preview/part-9` → Part 9. Each draft's own body carries the correct new
+> number; the branch name is just a stable handle. (Part 4, the attention-internals
+> post, shipped from `publish/part-4` and is now live.)
 
 ### The renumbering (2026-09-13)
 
@@ -70,11 +71,11 @@ the series has grown past a fixed five-post arc, so no single post closes it.
 The order is content-driven, not just chronological, and equals the part numbers
 above. The drafts' own cross-references pin most of it:
 
-1. **Part 4 — Attention internals.** Ready now, standalone, depends only on
-   Primer 2 (live). Ship it next: it forward-references "Part 6, still to come"
-   (quantization) and "FlashAttention, a coming post," so publishing it before
-   those keeps both references honest, and it is a light detour between the
-   batching cliff and the heavier cache/quantization posts.
+1. **Part 4 — Attention internals** *(published 2026-09-18)*. Standalone, depended
+   only on Primer 2. It forward-references "Part 6, still to come" (quantization)
+   and "FlashAttention, a coming post," so shipping it before those keeps both
+   references honest, and it is a light detour between the batching cliff and the
+   heavier cache/quantization posts.
 2. **Part 5 — Starving the cache.** Its finding (a starved cache degrades into a
    small-batch server) is priced by Part 3's cliff, and it completes the two-walls
    picture — Part 1's bandwidth wall plus this capacity wall.
@@ -162,12 +163,12 @@ carries the real article with Liquid paths plus its `experiments/`, `benchmarks/
 and `assets/` material, and the index/nav flips.
 
 Current preview branches (branch name → part number; see the renumbering note under
-[The series](#the-series)): `preview/fn2` (Part 4, attention internals, ready),
-`preview/part-4-corrected` (Part 5, Starving the cache — note this one holds an
-article-form draft, not the `drafts/<part>/README.md` convention), `preview/part-5`
-(Part 6, quantization), `preview/part-6` (Part 7, speculative decoding),
-`preview/part-9` (Part 9, decode on a CPU). See the recommended publishing order
-under [The series](#the-series).
+[The series](#the-series)): `preview/part-4-corrected` (Part 5, Starving the cache —
+note this one holds an article-form draft, not the `drafts/<part>/README.md`
+convention), `preview/part-5` (Part 6, quantization), `preview/part-6` (Part 7,
+speculative decoding), `preview/part-9` (Part 9, decode on a CPU). See the recommended
+publishing order under [The series](#the-series). (`preview/fn2` shipped as Part 4 and
+can be deleted.)
 
 ## Reproducing
 

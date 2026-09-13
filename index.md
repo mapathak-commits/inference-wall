@@ -108,7 +108,7 @@ the full arc:
    model gets *less* from batching, not more. What you give up is per-stream smoothness and, without it,
    fairness entirely.
 
-4. **Open the box: attention internals** *(coming)*. A detour off the rig. Instead of Qwen
+4. **[Open the box: attention internals]({{ '/articles/part-4/' | relative_url }})** *(published)*. A detour off the rig. Instead of Qwen
    under load, run a small model, GPT-2, on a CPU in full precision and keep every
    intermediate value, so you can watch what the model does inside as it reads one sentence.
    Two things jump out: a deep head that dumps almost all its attention onto the first token
