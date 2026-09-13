@@ -6,23 +6,23 @@
 
 Most of this series watches models from the outside. How many tokens per second, how big a batch, how the work looks in a profiler trace. That's the serving layer, the plumbing that turns your prompt into an answer fast, and it's where the money is.
 
-But there's a layer underneath that the plumbing never shows you: the actual thinking. When a model reads your prompt, it does a huge pile of arithmetic. Which earlier words does it look at? How strongly? What is it holding onto as it goes? Those numbers exist for a fraction of a second and then they're gone.
+But there's a layer underneath that the plumbing never shows you: the actual thinking. When a model reads your prompt, it does a huge pile of arithmetic. Which earlier tokens does it look at? How strongly? What is it holding onto as it goes? Those numbers exist for a fraction of a second and then they're gone.
 
 So I asked a simple question. For one prompt, can I just watch what the model is doing inside while it reads? It turns out you can, and the picture is stranger than I expected.
 
 ## What attention is doing
 
-If you've read [the primer on what happens inside an LLM](https://mapathak-commits.github.io/inference-wall/articles/primer-2/), skip ahead. If not, take one sentence: *The cat sat on the keyboard again.* The model reads it one word at a time, and when it gets to "sat" it has a problem. "Sat" on its own means nothing; what sat is back at "cat." So the model reaches back over the words it has already read and pulls "cat" toward "sat." That reaching back is **attention**, and it is the whole reason a model handles a sentence rather than an unordered pile of words.
+If you've read [the primer on what happens inside an LLM](https://mapathak-commits.github.io/inference-wall/articles/primer-2/), skip ahead. If not, take one sentence: *The cat sat on the keyboard again.* The model reads it one token at a time (here each token is just a word), and when it gets to "sat" it has a problem. "Sat" on its own means nothing; what sat is back at "cat." So the model reaches back over the tokens it has already read and pulls "cat" toward "sat." That reaching back is **attention**, and it is the whole reason a model handles a sentence rather than an unordered pile of tokens.
 
-It doesn't just pick one earlier word. Each word hands out a fixed amount of weight across all the words before it, and that weight sums to 1: a probability distribution over the earlier words. I'll call it the word's pie, one slice per earlier word, where a fat slice means "I'm leaning hard on that word" and a sliver means "barely." When the model reads "sat," a good pie hands most of itself to "cat" and a little to "the."
+It doesn't just pick one earlier token. Each token hands out a fixed amount of weight across all the tokens before it, and that weight sums to 1: a probability distribution over the earlier tokens. I'll call it the token's pie, one slice per earlier token, where a fat slice means "I'm leaning hard on that one" and a sliver means "barely." When the model reads "sat," a good pie hands most of itself to "cat" and a little to "the."
 
-And the model does this many times over in parallel. Each pass is a **head**, and different heads look for different things: one might chase the subject of the verb, another just the word right before. Stack those heads into **layers** that refine the picture, and a small model already holds a lot of them. GPT-2, the one I'll use here, has 12 layers of 12 heads: 144 separate pies for every word. That was the thing I wanted to see.
+And the model does this many times over in parallel. Each pass is a **head**, and different heads look for different things: one might chase the subject of the verb, another just the token right before. Stack those heads into **layers** that refine the picture, and a small model already holds a lot of them. GPT-2, the one I'll use here, has 12 layers of 12 heads: 144 separate pies for every token. That was the thing I wanted to see.
 
 ## Getting the numbers out
 
-The fast tools everyone serves models with, like vLLM or Ollama, *can't* show you this, which is the whole reason this is a field note (I'll come back to why). You have to use a slower library, HuggingFace `transformers`, and ask it to hand back the scratch work the fast tools throw away.
+The fast tools everyone serves models with, like vLLM or Ollama, *can't* show you this: their whole job is to reach the answer fast and skip the scratch work on the way, which is the whole reason this is a field note. You have to use a slower library, HuggingFace `transformers`, and ask it to hand back the numbers the fast tools throw away.
 
-If you don't care about the code, skip the gray boxes. It's three settings that mean "keep the attention pie-slices, keep the running state, and keep the memory of earlier words":
+If you don't care about the code, skip the gray boxes. It's three settings that mean "keep the attention pie-slices, keep the running state, and keep the memory of earlier tokens":
 
 ```python
 model = AutoModelForCausalLM.from_pretrained(
@@ -35,55 +35,53 @@ out = model(**enc,
             use_cache=True)              # and the memory of earlier tokens (the KV cache)
 ```
 
-That gives back two things worth staring at. The **attention weights**: for my eight-token sentence, a stack of 8x8 grids, one per head, where each row is a word and each cell says how big a slice it gave to an earlier word. And the **running state**: the vector the model carries for each word, snapshotted after every layer, which I'll get to in the second half.
-
-The full runnable version is [`observe.py`](code/observe.py). Everything below just reads off those two.
+That gives back two things worth staring at. The **attention weights**: for my eight-token sentence, a stack of 8x8 grids, one per head, where each row is a token and each cell says how big a slice it gave to an earlier token. And the **running state**: the vector the model carries for each token, snapshotted after every layer. The full runnable version is [`observe.py`](code/observe.py).
 
 ## What one head is looking at
 
-The clean way to read an attention grid: pick a row (that's one word), and the bright cells are the earlier words it leaned on. My prompt for the rest of this note is `"The cat sat on the keyboard again."`, chosen because some heads do something genuinely readable with it.
+The clean way to read an attention grid: pick a row (that's one token), and the bright cells are the earlier tokens it leaned on. I picked `"The cat sat on the keyboard again."` because some heads do something genuinely readable with it.
 
-Take layer 4, head 3. It's a "who did what" head: several later words reach back and grab the subject of the sentence. "sat" looks at "cat" with a slice of 0.96, "on" looks at "cat" at 0.89, even the final period points back at "cat." You can watch the model tie the sentence together, exactly the intuition you'd hope for. Now score every head by a different number: how big a slice does the *last* word hand to the *first* word? One head wins outright. Layer 5, head 1 gives the first word a slice of 1.00, the whole pie. Here the two sit side by side:
+Take layer 4, head 3. It's a "who did what" head: several later tokens reach back and grab the subject of the sentence. "sat" looks at "cat" with a slice of 0.96, "on" looks at "cat" at 0.89, even the final period points back at "cat." You can watch the model tie the sentence together, exactly the intuition you'd hope for. Now score every head by a different number: how big a slice does the *last* token hand to the *first* token? One head wins outright. Layer 5, head 1 gives the first token a slice of 1.00, the whole pie. Here the two sit side by side:
 
-![Two GPT-2 attention grids side by side. On the left, layer 4 head 3, several rows point back at the "cat" column with printed weights like 0.96 and 0.89. On the right, layer 5 head 1, one solid bright column on the first word, every cell reading 1.00.](fig_attention.png)
+![Two GPT-2 attention grids side by side. On the left, layer 4 head 3, several rows point back at the "cat" column with printed weights like 0.96 and 0.89. On the right, layer 5 head 1, one solid bright column on the first token, every cell reading 1.00.](fig_attention.png)
 
-*Each row is a word doing the looking; each cell is the slice it gave an earlier word (numbers printed in, darker means smaller; the blank upper triangle is just the future, which no word is allowed to see). Left, layer 4, head 3: a readable head, where later words reach back to the subject, "cat." Right, layer 5, head 1: the surprise. Every word, whatever it means, hands its entire slice to the first word, "The."*
+*Each row is a token doing the looking; each cell is the slice it gave an earlier token (numbers printed in, darker means smaller; the blank upper triangle is just the future, which no token is allowed to see). Left, layer 4, head 3: a readable head, where later tokens reach back to the subject, "cat." Right, layer 5, head 1: the surprise. Every token, whatever it means, hands its entire slice to the first token, "The."*
 
-The left panel is what I assumed all attention looked like: words wiring up to each other, meaning getting assembled. The right panel is the surprise. A whole head, deep in the network, has decided the single most useful place to look is a throwaway article at the front of the sentence.
+The left panel is what I assumed all attention looked like: tokens wiring up to each other, meaning getting assembled. The right panel is the surprise. A whole head, deep in the network, has decided the single most useful place to look is a throwaway article at the front of the sentence.
 
-And it isn't one odd head. If I score all 144 by that same first-word measure and lay them out as a grid, the back half of the network lights up almost entirely:
+And it isn't one odd head. If I score all 144 by that same first-token measure and lay them out as a grid, the back half of the network lights up almost entirely:
 
-![A 12-by-12 grid of layer versus head, shaded by how much each head's last word looks at the first word. The top rows (early layers) are dark; the bottom rows (deep layers) are mostly bright.](fig_sink_grid.png)
+![A 12-by-12 grid of layer versus head, shaded by how much each head's last token looks at the first token. The top rows (early layers) are dark; the bottom rows (deep layers) are mostly bright.](fig_sink_grid.png)
 
-*Each square is one head, shaded by how much of the last word's attention it dumps on the first word. Early layers (top) still do real local work like the "cat" head above. In the deep layers (bottom), most heads have gone bright. The boxed square is layer 5, head 1. Across the back half of the network, 92% of heads send more than half their attention to the first word.*
+*Each square is one head, shaded by how much of the last token's attention it dumps on the first token. Early layers (top) still do real local work like the "cat" head above. In the deep layers (bottom), most heads have gone bright. The boxed square is layer 5, head 1. Across the back half of the network, 92% of heads send more than half their attention to the first token.*
 
 ## Why it does that
 
 This is a known effect, called an **attention sink**, and once you see the reason it stops being mysterious.
 
-Remember the pie has to add up to 1. A head is forced to spend its whole budget on the earlier words, whether or not any of them are relevant to its job. But heads are specialists. A head that hunts for, say, the verb three words back has nothing to do in a sentence where that pattern doesn't appear. It still has to put its pie somewhere.
+Remember the pie has to add up to 1. A head is forced to spend its whole budget on the earlier tokens, whether or not any of them are relevant to its job. But heads are specialists. A head that hunts for, say, the verb three tokens back has nothing to do in a sentence where that pattern doesn't appear. It still has to put its pie somewhere.
 
-So it dumps the budget on a word that is always there, always in the same spot, and carries no meaning worth disturbing: the first one. The sink is the model's junk drawer, a safe place to offload attention it doesn't want to spend. The first word gets the job because every later word can see it, and a fixed target is easy for the model to learn. The [StreamingLLM paper](https://arxiv.org/abs/2309.17453) (Xiao et al., 2023) named this effect and showed that the model depends on it, which matters in a minute.
+So it dumps the budget on a token that is always there, always in the same spot, and carries no meaning worth disturbing: the first one. The sink is the model's junk drawer, a safe place to offload attention it doesn't want to spend. The first token gets the job because every later token can see it, and a fixed target is easy for the model to learn. The [StreamingLLM paper](https://arxiv.org/abs/2309.17453) (Xiao et al., 2023) named this effect and showed that the model depends on it.
 
-## The second surprise: one word's magnitude explodes
+## The second surprise: one token's magnitude explodes
 
-While I had the internals open, I looked at the other thing the model hands back: the running state it carries for each word. Each word's state is a vector, and I can summarize it with a single number: its **magnitude**, how far the vector reaches from zero (the square root of its squared components). Every word's vector has the same number of components, 768 of them in GPT-2, so this isn't about one word having a longer vector than another. It's about how big the numbers inside are. Track that magnitude layer by layer and almost every word grows gently and stays in a tight pack. Except one.
+While I had the internals open, I looked at the other thing the model hands back: the running state it carries for each token. Each token's state is a vector, and I can summarize it with a single number: its **magnitude**, the plain length of that vector (its L2 norm, the square root of the sum of its squared components). Every token's vector has the same number of components, 768 of them in GPT-2, so this isn't about one token having a longer vector than another. It's about how big the numbers inside are. Track that magnitude layer by layer and almost every token grows gently and stays in a tight pack. Except one.
 
-![Per-word state magnitude across the layers, on a log scale. One line, the first word, shoots far above the pack in the middle layers, rides high, and drops back at the end.](fig_hidden_norm.png)
+![Per-token state magnitude across the layers, on a log scale. One line, the first token, shoots far above the pack in the middle layers, rides high, and drops back at the end.](fig_hidden_norm.png)
 
-*The magnitude of each word's internal state, layer by layer (log scale, so each gridline is 10x). Every word grows gently except "The," which spikes to about 39 times larger than the rest through the middle of the network, then settles back into the pack right at the end. On a normal scale the spike would flatten every other line to the floor.*
+*The magnitude of each token's internal state, layer by layer (log scale, so each gridline is 10x). Every token grows gently except "The," which spikes to about 39 times larger than the rest through the middle of the network, then settles back into the pack right at the end. On a normal scale the spike would flatten every other line to the floor.*
 
-One word blows up far past the others, the same word again, peaks in the middle of the network, and returns to the pack by the final layer. If you only looked at the model's output, which is all you normally get, you'd never know it happened. You have to watch the middle of the computation to catch it.
+One token blows up far past the others, the same one again, peaks in the middle of the network, and returns to the pack by the final layer. If you only looked at the model's output, which is all you normally get, you'd never know it happened. You have to watch the middle of the computation to catch it.
 
-These spikes are called **massive activations** ([Sun et al., 2024](https://arxiv.org/abs/2402.17762)), and they're the flip side of the sink. The model parks a big, roughly constant scratch value on one word and then points its spare attention there. The junk drawer and the scratch pad are the same word.
+These spikes are called **massive activations** ([Sun et al., 2024](https://arxiv.org/abs/2402.17762)), and they're the flip side of the sink. The model parks a big, roughly constant scratch value on one token and then points its spare attention there. The junk drawer and the scratch pad are the same token.
 
 (I ran the same check across a handful of other models, including Meta's OPT and Alibaba's Qwen, and both effects showed up every time. But the point here is the intuition and how to look, not a survey, so one clean example carries it.)
 
 ## Why the fast tools can't show you this
 
-Here's the tie back to the rest of the series. I found all of this without touching vLLM or Ollama, the tools I use everywhere else, because they never build the picture I just showed you.
+I found all of this without touching vLLM or Ollama, the tools I use everywhere else, because they never build the picture I just showed you.
 
-That 8x8 grid, one weight for every pair of words, is the expensive part of attention. For a real prompt of thousands of words it's a grid of millions of cells, and its size grows with the *square* of the length. The entire art of fast serving is to get the *result* of attention without ever writing that giant grid down. FlashAttention, the subject of the next full post, computes it in small tiles and never stores the full grid. PagedAttention, the trick vLLM is built on, streams the earlier words' memory through the chip as fast as it can and would never stop to hand you a labeled table. Speed comes precisely from throwing away the scratch work I wanted to read.
+That 8x8 grid, one weight for every pair of tokens, is the expensive part of attention. For a real prompt of thousands of tokens it's a grid of millions of cells, and its size grows with the *square* of the length. The entire art of fast serving is to get the *result* of attention without ever writing that giant grid down. FlashAttention, the subject of the next full post, computes it in small tiles and never stores the full grid. PagedAttention, the trick vLLM is built on, streams the earlier tokens' memory through the chip as fast as it can and would never stop to hand you a labeled table. Speed comes precisely from throwing away the scratch work I wanted to read.
 
 So the numbers I plotted exist for a few microseconds inside a fused chip operation and then they're gone. The serving layer stays perfectly observable, and watching it is most of what this series does. But this deeper math layer is deliberately optimized out of existence in the fast path. To see it, you run the slow version: one small model, full precision, on a CPU, with the flags that keep everything. It would never survive in production. It's also the only version that stops to write down what the model is thinking.
 
@@ -91,13 +89,13 @@ So the numbers I plotted exist for a few microseconds inside a fused chip operat
 
 Two throwaway observations about an eight-token sentence turn out to sit under two of the hardest problems in running these models cheaply.
 
-**The sink is why you can't just forget the start of a long chat.** When a conversation runs past a model's window, the obvious fix is to drop the oldest words. StreamingLLM showed this wrecks the model's quality, and the sink is why: the deep layers are still pouring most of their attention onto those first few words. Delete them and every head's pie has to be re-sliced onto words that were only ever meant to be ignored, and the model falls apart. The fix that works is to *keep* a few opening words forever, however long the chat gets. The junk drawer turns out to be structural.
+**The sink is why you can't just forget the start of a long chat.** When a conversation runs past a model's window, the obvious fix is to drop the oldest tokens. StreamingLLM showed this wrecks the model's quality, and the sink is why: the deep layers are still pouring most of their attention onto those first few tokens. Delete them and every head's pie has to be re-sliced onto tokens that were only ever meant to be ignored, and the model falls apart. The fix that works is to *keep* a few opening tokens forever, however long the chat gets. The junk drawer turns out to be structural.
 
-**The high-magnitude word is why shrinking models is hard.** The series finale is about running models in 4 bits instead of 16 or 32, which saves enormous memory but means squeezing every number into a tiny range of values. That squeeze hates outliers: one value 30 or 100 times bigger than its neighbors stretches the range until everything else rounds to mush. The massive-activation word is exactly that outlier, and it shows up on nearly every pass. A big slice of the research on shrinking models is, underneath, elaborate machinery for handling these specific spikes.
+**The high-magnitude token is why shrinking models is hard.** The series finale is about running models in 4 bits instead of 16 or 32, which saves enormous memory but means squeezing every number into a tiny range of values. That squeeze hates outliers: one value 30 or 100 times bigger than its neighbors stretches the range until everything else rounds to mush. The massive-activation token is exactly that outlier, and it shows up on nearly every pass. A big slice of the research on shrinking models is, underneath, elaborate machinery for handling these specific spikes.
 
 Both of these were discovered the hard way, at scale, by teams running models in production. And both are sitting right there in forty lines of code on a single toy sentence, if you're willing to run the slow version that writes down what the fast one erases.
 
-I went looking to watch a model think. What I mostly found was housekeeping: a quiet place to dump attention it doesn't need, and a scratch value stuck on the nearest throwaway word. The fun part isn't that the model is doing something deep with the word "The." It's that this unglamorous bookkeeping matters enough that two of the nastiest problems in serving are, underneath, just fights with it.
+I went looking to watch a model think. What I mostly found was housekeeping: a place to dump attention it doesn't need, and a scratch value stuck on the nearest throwaway token. The fun part isn't that the model is doing something deep with the word "The." It's that this unglamorous bookkeeping matters enough that two of the nastiest problems in serving are, underneath, just fights with it.
 
 ---
 
