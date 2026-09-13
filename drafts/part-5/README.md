@@ -1,6 +1,6 @@
 # Quantization as a fit-enabler: how a 9B model serves at 80% of a 4B's speed
 
-*Draft 1. Part 5 (finale) of "The Inference Wall." Same rig
+*Draft 1. Part 5 of "The Inference Wall." Same rig
 throughout: one NVIDIA A10G (23 GB). Qwen3.5-4B (fp16) vs Qwen3.5-9B (4-bit AWQ).*
 
 ---
@@ -8,7 +8,7 @@ throughout: one NVIDIA A10G (23 GB). Qwen3.5-4B (fp16) vs Qwen3.5-9B (4-bit AWQ)
 This series opened by hitting a wall: a 4B model on one mid-range GPU, saturating at about
 seven requests a second, bottlenecked not by memory but by how fast the GPU could push its
 weights through the decode loop. Every post since has been about pushing that wall back.
-This finale is about the bluntest lever of all, the one you reach for when the model you
+This post is about the bluntest lever of all, the one you reach for when the model you
 *want* to run will not fit *usefully* on the GPU: **quantization.**
 
 Here is the setup that makes the point. I wanted to serve Qwen3.5-9B, a model about twice
@@ -171,12 +171,12 @@ serving engine. The bytes-read mechanism is general.)
    the model already fits; it is automatically right when it does not. In between, the rate
    sweep tells you what you are actually trading.
 
-That closes the arc this series opened. Part 1 found the wall, an ordinary GPU running out
-of decode throughput long before it runs out of memory. The middle posts read the trace to
-see the wall and pushed it back with scheduling. This finale shows the other direction: when
+That ties back to where the series started. Part 1 found the wall, an ordinary GPU running out
+of decode throughput long before it runs out of memory. The posts since read the trace to
+see the wall and pushed it back with scheduling. This one shows the other direction: when
 the model is too big for the GPU, quantization changes the bytes-per-token math so
 directly that a model which could not serve usefully becomes one that runs at nearly full speed.
-The recurring lesson under all five posts is the same one: **on this hardware, inference is
+The recurring lesson is the same one that runs under every post: **on this hardware, inference is
 a bytes-through-memory problem, and every real win comes from moving fewer bytes.**
 
 ---
