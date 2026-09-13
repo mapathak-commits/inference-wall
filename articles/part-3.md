@@ -107,7 +107,7 @@ so the shared weight read gets amortized much further, hence a steeper cliff. On
 per-sequence cost is heavier, so amortization saturates earlier and the multiple is
 smaller. Same mechanism, and the size of the win scales *inversely* with how heavy the
 per-sequence work is. A bigger model gets less out of batching, not more, which is the
-opposite of most people's intuition. Part 5 turns this into a prediction: the 9B's
+opposite of most people's intuition. Part 6 turns this into a prediction: the 9B's
 per-sequence cost tracks its weight *bytes*, not its parameter count, which is the whole
 reason quantization pays off.
 

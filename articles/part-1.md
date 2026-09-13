@@ -41,7 +41,7 @@ cloud provider, you are the reader this is for.
 ## The setup, stated loudly so you can argue with it
 
 - **Model:** `Qwen/Qwen3.5-4B`, served text-only, in fp16 (each weight stored as a
-  16-bit number, the default full-precision format; the finale swaps in a 4-bit version).
+  16-bit number, the default full-precision format; the quantization post swaps in a 4-bit version).
   It is a *hybrid-attention* model: only 8 of its 32 layers keep a growing KV cache, the
   other 24 use fixed-size state. That detail keeps KV memory cheap and recurs throughout, so
   it is worth flagging up front.
@@ -87,7 +87,7 @@ at startup (numbers quoted from its log, not my arithmetic):
 That concurrency figure is surprisingly generous, thanks to the hybrid-attention design: with
 only 8 of 32 layers growing a cache, each request's real footprint is far smaller than its
 token count suggests, so vLLM's planner fits about 2.2x the naive 77,088 / 2,048 = 37.6.
-(That same ~2.2x discount reappears in the finale's 9B numbers.) What the line means is the
+(That same ~2.2x discount reappears in the quantization post's 9B numbers.) What the line means is the
 point: the cache has room for **83 max-length requests at once**, hundreds on the short
 256/128 workload, and the server never runs more than a handful concurrently. It comes nowhere
 near filling the cache. So when it tops out at seven requests a second, it did not run out of
