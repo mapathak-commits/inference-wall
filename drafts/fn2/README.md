@@ -65,7 +65,7 @@ This is a known effect, called an **attention sink**, and once you see the reaso
 
 Remember the pie has to add up to 1. A head is forced to spend its whole budget on the earlier words, whether or not any of them are relevant to its job. But heads are specialists. A head that hunts for, say, the verb three words back has nothing to do in a sentence where that pattern doesn't appear. It still has to put its pie somewhere.
 
-So it dumps the budget on a word that is always there, always in the same spot, and carries no meaning worth disturbing: the first one. The sink is the model's junk drawer, a safe place to offload attention it doesn't want to spend. The first word gets the job because every later word can see it, and a fixed target is easy for the model to learn. The [StreamingLLM paper](https://arxiv.org/abs/2309.17453) (Xiao et al., 2023) named this effect and showed the model quietly depends on it, which matters in a minute.
+So it dumps the budget on a word that is always there, always in the same spot, and carries no meaning worth disturbing: the first one. The sink is the model's junk drawer, a safe place to offload attention it doesn't want to spend. The first word gets the job because every later word can see it, and a fixed target is easy for the model to learn. The [StreamingLLM paper](https://arxiv.org/abs/2309.17453) (Xiao et al., 2023) named this effect and showed that the model depends on it, which matters in a minute.
 
 ## The second surprise: one word's magnitude explodes
 
@@ -75,11 +75,11 @@ While I had the internals open, I looked at the other thing the model hands back
 
 *The magnitude of each word's internal state, layer by layer (log scale, so each gridline is 10x). Every word grows gently except "The," which spikes to about 39 times larger than the rest through the middle of the network, then settles back into the pack right at the end. On a normal scale the spike would flatten every other line to the floor.*
 
-One word blows up far past the others, the same word again, peaks in the middle of the network, and quietly returns to the pack by the final layer. If you only looked at the model's output, which is all you normally get, you'd never know it happened. You have to watch the middle of the computation to catch it.
+One word blows up far past the others, the same word again, peaks in the middle of the network, and returns to the pack by the final layer. If you only looked at the model's output, which is all you normally get, you'd never know it happened. You have to watch the middle of the computation to catch it.
 
 These spikes are called **massive activations** ([Sun et al., 2024](https://arxiv.org/abs/2402.17762)), and they're the flip side of the sink. The model parks a big, roughly constant scratch value on one word and then points its spare attention there. The junk drawer and the scratch pad are the same word.
 
-(I ran the same check across a handful of other models, from Meta's OPT to Alibaba's Qwen, and both effects showed up every time. But the point here is the intuition and how to look, not a survey, so one clean example carries it.)
+(I ran the same check across a handful of other models, including Meta's OPT and Alibaba's Qwen, and both effects showed up every time. But the point here is the intuition and how to look, not a survey, so one clean example carries it.)
 
 ## Why the fast tools can't show you this
 
