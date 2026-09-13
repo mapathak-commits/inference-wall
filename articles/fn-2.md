@@ -29,16 +29,16 @@ while it reads? It turns out you can, and the picture is stranger than I expecte
 If you've read [the primer on what happens inside an LLM]({{ '/articles/primer-2/' | relative_url }}),
 skip this. If not, here's the only idea you need.
 
-A language model reads your prompt one word at a time (really *tokens*, which are word-pieces,
-but think "words"). The single trick that lets it understand a sentence rather than a bag of
-words is **attention**: as the model processes each word, it looks back over the earlier words and
-decides how much weight to give each one. When it reads "sat" in *the cat sat on the keyboard*,
-attention is what lets "sat" look back and connect to "cat," the thing doing the sitting.
+A language model reads your prompt one token at a time; for the short sentence I'll use, the
+tokens are just the words. The mechanism that lets each word draw on the others, instead of the
+model treating the prompt as an unordered bag of words, is **attention**: as the model processes
+each word, it looks back over the earlier words and decides how much weight to give each one. When
+it reads "sat" in *the cat sat on the keyboard*, attention is what lets "sat" look back and connect
+to "cat," the thing doing the sitting.
 
-Each word spreads a fixed budget of attention over the words before it. The budget always adds up
-to 1, like slicing a pie: give a bigger slice to one word and every other slice shrinks. So an
-attention pattern is just a set of pie-slices, one per earlier word, saying where this word is
-looking.
+Each word spreads a fixed weight over the words before it, and those weights sum to 1: a
+probability distribution over the earlier words. I'll call it the word's pie, one slice per earlier
+word, and the size of a slice is how much this word is looking at that one.
 
 The model doesn't do this once. It has many **heads**, each looking for its own kind of
 relationship (one might track the subject of the sentence, another the previous word), stacked in
@@ -47,10 +47,9 @@ relationship (one might track the subject of the sentence, another the previous 
 
 ## Getting the numbers out
 
-Here's the catch, and it's the whole reason this is a field note. The fast tools everyone actually
-serves models with, like vLLM or Ollama, *can't* show you this (I'll come back to why). You have
-to use a slower, more honest library, HuggingFace `transformers`, and ask it to hand back the
-scratch work it normally throws away.
+The fast tools everyone serves models with, like vLLM or Ollama, *can't* show you this, which is
+the whole reason this is a field note (I'll come back to why). You have to use a slower library,
+HuggingFace `transformers`, and ask it to hand back the scratch work the fast tools throw away.
 
 If you don't care about the code, skip the gray boxes. It's three settings that mean "keep the
 attention pie-slices, keep the running state, and keep the memory of earlier words":
@@ -175,7 +174,7 @@ table. Speed comes precisely from throwing away the scratch work I wanted to rea
 So the numbers I plotted exist for a few microseconds inside a fused chip operation and then
 they're gone. The serving layer stays perfectly observable, and watching it is most of what this
 series does. But this deeper math layer is deliberately optimized out of existence in the fast
-path. To see it, you run the slow, honest version: one small model, full precision, on a CPU, with
+path. To see it, you run the slow version: one small model, full precision, on a CPU, with
 the flags that keep everything. It would never survive in production. It's also the only version
 that stops to write down what the model is thinking.
 
