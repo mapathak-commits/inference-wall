@@ -32,7 +32,7 @@ New parts are published weekly, on Fridays.
 
 | Part | Title | Branch | State |
 |---|---|---|---|
-| 4 | I opened up one prompt to see what the model was thinking | `preview/fn2` | reviewed, ready |
+| 4 | The attention sink: why deep layers pour their weight onto the first token | `preview/fn2` | reviewed, ready |
 | 5 | Starving the cache: how a server degrades when it runs out of KV | `preview/part-4-corrected` | full draft (article form) |
 | 6 | Quantization as a fit-enabler | `preview/part-5` | full draft |
 | 7 | Speculative decoding | `preview/part-6` | full draft |

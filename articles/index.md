@@ -13,7 +13,7 @@ the number, and read the trace that explains why. New parts publish weekly.*
 | **Part 1** | [Hit the wall]({{ '/articles/part-1/' | relative_url }}) | an 8.6 GB model on a 23 GB GPU tops out at 7 req/s — and the wall isn't memory |
 | **Part 2** | [The prefill freeze]({{ '/articles/part-2/' | relative_url }}) | one fat prompt stalls everyone's stream; one scheduler flag cuts the stutter 2.4x |
 | **Part 3** | [The batching cliff]({{ '/articles/part-3/' | relative_url }}) | turning batching off drops the server 22x; the win flattens at batch ~64 |
-| Part 4 | I opened up one prompt to see what the model was thinking | *coming soon* |
+| Part 4 | The attention sink | *coming soon* |
 | Part 5 | Starving the cache | *coming soon* |
 | Part 6 | Quantization as a fit-enabler | *coming soon* |
 | Part 7 | Speculative decoding | *coming soon* |
