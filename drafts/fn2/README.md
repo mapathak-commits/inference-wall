@@ -87,7 +87,7 @@ The numbers I plotted exist for only a few microseconds inside a fused chip oper
 
 ## Why it matters
 
-The sink is more than a curiosity about an eight-token sentence: it sits under one of the hardest problems in running these models cheaply.
+The sink is not just a quirk of an eight-token sentence: it sits under one of the hardest problems in running these models cheaply.
 
 **The sink is why you can't just forget the start of a long chat.** When a conversation runs past a model's window, the obvious fix is to drop the oldest tokens. StreamingLLM showed this wrecks the model's quality, and the sink is why: the deep layers are still pouring most of their attention onto those first few tokens. Delete them and every head's attention has to be re-slid onto tokens that were only ever meant to be ignored, and the model falls apart. The fix is to always keep the first few tokens in the window, no matter how long the conversation grows, so the sink never disappears from under the deep layers.
 
