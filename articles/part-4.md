@@ -187,7 +187,7 @@ stops to write down what the model is thinking.
 
 ## Why it matters
 
-The sink is more than a curiosity about an eight-token sentence: it sits under one of the hardest
+The sink is not just a quirk of an eight-token sentence: it sits under one of the hardest
 problems in running these models cheaply.
 
 **The sink is why you can't just forget the start of a long chat.** When a conversation runs past a
