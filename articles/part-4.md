@@ -1,5 +1,5 @@
 ---
-title: "I opened up one prompt to see what the model was thinking. It was thinking about the word \"The.\""
+title: "The attention sink: why a model's deep layers pour most of their weight onto the first token, and why you can't delete it"
 permalink: /articles/part-4/
 image: /assets/figures/fn2-sink-grid.png
 ---
@@ -21,8 +21,9 @@ model reads your prompt, it does a huge pile of arithmetic. Which earlier tokens
 How strongly? What is it holding onto as it goes? Those numbers exist for a fraction of a second
 and then they're gone.
 
-I asked a simple question: for one prompt, can I just watch what the model is doing inside while
-it reads? It turns out you can, and the picture is stranger than I expected.
+For one prompt, you can capture all of it: every attention weight and every intermediate state the
+model computes as it reads. On a small model, two effects stand out, and both turn out to sit under
+real problems in serving these models cheaply.
 
 ## What attention is doing
 
@@ -130,7 +131,7 @@ job because every later token can see it, and a fixed target is easy for the mod
 [StreamingLLM paper](https://arxiv.org/abs/2309.17453) by Xiao et al. in 2023 named this effect and
 showed that the model depends on it.
 
-## The second surprise: one token's magnitude explodes
+## The second effect: one token's magnitude explodes
 
 While I had the internals open, I looked at the other thing the model hands back: the running state
 it carries for each token. Each token's state is a vector, and I can summarize it with a single

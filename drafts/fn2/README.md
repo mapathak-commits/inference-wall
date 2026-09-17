@@ -1,4 +1,4 @@
-# I opened up one prompt to see what the model was thinking. It was thinking about the word "The."
+# The attention sink: why a model's deep layers pour most of their weight onto the first token, and why you can't delete it
 
 *Part 4 of The Inference Wall. A detour from the usual rig: instead of Qwen3.5-4B under load on an A10G, this one opens up a small model, GPT-2, on a CPU, keeping every intermediate value so the arithmetic is slow enough and small enough to read.*
 
@@ -8,7 +8,7 @@ Most of this series watches models from the outside. How many tokens per second,
 
 But there's a layer underneath that the plumbing never shows you: the actual thinking. When a model reads your prompt, it does a huge pile of arithmetic. Which earlier tokens does it look at? How strongly? What is it holding onto as it goes? Those numbers exist for a fraction of a second and then they're gone.
 
-I asked a simple question: for one prompt, can I just watch what the model is doing inside while it reads? It turns out you can, and the picture is stranger than I expected.
+For one prompt, you can capture all of it: every attention weight and every intermediate state the model computes as it reads. On a small model, two effects stand out, and both turn out to sit under real problems in serving these models cheaply.
 
 ## What attention is doing
 
@@ -63,7 +63,7 @@ Remember the weights have to add up to 1. A head is forced to spend its whole bu
 
 It dumps the budget instead on a token that is always there, always in the same spot, and carries no meaning worth disturbing: the first one. The sink is where the model offloads attention it has no use for, a safe, always-present target that costs nothing to point at. The first token gets the job because every later token can see it, and a fixed target is easy for the model to learn. The [StreamingLLM paper](https://arxiv.org/abs/2309.17453) by Xiao et al. in 2023 named this effect and showed that the model depends on it.
 
-## The second surprise: one token's magnitude explodes
+## The second effect: one token's magnitude explodes
 
 While I had the internals open, I looked at the other thing the model hands back: the running state it carries for each token. Each token's state is a vector, and I can summarize it with a single number: its **magnitude**, the plain length of that vector, its L2 norm: the square root of the sum of its squared components. Every token's vector has the same number of components, 768 of them in GPT-2, so this isn't about one token having a longer vector than another. It's about how big the numbers inside are. For each token I take the largest magnitude it reaches at any layer. Seven of the eight land within a narrow band. One does not.
 
