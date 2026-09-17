@@ -8,7 +8,7 @@ Most of this series watches models from the outside. How many tokens per second,
 
 But there's a layer underneath that the plumbing never shows you: the actual thinking. When a model reads your prompt, it does a huge pile of arithmetic. Which earlier tokens does it look at? How strongly? What is it holding onto as it goes? Those numbers exist for a fraction of a second and then they're gone.
 
-For one prompt, you can capture all of it: every attention weight and every intermediate state the model computes as it reads. On a small model, two effects stand out, and both turn out to sit under real problems in serving these models cheaply.
+For one prompt, you can capture all of it: every attention weight and every intermediate state the model computes as it reads. On a small model, two effects stand out, and they turn out to be two sides of one phenomenon that sits under a real problem in serving these models cheaply.
 
 ## What attention is doing
 
@@ -87,15 +87,11 @@ The numbers I plotted exist for only a few microseconds inside a fused chip oper
 
 ## Why it matters
 
-Two observations about an eight-token sentence turn out to sit under two of the hardest problems in running these models cheaply.
+The sink is more than a curiosity about an eight-token sentence: it sits under one of the hardest problems in running these models cheaply.
 
 **The sink is why you can't just forget the start of a long chat.** When a conversation runs past a model's window, the obvious fix is to drop the oldest tokens. StreamingLLM showed this wrecks the model's quality, and the sink is why: the deep layers are still pouring most of their attention onto those first few tokens. Delete them and every head's attention has to be re-slid onto tokens that were only ever meant to be ignored, and the model falls apart. The fix is to always keep the first few tokens in the window, no matter how long the conversation grows, so the sink never disappears from under the deep layers.
 
-**The high-magnitude token is why shrinking models is hard.** In a future post, we will explore running models in 4 bits instead of 16, which saves enormous memory but means squeezing numbers into a tiny range of values. That squeeze hates outliers: one value tens or hundreds of times bigger than its neighbors stretches the range until everything else rounds to mush. These massive activations are exactly that kind of outlier, and they show up on nearly every pass. They hit activation quantization head-on, and they are why even a weight-only scheme has to be *activation-aware*, choosing which weight channels to keep in higher precision by watching where these big activations flow. A big slice of the research on shrinking models is, underneath, elaborate machinery for handling these specific spikes.
-
-Both of these were discovered the hard way, at scale, by teams running models in production. And both are sitting right there in forty lines of code on a single toy sentence, if you're willing to run the slow version that writes down what the fast one erases.
-
-The two effects are one phenomenon seen from two sides. A large, roughly constant value sits on the first token, and the network's spare attention drains onto it. Neither has anything to do with the word "The" in particular; the first token is simply a convenient, always-present place to park what the model doesn't need. That bookkeeping is not a curiosity. It sets a hard limit on two of the nastiest problems in serving these models: what you can evict from a long context, and how far you can compress the weights.
+The two effects are one phenomenon seen from two sides. A large, roughly constant value sits on the first token, and the model's spare attention drains onto it. Neither has anything to do with the word "The" in particular; the first token is simply a convenient, always-present place to park what the model doesn't need. That bookkeeping is not a curiosity. It sets a hard limit on one of the nastiest problems in serving these models: what you can evict from a long context.
 
 ---
 
