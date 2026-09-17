@@ -1,4 +1,4 @@
-# The attention sink: why a model's deep layers pour most of their weight onto the first token, and why you can't delete it
+# The attention sink: why deep layers fixate on the first token
 
 *Part 4 of The Inference Wall. A detour from the usual rig: instead of Qwen3.5-4B under load on an A10G, this one opens up a small model, GPT-2, on a CPU, keeping every intermediate value so the arithmetic is slow enough and small enough to read.*
 
@@ -20,7 +20,7 @@ And the model does this many times over in parallel. Each pass is a **head**, an
 
 ## Getting the numbers out
 
-The fast tools everyone serves models with, like vLLM or Ollama, *can't* show you this: their whole job is to reach the answer fast and skip the scratch work on the way. To see it you have to use a slower library, HuggingFace `transformers`, and ask it to hand back the numbers the fast tools throw away.
+The fast tools everyone serves models with, like vLLM or Ollama, *can't* show you this: they compute the answer and discard the intermediate numbers. To see them you use a slower library, HuggingFace `transformers`, and ask it to hand back what the fast tools throw away.
 
 If you don't care about the code, skip the gray boxes. It comes down to three settings that mean keep the attention weights, keep the running state, and keep the memory of earlier tokens:
 
@@ -53,15 +53,15 @@ And it isn't one odd head. If I score all 144 by that same first-token measure a
 
 ![A 12-by-12 grid of layer versus head, shaded by how much each head's last token looks at the first token. The top rows (early layers) are dark; the bottom rows (deep layers) are mostly bright.](fig_sink_grid.png)
 
-*Each square is one head, shaded by how much of the last token's attention it dumps on the first token. The early layers up top still do real local work like the subject-tracking head above. Deeper in the network, most heads have gone bright. The boxed square is layer 5, head 1. Across the back half of the network, 92% of heads send more than half their attention to the first token.*
+*Each square is one head, shaded by how much of the last token's attention it sends to the first token. The early layers up top still do real local work like the subject-tracking head above. Deeper in the network, most heads have gone bright. The boxed square is layer 5, head 1. Across the back half of the network, 92% of heads send more than half their attention to the first token.*
 
-## Why it does that
+## Why the sink forms
 
 This is a known effect, called an **attention sink**, and once you see the reason it stops being mysterious.
 
-Remember the weights have to add up to 1. A head is forced to spend its whole budget on the tokens it can see, whether or not any of them are relevant to its job. But heads are specialists. A head that hunts for, say, the verb three tokens back has nothing to do in a sentence where that pattern doesn't appear. It still has to put its weight somewhere.
+The mechanism is the softmax. It gives every visible token a positive weight and forces the total to exactly 1, so a head has no way to say "none of these tokens matter to me right now." Each head computes one specific relation between tokens; when that relation is simply absent from the current sentence, the head has nothing informative to point at, yet it still has to emit a full distribution. It has to spend that weight somewhere.
 
-It dumps the budget instead on a token that is always there, always in the same spot, and carries no meaning worth disturbing: the first one. The sink is where the model offloads attention it has no use for, a safe, always-present target that costs nothing to point at. The first token gets the job because every later token can see it, and a fixed target is easy for the model to learn. The [StreamingLLM paper](https://arxiv.org/abs/2309.17453) by Xiao et al. in 2023 named this effect and showed that the model depends on it.
+The cheapest place is a token that is always present, always in the same spot, and carries no meaning worth disturbing: the first one. The sink is where a head offloads attention it has no use for, a safe, always-available target. The first token gets the job because every later token can see it, and a fixed target is easy for the model to learn. Over training the model comes to *rely* on that escape valve: the weight a head has nowhere else to put has a reliable place to go. The [StreamingLLM paper](https://arxiv.org/abs/2309.17453) by Xiao et al. in 2023 named this effect and showed that the model depends on it — which is precisely why, as we will see, you cannot simply delete those first tokens from a long context without breaking the model.
 
 ## The second effect: one token's magnitude explodes
 
@@ -75,23 +75,23 @@ The outlier is the first token again. Its magnitude also climbs highest in the m
 
 These spikes are called **massive activations**, named by [Sun et al. in 2024](https://arxiv.org/abs/2402.17762), and they're almost certainly the same mechanism as the sink seen from the other side. The research argues the model parks a big, roughly constant value on the first token, and it's that value the spare attention keys onto: the token that soaks up the leftover attention is the same one carrying the outsized magnitude.
 
-I ran the same check across a handful of other models, including Meta's OPT and Alibaba's Qwen, and both effects showed up every time. The point here is the intuition and how to look, not a survey, so one clean example carries it.
+I ran the same check across a handful of other models, including Meta's OPT (Open Pre-trained Transformer, an early open-source LLM family) and Alibaba's Qwen, and both effects showed up every time. GPT-2 is just the clearest place to see them.
 
 ## Why the fast tools can't show you this
 
 I found all of this without touching vLLM or Ollama, the tools I use everywhere else, because they never build the picture I just showed you.
 
-That 8x8 grid, one weight for every pair of tokens, is the expensive part of attention. For a real prompt of thousands of tokens it's a grid of millions of cells, and its size grows with the *square* of the length. The entire art of fast serving is to get the *result* of attention without ever writing that giant grid down. FlashAttention, the subject of a coming post, computes it in small tiles and never stores the full grid. PagedAttention, the trick vLLM is built on, is the other half: it keeps each request's earlier-token memory scattered across fixed-size blocks, the way an operating system pages memory, rather than in one neat contiguous table. Between them the full grid is never assembled and the memory behind it is never laid out for you to read. Speed comes precisely from throwing away the scratch work I wanted to read.
+That 8x8 grid, one weight for every pair of tokens, is the expensive part of attention. For a real prompt of thousands of tokens it's a grid of millions of cells, and its size grows with the *square* of the length. The entire art of fast serving is to get the *result* of attention without ever writing that giant grid down. FlashAttention, the subject of a coming post, computes it in small tiles and never stores the full grid. PagedAttention, the trick vLLM is built on, is the other half: it keeps each request's earlier-token memory scattered across fixed-size blocks rather than in one neat contiguous table. Between them the full grid is never assembled and the memory behind it is never laid out for you to read. Speed comes precisely from throwing away the scratch work I wanted to read.
 
 The numbers I plotted exist for only a few microseconds inside a fused chip operation and then they're gone. The serving layer stays perfectly observable, and watching it is most of what this series does. But this deeper math layer is deliberately optimized out of existence in the fast path. To see it, you run the slow version: one small model, full precision, on a CPU, with the flags that keep everything. It would never survive in production. It's also the only version that stops to write down what the model is thinking.
 
 ## Why it matters
 
-Two throwaway observations about an eight-token sentence turn out to sit under two of the hardest problems in running these models cheaply.
+Two observations about an eight-token sentence turn out to sit under two of the hardest problems in running these models cheaply.
 
 **The sink is why you can't just forget the start of a long chat.** When a conversation runs past a model's window, the obvious fix is to drop the oldest tokens. StreamingLLM showed this wrecks the model's quality, and the sink is why: the deep layers are still pouring most of their attention onto those first few tokens. Delete them and every head's attention has to be re-slid onto tokens that were only ever meant to be ignored, and the model falls apart. The fix is to always keep the first few tokens in the window, no matter how long the conversation grows, so the sink never disappears from under the deep layers.
 
-**The high-magnitude token is why shrinking models is hard.** Part 6 of this series, still to come, runs models in 4 bits instead of 16, which saves enormous memory but means squeezing numbers into a tiny range of values. That squeeze hates outliers: one value tens or hundreds of times bigger than its neighbors stretches the range until everything else rounds to mush. These massive activations are exactly that kind of outlier, and they show up on nearly every pass. They hit activation quantization head-on, and they are why even the weight-only scheme Part 6 uses has to be *activation-aware*, choosing which weight channels to keep in higher precision by watching where these big activations flow. A big slice of the research on shrinking models is, underneath, elaborate machinery for handling these specific spikes.
+**The high-magnitude token is why shrinking models is hard.** In a future post, we will explore running models in 4 bits instead of 16, which saves enormous memory but means squeezing numbers into a tiny range of values. That squeeze hates outliers: one value tens or hundreds of times bigger than its neighbors stretches the range until everything else rounds to mush. These massive activations are exactly that kind of outlier, and they show up on nearly every pass. They hit activation quantization head-on, and they are why even a weight-only scheme has to be *activation-aware*, choosing which weight channels to keep in higher precision by watching where these big activations flow. A big slice of the research on shrinking models is, underneath, elaborate machinery for handling these specific spikes.
 
 Both of these were discovered the hard way, at scale, by teams running models in production. And both are sitting right there in forty lines of code on a single toy sentence, if you're willing to run the slow version that writes down what the fast one erases.
 
