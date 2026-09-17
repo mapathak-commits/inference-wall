@@ -29,23 +29,27 @@ it reads? It turns out you can, and the picture is stranger than I expected.
 If you've read [the primer on what happens inside an LLM]({{ '/articles/primer-2/' | relative_url }}),
 skip ahead. If not, take one sentence: *The cat sat on the keyboard again.* The model reads it one
 token at a time; for simplicity, let's say each word is a token. When it reaches "sat" it has a
-problem. On its own, "sat" means nothing; what sat is back at "cat." To resolve it, the model
-reaches back over the tokens it has already read and pulls "cat" toward "sat." That reaching back
-is **attention**, and it is the whole reason a model handles a sentence rather than an unordered
-pile of tokens.
+problem. On its own, "sat" is unresolved: the thing that sat is back at "cat." To resolve it, the
+model reaches back over the tokens it has already read and pulls "cat" toward "sat." That reaching
+back is **attention**, and it is the whole reason a model handles a sentence rather than an
+unordered pile of tokens.
 
 It doesn't attend to just one earlier token. Each token spreads a fixed budget of weight across
-every token from the start of the sentence up to and including itself, a probability distribution:
-non-negative weights that sum to 1. It can't look ahead, only back and at itself. I'll call one
-token's distribution its pie, since attention divides it into slices, one per token it can see.
-When the model processes "sat," a well-behaved pie puts most of its mass on "cat" and a little on
-"the," with some kept on "sat" itself.
+every token from the start of the sentence up to and including itself: non-negative weights that
+sum to 1, a probability distribution. It can't look ahead, only back and at itself. Each weight is
+the slice of attention that one token hands to another. When the model processes "sat," a
+well-behaved distribution puts most of its weight on "cat" and a little on "the," with some kept on
+"sat" itself.
 
 And the model does this many times over in parallel. Each pass is a **head**, and different heads
 look for different things: one might chase the subject of the verb, another just the token right
 before. Stack those heads into **layers** that refine the picture, and a small model already holds
-a lot of them. GPT-2, the one I'll use here, has 12 layers of 12 heads: 144 separate pies for every
-token. That was the thing I wanted to see.
+a lot of them. GPT-2, the one I'll use here, has 12 layers of 12 heads: 144 separate weight
+distributions for every token. It's old and small, but the mechanism is the one today's models
+still run. Grouped-query attention and rotary embeddings change how many key-value heads there are
+and how position is encoded, not the basic act of spreading a normalized budget over the tokens in
+view, and the artifacts I'm about to show up in current models too. That was the thing I wanted to
+see.
 
 ## Getting the numbers out
 
@@ -55,7 +59,7 @@ use a slower library, HuggingFace `transformers`, and ask it to hand back the nu
 tools throw away.
 
 If you don't care about the code, skip the gray boxes. It comes down to three settings that mean
-keep the attention pie-slices, keep the running state, and keep the memory of earlier tokens:
+keep the attention weights, keep the running state, and keep the memory of earlier tokens:
 
 ```python
 model = AutoModelForCausalLM.from_pretrained(
@@ -70,8 +74,8 @@ out = model(**enc,
 
 That gives back two things worth staring at. The **attention weights**: for my eight-token
 sentence, a stack of 8x8 grids, one per head, where each row is a token and each cell says how big
-a slice it gave to a token at or before it. And the **running state**: the vector the model carries for
-each token, snapshotted after every layer. The full runnable version is
+a slice it gave to a token at or before it. And the **running state**: the vector the model carries
+for each token, snapshotted after every layer. The full runnable version is
 [`observe.py`](https://github.com/mapathak-commits/inference-wall/tree/main/experiments/04-attention-internals).
 
 ## What one head is looking at
@@ -85,15 +89,15 @@ subject of the sentence. "sat" looks at "cat" with a slice of 0.96, "on" looks a
 even the final period points back at "cat." You can watch the model tie the sentence together,
 exactly the intuition you'd hope for. Now score every head by a different number: how big a slice
 does the *last* token hand to the *first* token? One head wins outright. Layer 5, head 1 gives the
-first token a slice of 1.00, the whole pie. Here the two sit side by side:
+first token a slice of 1.00, its whole attention. Here the two sit side by side:
 
 ![Two GPT-2 attention grids side by side. On the left, layer 4 head 3, several rows point back at the "cat" column with printed weights like 0.96 and 0.89. On the right, layer 5 head 1, one solid bright column on the first token, every cell reading 1.00.]({{ '/assets/figures/fn2-attention-grids.png' | relative_url }})
 
 *Each row is a token doing the looking; each cell is the slice it gave a token it can see, meaning
-an earlier one or itself. Numbers are printed in, darker means smaller, and the blank upper triangle
-is just the future, which no token is allowed to see. Left, layer 4, head 3: a readable head, where later tokens reach back to
-the subject, "cat." Right, layer 5, head 1: the surprise. Every token, whatever it means, hands its
-entire slice to the first token, "The."*
+an earlier one or itself. Numbers are printed in, darker means smaller, and the blank upper
+triangle is just the future, which no token is allowed to see. Left, layer 4, head 3: a readable
+head, where later tokens reach back to the subject, "cat." Right, layer 5, head 1: every token,
+whatever it means, hands its entire slice to the first token, "The."*
 
 The left panel is what I assumed all attention looked like: tokens wiring up to each other, meaning
 getting assembled. The right panel is the surprise. A whole head, deep in the network, has decided
@@ -114,15 +118,15 @@ back half of the network, 92% of heads send more than half their attention to th
 This is a known effect, called an **attention sink**, and once you see the reason it stops being
 mysterious.
 
-Remember the pie has to add up to 1. A head is forced to spend its whole budget on the earlier
-tokens, whether or not any of them are relevant to its job. But heads are specialists. A head that
-hunts for, say, the verb three tokens back has nothing to do in a sentence where that pattern
-doesn't appear. It still has to put its pie somewhere.
+Remember the weights have to add up to 1. A head is forced to spend its whole budget on the tokens
+it can see, whether or not any of them are relevant to its job. But heads are specialists. A head
+that hunts for, say, the verb three tokens back has nothing to do in a sentence where that pattern
+doesn't appear. It still has to put its weight somewhere.
 
 It dumps the budget instead on a token that is always there, always in the same spot, and carries
-no meaning worth disturbing: the first one. The sink is the model's junk drawer, a safe place to
-offload attention it doesn't want to spend. The first token gets the job because every later token
-can see it, and a fixed target is easy for the model to learn. The
+no meaning worth disturbing: the first one. The sink is where the model offloads attention it has
+no use for, a safe, always-present target that costs nothing to point at. The first token gets the
+job because every later token can see it, and a fixed target is easy for the model to learn. The
 [StreamingLLM paper](https://arxiv.org/abs/2309.17453) by Xiao et al. in 2023 named this effect and
 showed that the model depends on it.
 
@@ -147,9 +151,10 @@ eases back toward the pack by the final one, so if you only read the model's out
 you normally get, you'd never see it. You have to look inside the computation to catch it.
 
 These spikes are called **massive activations**, named by
-[Sun et al. in 2024](https://arxiv.org/abs/2402.17762), and they're the flip side of the sink. The
-model parks a big, roughly constant scratch value on one token and then points its spare attention
-there. The junk drawer and the scratch pad are the same token.
+[Sun et al. in 2024](https://arxiv.org/abs/2402.17762), and they're almost certainly the same
+mechanism as the sink seen from the other side. The research argues the model parks a big, roughly
+constant value on the first token, and it's that value the spare attention keys onto: the token
+that soaks up the leftover attention is the same one carrying the outsized magnitude.
 
 I ran the same check across a handful of other models, including Meta's OPT and Alibaba's Qwen, and
 both effects showed up every time. The point here is the intuition and how to look, not a survey,
@@ -164,11 +169,11 @@ That 8x8 grid, one weight for every pair of tokens, is the expensive part of att
 prompt of thousands of tokens it's a grid of millions of cells, and its size grows with the
 *square* of the length. The entire art of fast serving is to get the *result* of attention without
 ever writing that giant grid down. FlashAttention, the subject of a coming post, computes it in
-small tiles and never stores the full grid. PagedAttention, the trick vLLM is built on, is the other
-half: it keeps each request's earlier-token memory scattered across fixed-size blocks, the way an
-operating system pages memory, rather than in one neat contiguous table. Between them the full grid
-is never assembled and the memory behind it is never laid out for you to read. Speed comes precisely
-from throwing away the scratch work I wanted to read.
+small tiles and never stores the full grid. PagedAttention, the trick vLLM is built on, is the
+other half: it keeps each request's earlier-token memory scattered across fixed-size blocks, the
+way an operating system pages memory, rather than in one neat contiguous table. Between them the
+full grid is never assembled and the memory behind it is never laid out for you to read. Speed
+comes precisely from throwing away the scratch work I wanted to read.
 
 The numbers I plotted exist for only a few microseconds inside a fused chip operation and then
 they're gone. The serving layer stays perfectly observable, and watching it is most of what this
@@ -185,17 +190,20 @@ problems in running these models cheaply.
 **The sink is why you can't just forget the start of a long chat.** When a conversation runs past a
 model's window, the obvious fix is to drop the oldest tokens. StreamingLLM showed this wrecks the
 model's quality, and the sink is why: the deep layers are still pouring most of their attention
-onto those first few tokens. Delete them and every head's pie has to be re-sliced onto tokens that
-were only ever meant to be ignored, and the model falls apart. The fix is to always keep the first
-few tokens in the window, no matter how long the conversation grows, so the sink never disappears
-from under the deep layers.
+onto those first few tokens. Delete them and every head's attention has to be re-slid onto tokens
+that were only ever meant to be ignored, and the model falls apart. The fix is to always keep the
+first few tokens in the window, no matter how long the conversation grows, so the sink never
+disappears from under the deep layers.
 
 **The high-magnitude token is why shrinking models is hard.** Part 6 of this series, still to come,
-runs models in 4 bits instead of 16, which saves enormous memory but means squeezing every number
-into a tiny range of values. That squeeze hates outliers: one value 30 or 100 times bigger than its
-neighbors stretches the range until everything else rounds to mush. The massive-activation token is
-exactly that outlier, and it shows up on nearly every pass. A big slice of the research on shrinking
-models is, underneath, elaborate machinery for handling these specific spikes.
+runs models in 4 bits instead of 16, which saves enormous memory but means squeezing numbers into a
+tiny range of values. That squeeze hates outliers: one value tens or hundreds of times bigger than
+its neighbors stretches the range until everything else rounds to mush. These massive activations
+are exactly that kind of outlier, and they show up on nearly every pass. They hit activation
+quantization head-on, and they are why even the weight-only scheme Part 6 uses has to be
+*activation-aware*, choosing which weight channels to keep in higher precision by watching where
+these big activations flow. A big slice of the research on shrinking models is, underneath,
+elaborate machinery for handling these specific spikes.
 
 Both of these were discovered the hard way, at scale, by teams running models in production. And
 both are sitting right there in forty lines of code on a single toy sentence, if you're willing to
