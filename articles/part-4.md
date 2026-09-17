@@ -35,10 +35,11 @@ is **attention**, and it is the whole reason a model handles a sentence rather t
 pile of tokens.
 
 It doesn't attend to just one earlier token. Each token spreads a fixed budget of weight across
-all the tokens before it, a probability distribution over the earlier tokens: non-negative weights
-that sum to 1. I'll call one token's distribution its pie, since attention divides it into slices,
-one per earlier token. When the model processes "sat," a well-behaved pie puts most of its mass on
-"cat" and a little on "the."
+every token from the start of the sentence up to and including itself, a probability distribution:
+non-negative weights that sum to 1. It can't look ahead, only back and at itself. I'll call one
+token's distribution its pie, since attention divides it into slices, one per token it can see.
+When the model processes "sat," a well-behaved pie puts most of its mass on "cat" and a little on
+"the," with some kept on "sat" itself.
 
 And the model does this many times over in parallel. Each pass is a **head**, and different heads
 look for different things: one might chase the subject of the verb, another just the token right
@@ -69,7 +70,7 @@ out = model(**enc,
 
 That gives back two things worth staring at. The **attention weights**: for my eight-token
 sentence, a stack of 8x8 grids, one per head, where each row is a token and each cell says how big
-a slice it gave to an earlier token. And the **running state**: the vector the model carries for
+a slice it gave to a token at or before it. And the **running state**: the vector the model carries for
 each token, snapshotted after every layer. The full runnable version is
 [`observe.py`](https://github.com/mapathak-commits/inference-wall/tree/main/experiments/04-attention-internals).
 
@@ -88,9 +89,9 @@ first token a slice of 1.00, the whole pie. Here the two sit side by side:
 
 ![Two GPT-2 attention grids side by side. On the left, layer 4 head 3, several rows point back at the "cat" column with printed weights like 0.96 and 0.89. On the right, layer 5 head 1, one solid bright column on the first token, every cell reading 1.00.]({{ '/assets/figures/fn2-attention-grids.png' | relative_url }})
 
-*Each row is a token doing the looking; each cell is the slice it gave an earlier token. Numbers
-are printed in, darker means smaller, and the blank upper triangle is just the future, which no
-token is allowed to see. Left, layer 4, head 3: a readable head, where later tokens reach back to
+*Each row is a token doing the looking; each cell is the slice it gave a token it can see, meaning
+an earlier one or itself. Numbers are printed in, darker means smaller, and the blank upper triangle
+is just the future, which no token is allowed to see. Left, layer 4, head 3: a readable head, where later tokens reach back to
 the subject, "cat." Right, layer 5, head 1: the surprise. Every token, whatever it means, hands its
 entire slice to the first token, "The."*
 
@@ -163,9 +164,11 @@ That 8x8 grid, one weight for every pair of tokens, is the expensive part of att
 prompt of thousands of tokens it's a grid of millions of cells, and its size grows with the
 *square* of the length. The entire art of fast serving is to get the *result* of attention without
 ever writing that giant grid down. FlashAttention, the subject of a coming post, computes it in
-small tiles and never stores the full grid. PagedAttention, the trick vLLM is built on, streams the
-earlier tokens' memory through the chip as fast as it can and would never stop to hand you a
-labeled table. Speed comes precisely from throwing away the scratch work I wanted to read.
+small tiles and never stores the full grid. PagedAttention, the trick vLLM is built on, is the other
+half: it keeps each request's earlier-token memory scattered across fixed-size blocks, the way an
+operating system pages memory, rather than in one neat contiguous table. Between them the full grid
+is never assembled and the memory behind it is never laid out for you to read. Speed comes precisely
+from throwing away the scratch work I wanted to read.
 
 The numbers I plotted exist for only a few microseconds inside a fused chip operation and then
 they're gone. The serving layer stays perfectly observable, and watching it is most of what this
