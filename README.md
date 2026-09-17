@@ -27,7 +27,7 @@ New parts are published weekly, on Fridays.
 | 1 | [An 8.6 GB model that serves only 7 requests a second](articles/part-1.md) | published 2026-08-22 |
 | 2 | [The prefill that freezes your decoders](articles/part-2.md) | published 2026-08-28 |
 | 3 | [The batching cliff](articles/part-3.md) | published 2026-09-04 |
-| 4 | [The attention sink: why deep layers pour their weight onto the first token](articles/part-4.md) | published 2026-09-18 |
+| 4 | [The attention sink: why deep layers fixate on the first token](articles/part-4.md) | published 2026-09-18 |
 
 **Drafted, not yet live** (publish order = part number; branches carry the draft):
 
