@@ -25,11 +25,10 @@ Every modern engine picks a point on that spectrum, and the point it picks is a 
 decision with observable consequences. This post is about watching one server, vLLM, actually
 degrade under a starved cache. I don't reason about what it should do; I flood it until the
 cache is the binding constraint and read the counter that says what happened. The short version
-is that vLLM lands firmly on the *evict* end of the spectrum, its eviction backstop fires far
-more readily than its own documentation's tone suggests, and the cost you pay for it is latency
-you can see coming from the memory math, not a crash. Getting to that answer also required
-noticing that the most obvious way to measure it, grepping the server log, is silently broken, a
-lesson worth more than the result.
+is that vLLM lands on the *evict* end of the spectrum, its eviction backstop fires on every
+workload I tried rather than only the starved ones, and the cost is latency, not a crash. Getting
+to that answer required noticing that the most obvious way to measure it, grepping the server log,
+returns zero on every run because the log line cannot print in this version.
 
 ## The two ends of the spectrum, across engines
 
@@ -69,12 +68,11 @@ with a counter.
 
 ![Two doormen at two clubs. On the left, a strict bouncer at a velvet rope counts the seats inside and turns people away at the door, letting a queue form outside but never touching anyone already seated. On the right, an easygoing bouncer waves the whole crowd straight in, and when the room overflows he taps a few seated guests on the shoulder and walks them back out to the end of the line, telling them they will have to start over when they get back in]({{ '/assets/diagrams/d7-admit-vs-evict.jpg' | relative_url }})
 
-## What vLLM actually does, in mechanism
+## What vLLM does when the cache fills
 
-vLLM's recovery mode is called `RECOMPUTE`, and the V1 engine made it the only one that matters.
-The older path that swapped a preempted request's KV cache out to host memory was dropped in V1,
-because moving gigabytes across the PCIe bus to save a recompute was rarely the better trade. So
-preemption in today's vLLM means exactly one thing, and the source spells it out. When the
+vLLM's recovery mode is called `RECOMPUTE`, and in the V1 engine it is the only one. The older
+path that swapped a preempted request's KV cache out to host memory was dropped in V1. So
+preemption in today's vLLM means one thing, and the source spells it out. When the
 scheduler preempts a request, it frees that request's KV blocks back to the pool and resets its
 progress counter to zero, then puts it back on the waiting queue. On resume, the request re-runs
 its prefill from the beginning: every token it had already processed is computed again. No state
@@ -96,13 +94,13 @@ when admission is cheap but decode growth is large. Short prompts let many reque
 admission gate cheaply; long outputs then grow all of them until the pool goes dry. Hold that
 prediction; the positive control below is built to test it.
 
-## It fires on every workload, not just the pathological one
+## Preemption count across five arms
 
 I flooded vLLM with 200 concurrent requests at unbounded request rate, so the queue is always
 full and the cache is always the binding constraint, across two models and a range of cache
-sizes, and counted preemptions. The counting method matters and is its own story (see the
-sidebar), but the counter is `vllm:num_preemptions_total`, read from the server's
-[Prometheus](https://prometheus.io/) endpoint before and after each flood.
+sizes, and counted preemptions. The counter is `vllm:num_preemptions_total`, read from the server's
+[Prometheus](https://prometheus.io/) endpoint before and after each flood; the sidebar explains
+why I read it there and not from the server log.
 
 | Arm | Model / attention | Cache (max concurrency) | Workload (in/out) | Preemptions |
 |---|---|---|---|---|
@@ -125,7 +123,7 @@ preempts 60 times under fixed-length outputs and 101 under variable-length ones,
 is what lets an admitted request outgrow the batch the scheduler had sized for it, which is the
 preemption trigger.
 
-The positive control nails the mechanism down. On a single fixed tight-cache server, varying only
+The positive control isolates the mechanism. On a single fixed tight-cache server, varying only
 the shape of the workload:
 
 | Workload | in / out | Admission vs. decode growth | Preemptions |
@@ -137,10 +135,9 @@ the shape of the workload:
 This is the prompt-only admission rule made visible. Short prompts with long outputs are the
 worst case by a wide margin, 205 preemptions, because admission waves them all in and decode
 grows them all past the pool. Reverse it, long prompts and short outputs, and admission itself
-holds the running set small, leaving little growth to preempt over. That the balanced 512/512
-case still preempts 36 times, and even the long-prompt case 19, is the point restated: because
-admission never reserves for output, a burst of arrivals can transiently over-commit under almost
-any shape.
+holds the running set small, leaving little growth to preempt over. The balanced 512/512 case
+still preempts 36 times and the long-prompt case 19: because admission never reserves for output,
+a burst of arrivals can transiently over-commit under almost any shape.
 
 ## Two regimes: onset transient vs. steady-state churn
 
@@ -162,13 +159,11 @@ evicts and recomputes continuously as a steady-state cost of operating past its 
 capacity. Same counter, same mechanism, two different regimes: a transient you pay once at load
 onset, and a churn you pay every second you run the cache too tight.
 
-## What it costs, and where to sit on the spectrum
+## What preemption costs
 
-The good news in all of this is what did *not* happen: nothing crashed. Across every arm, every
-one of the 200 requests completed. That is the graceful degradation the spectrum is supposed to
-buy, and vLLM delivers it: the eviction backstop engages exactly when the naive server would
-have run out of memory, and it keeps the server up. The bad news is that the work has to go
-somewhere, and it goes into latency.
+Nothing crashed. Across every arm, all 200 requests completed. The eviction backstop engages when
+the naive server would have run out of memory and keeps the server up; the recompute work it
+creates does not disappear, it turns into latency.
 
 The cost lands as the cache tightens, and it lands hard. Median time-to-first-token climbs from
 about 12 seconds on the dense model with its natural cache, to 2.7 minutes when the cache is
@@ -189,16 +184,15 @@ cost is real (the source confirms every preempted request re-runs its prefill fr
 it is visible only indirectly, as the inflated latency above and depressed throughput, never as a
 clean "percent of compute wasted" figure. I would rather say that plainly than invent a number.
 
-So where should you sit on the spectrum? If you run vLLM, you are on the evict-capable end by
-default, and the practical takeaway is to size the KV cache around the concurrency you actually
-need. Under-provision it and the server won't fall over. It will preempt, recompute, and inflate
-your tail latency into the minutes while every request still eventually succeeds. That failure
-mode is gentler than a crash and far harder to notice, which is its own kind of hazard: a starved
-cache doesn't page you, it just makes everything slow. If your workload cannot tolerate that
-tail, either give the cache more room or pick an engine that sits on the admission-control end
-and makes the backpressure explicit as a queue rather than implicit as latency.
+If you run vLLM, you are on the evict-capable end by default. Size the KV cache around the
+concurrency you actually need: under-provision it and the server won't fall over, it will preempt,
+recompute, and inflate tail latency into the minutes while every request still eventually
+succeeds. A starved cache doesn't crash and doesn't page you; it makes everything slow. If your
+workload cannot tolerate that tail, either give the cache more room or pick an engine that sits on
+the admission-control end, where the backpressure shows up as an explicit queue rather than as
+latency.
 
-## Sidebar: the counter that lies, and the one that doesn't
+## Sidebar: counting preemptions — the log line versus the metrics counter
 
 This post nearly reported the opposite conclusion, and the reason is a measurement bug worth
 warning about. The obvious way to count preemptions in vLLM is to grep the server log for the
@@ -215,13 +209,11 @@ stats, which are copied aside before the reset, the preemption count is simply l
 can never print. Every "zero" it gave me was a false negative from a line of code that cannot
 fire.
 
-The fix is to read the Prometheus counter `vllm:num_preemptions_total` from the `/metrics`
-endpoint instead, which is incremented at the source and survives. Every number in this post is
-the delta of that counter across a flood. The general lesson is one this series keeps running
-into from more than one direction: **a measurement that reads zero is not evidence of absence
-until you have confirmed the instrument can produce a non-zero.** A positive control, deliberately forcing
-the behavior and checking that the counter moves, is not a formality; here it is the entire
-difference between the right conclusion and its exact opposite.
+The Prometheus counter `vllm:num_preemptions_total` on the `/metrics` endpoint is incremented at
+the source and survives the reset. Every number in this post is the delta of that counter across
+a flood. The positive control caught the bug: forcing preemption with a short-prompt/long-output
+workload and watching the log counter still read zero while the metrics counter climbed to 205 is
+what showed the log line, not vLLM's behavior, was the problem.
 
 ## Reproduce
 
