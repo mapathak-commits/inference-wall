@@ -1,0 +1,96 @@
+########## R4B_NAT (Qwen/Qwen3.5-4B blocks=natural in=1024 out=512 r=0.0) ##########
+(EngineCore pid=3722363) INFO 09-10 18:41:26 [kv_cache_utils.py:1316] GPU KV cache size: 77,088 tokens
+(EngineCore pid=3722363) INFO 09-10 18:41:26 [kv_cache_utils.py:1321] Maximum concurrency for 2,048 tokens per request: 83.71x
+PREEMPT_COUNTER_BEFORE 0
+Successful requests:                     200       
+Request throughput (req/s):              1.67      
+Output token throughput (tok/s):         857.24    
+Peak output token throughput (tok/s):    1853.00   
+Median TTFT (ms):                        30721.44  
+P99 TTFT (ms):                           80677.83  
+Median E2EL (ms):                        105917.16 
+P99 E2EL (ms):                           119267.87 
+PREEMPT_COUNTER_AFTER  17
+PREEMPT_COUNTER_DELTA  17
+-- R4B_NAT last Running/Waiting/KV --
+(APIServer pid=3721660) INFO 09-10 18:43:21 [loggers.py:259] Engine 000: Avg prompt throughput: 2354.3 tokens/s, Avg generation throughput: 1058.2 tokens/s, Running: 97 reqs, Waiting: 6 reqs, GPU KV cache usage: 99.5%, Prefix cache hit rate: 0.0%
+(APIServer pid=3721660) INFO 09-10 18:43:31 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1745.2 tokens/s, Running: 97 reqs, Waiting: 6 reqs, GPU KV cache usage: 99.5%, Prefix cache hit rate: 0.0%
+(APIServer pid=3721660) INFO 09-10 18:43:41 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1580.1 tokens/s, Running: 98 reqs, Waiting: 1 reqs, GPU KV cache usage: 100.0%, Prefix cache hit rate: 0.0%
+(APIServer pid=3721660) INFO 09-10 18:43:51 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 624.6 tokens/s, Running: 6 reqs, Waiting: 0 reqs, GPU KV cache usage: 6.2%, Prefix cache hit rate: 0.0%
+########## E1_7B_NAT (Qwen/Qwen2.5-7B-Instruct blocks=natural in=1024 out=512 r=0.0) ##########
+(EngineCore pid=3745403) INFO 09-10 18:45:33 [kv_cache_utils.py:1316] GPU KV cache size: 92,496 tokens
+(EngineCore pid=3745403) INFO 09-10 18:45:33 [kv_cache_utils.py:1321] Maximum concurrency for 2,048 tokens per request: 45.16x
+PREEMPT_COUNTER_BEFORE 0
+Successful requests:                     200       
+Request throughput (req/s):              1.49      
+Output token throughput (tok/s):         763.48    
+Peak output token throughput (tok/s):    1708.00   
+Median TTFT (ms):                        56629.90  
+P99 TTFT (ms):                           111601.33 
+Median E2EL (ms):                        101474.03 
+P99 E2EL (ms):                           134052.75 
+PREEMPT_COUNTER_AFTER  60
+PREEMPT_COUNTER_DELTA  60
+-- E1_7B_NAT last Running/Waiting/KV --
+(APIServer pid=3744719) INFO 09-10 18:47:33 [loggers.py:259] Engine 000: Avg prompt throughput: 614.2 tokens/s, Avg generation throughput: 962.6 tokens/s, Running: 62 reqs, Waiting: 51 reqs, GPU KV cache usage: 99.2%, Prefix cache hit rate: 0.0%
+(APIServer pid=3744719) INFO 09-10 18:47:43 [loggers.py:259] Engine 000: Avg prompt throughput: 3583.8 tokens/s, Avg generation throughput: 132.6 tokens/s, Running: 61 reqs, Waiting: 12 reqs, GPU KV cache usage: 77.2%, Prefix cache hit rate: 0.0%
+(APIServer pid=3744719) INFO 09-10 18:47:53 [loggers.py:259] Engine 000: Avg prompt throughput: 1535.9 tokens/s, Avg generation throughput: 968.3 tokens/s, Running: 58 reqs, Waiting: 0 reqs, GPU KV cache usage: 76.2%, Prefix cache hit rate: 0.0%
+(APIServer pid=3744719) INFO 09-10 18:48:03 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1300.8 tokens/s, Running: 55 reqs, Waiting: 0 reqs, GPU KV cache usage: 85.3%, Prefix cache hit rate: 0.0%
+########## E2_4B_40 (Qwen/Qwen3.5-4B blocks=40 in=512 out=512 r=0.9) ##########
+(EngineCore pid=3764689) INFO 09-10 18:50:13 [kv_cache_utils.py:1316] GPU KV cache size: 5,280 tokens
+(EngineCore pid=3764689) INFO 09-10 18:50:13 [kv_cache_utils.py:1321] Maximum concurrency for 2,048 tokens per request: 5.71x
+PREEMPT_COUNTER_BEFORE 0
+Successful requests:                     200       
+Request throughput (req/s):              0.55      
+Output token throughput (tok/s):         290.79    
+Peak output token throughput (tok/s):    368.00    
+Median TTFT (ms):                        163257.96 
+P99 TTFT (ms):                           342138.23 
+Median E2EL (ms):                        178880.29 
+P99 E2EL (ms):                           355773.34 
+PREEMPT_COUNTER_AFTER  41
+PREEMPT_COUNTER_DELTA  41
+-- E2_4B_40 last Running/Waiting/KV --
+(APIServer pid=3763951) INFO 09-10 18:56:04 [loggers.py:259] Engine 000: Avg prompt throughput: 156.0 tokens/s, Avg generation throughput: 313.8 tokens/s, Running: 7 reqs, Waiting: 9 reqs, GPU KV cache usage: 100.0%, Prefix cache hit rate: 0.0%
+(APIServer pid=3763951) INFO 09-10 18:56:14 [loggers.py:259] Engine 000: Avg prompt throughput: 363.8 tokens/s, Avg generation throughput: 269.9 tokens/s, Running: 6 reqs, Waiting: 5 reqs, GPU KV cache usage: 92.3%, Prefix cache hit rate: 0.0%
+(APIServer pid=3763951) INFO 09-10 18:56:24 [loggers.py:259] Engine 000: Avg prompt throughput: 369.9 tokens/s, Avg generation throughput: 272.0 tokens/s, Running: 7 reqs, Waiting: 0 reqs, GPU KV cache usage: 97.4%, Prefix cache hit rate: 0.0%
+(APIServer pid=3763951) INFO 09-10 18:56:34 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 227.1 tokens/s, Running: 2 reqs, Waiting: 0 reqs, GPU KV cache usage: 30.8%, Prefix cache hit rate: 0.0%
+########## E2_7B_300 (Qwen/Qwen2.5-7B-Instruct blocks=300 in=512 out=512 r=0.9) ##########
+(EngineCore pid=3802521) INFO 09-10 18:58:16 [kv_cache_utils.py:1316] GPU KV cache size: 4,800 tokens
+(EngineCore pid=3802521) INFO 09-10 18:58:16 [kv_cache_utils.py:1321] Maximum concurrency for 2,048 tokens per request: 2.34x
+PREEMPT_COUNTER_BEFORE 0
+Successful requests:                     200       
+Request throughput (req/s):              0.25      
+Output token throughput (tok/s):         134.27    
+Peak output token throughput (tok/s):    291.00    
+Median TTFT (ms):                        342665.93 
+P99 TTFT (ms):                           749465.32 
+Median E2EL (ms):                        361846.90 
+P99 E2EL (ms):                           774698.67 
+PREEMPT_COUNTER_AFTER  173
+PREEMPT_COUNTER_DELTA  173
+-- E2_7B_300 last Running/Waiting/KV --
+(APIServer pid=3802333) INFO 09-10 19:11:06 [loggers.py:259] Engine 000: Avg prompt throughput: 85.8 tokens/s, Avg generation throughput: 109.0 tokens/s, Running: 4 reqs, Waiting: 4 reqs, GPU KV cache usage: 81.3%, Prefix cache hit rate: 0.0%
+(APIServer pid=3802333) INFO 09-10 19:11:16 [loggers.py:259] Engine 000: Avg prompt throughput: 62.6 tokens/s, Avg generation throughput: 113.4 tokens/s, Running: 3 reqs, Waiting: 4 reqs, GPU KV cache usage: 80.3%, Prefix cache hit rate: 0.0%
+(APIServer pid=3802333) INFO 09-10 19:11:26 [loggers.py:259] Engine 000: Avg prompt throughput: 75.5 tokens/s, Avg generation throughput: 105.6 tokens/s, Running: 3 reqs, Waiting: 0 reqs, GPU KV cache usage: 60.5%, Prefix cache hit rate: 0.0%
+(APIServer pid=3802333) INFO 09-10 19:11:36 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 75.3 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 25.1%, Prefix cache hit rate: 0.0%
+########## E2_7B_NAT (Qwen/Qwen2.5-7B-Instruct blocks=natural in=512 out=512 r=0.9) ##########
+(EngineCore pid=3878833) INFO 09-10 19:12:17 [kv_cache_utils.py:1316] GPU KV cache size: 92,496 tokens
+(EngineCore pid=3878833) INFO 09-10 19:12:17 [kv_cache_utils.py:1321] Maximum concurrency for 2,048 tokens per request: 45.16x
+PREEMPT_COUNTER_BEFORE 0
+Successful requests:                     200       
+Request throughput (req/s):              1.76      
+Output token throughput (tok/s):         929.77    
+Peak output token throughput (tok/s):    2385.00   
+Median TTFT (ms):                        12323.01  
+P99 TTFT (ms):                           78357.05  
+Median E2EL (ms):                        73012.64  
+P99 E2EL (ms):                           109792.07 
+PREEMPT_COUNTER_AFTER  101
+PREEMPT_COUNTER_DELTA  101
+-- E2_7B_NAT last Running/Waiting/KV --
+(APIServer pid=3877491) INFO 09-10 19:13:57 [loggers.py:259] Engine 000: Avg prompt throughput: 939.4 tokens/s, Avg generation throughput: 1095.7 tokens/s, Running: 84 reqs, Waiting: 0 reqs, GPU KV cache usage: 95.8%, Prefix cache hit rate: 0.0%
+(APIServer pid=3877491) INFO 09-10 19:14:07 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1305.4 tokens/s, Running: 34 reqs, Waiting: 0 reqs, GPU KV cache usage: 38.8%, Prefix cache hit rate: 0.0%
+(APIServer pid=3877491) INFO 09-10 19:14:17 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 739.5 tokens/s, Running: 17 reqs, Waiting: 0 reqs, GPU KV cache usage: 24.3%, Prefix cache hit rate: 0.0%
+(APIServer pid=3877491) INFO 09-10 19:14:27 [loggers.py:259] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 229.9 tokens/s, Running: 2 reqs, Waiting: 0 reqs, GPU KV cache usage: 3.9%, Prefix cache hit rate: 0.0%
+=== REMEASURE DONE ===

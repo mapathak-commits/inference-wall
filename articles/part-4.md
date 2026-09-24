@@ -216,7 +216,7 @@ figures above. No GPU needed; it runs on a CPU in a few seconds.*
 
 ---
 
-**Previous:** [Part 3: The batching cliff]({{ '/articles/part-3/' | relative_url }}) · **Next:** Part 5, coming next Friday · [All posts]({{ '/articles/' | relative_url }})
+**Previous:** [Part 3: The batching cliff]({{ '/articles/part-3/' | relative_url }}) · **Next:** [Part 5: Starving the cache]({{ '/articles/part-5/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
 
 ---
 

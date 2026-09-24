@@ -117,7 +117,7 @@ the full arc:
    of the hardest problems in serving: what you can evict from a long context, and how far you
    can compress the weights.
 
-5. **Cache starvation** *(coming)*. How a server slows down gracefully instead of crashing when memory
+5. **[Starving the cache]({{ '/articles/part-5/' | relative_url }})** *(published)*. How a server slows down gracefully instead of crashing when memory
    gets tight, and the surprise underneath: vLLM's eviction backstop fires far more readily
    than its docs' tone suggests, on every workload rather than only the pathological one, and
    the cost is latency you can see coming from the memory math, not a crash. A measurement

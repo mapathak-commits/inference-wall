@@ -14,7 +14,7 @@ the number, and read the trace that explains why. New parts publish weekly.*
 | **Part 2** | [The prefill freeze]({{ '/articles/part-2/' | relative_url }}) | one fat prompt stalls everyone's stream; one scheduler flag cuts the stutter 2.4x |
 | **Part 3** | [The batching cliff]({{ '/articles/part-3/' | relative_url }}) | turning batching off drops the server 22x; the win flattens at batch ~64 |
 | **Part 4** | [The attention sink]({{ '/articles/part-4/' | relative_url }}) | on a CPU, a deep head pours its whole attention onto the first token, whose state towers 12x over the rest, and why that limits what you can evict from a long context |
-| Part 5 | Starving the cache | *coming soon* |
+| **Part 5** | [Starving the cache]({{ '/articles/part-5/' | relative_url }}) | flood vLLM until the KV cache binds and it preempts on every workload, not just the pathological one; the cost is tail latency you can see coming, not a crash |
 | Part 6 | Quantization as a fit-enabler | *coming soon* |
 | Part 7 | Speculative decoding | *coming soon* |
 | Part 8 | FlashAttention at the scale where it matters | *coming soon* |

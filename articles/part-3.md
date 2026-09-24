@@ -167,10 +167,11 @@ approach it with.
    serialize into a single-file queue. Aggregate throughput and individual latency pull in
    opposite directions; batching spends the second to buy the first.
 
-Next in the series, coming next Friday: I try to break the memory system instead of the
-decode loop, by starving the KV cache until the server should have to start evicting
-requests, and find that it refuses to do the thing I expected, degrading a completely
-different way.
+Next in the series: a detour off the rig. I step away from serving under load to open up a
+small model, GPT-2, on a CPU in full precision, keeping every intermediate value so the
+arithmetic is slow enough to read, and watch a deep attention head pour almost all its weight
+onto the first token, a quirk that turns out to sit under two of the hardest problems in
+serving.
 
 ---
 
