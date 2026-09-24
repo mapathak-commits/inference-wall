@@ -10,15 +10,15 @@ single 23 GB NVIDIA A10G, served under vLLM. Draft.*
 
 [The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 5**
 
-An inference server has a fixed amount of memory for KV cache, the running scratchpad it keeps
-for every request in flight. When more requests want to run than the cache can seat, something
-has to give, and the server has exactly two honest options. It can refuse to start new work
-until room frees up. That is **admission control**: a request waits in a queue rather than
-running with nowhere to store its keys and values. Or it can start the work optimistically and,
-when the cache later fills mid-generation, **evict** a running request: throw away its cached
-state, hand the blocks to someone else, and reconstruct the evicted request's state later. The
-one option nobody ships is the naive one: admit everything, run out of memory mid-decode, and
-crash.
+An inference server keeps a KV cache for every request in flight, the keys and values it has
+computed so far, and the GPU memory holding it is finite. Under enough load, more requests want
+to run than that memory can hold, and something has to give. The server has two options. It can
+refuse to start new work until room frees up. That is **admission control**: a request waits in a
+queue rather than running with nowhere to store its keys and values. Or it can start the work
+optimistically and, when the cache later fills mid-generation, **evict** a running request: throw
+away its cached state, hand the blocks to someone else, and reconstruct the evicted request's
+state later. The naive strategy is to admit everything, run out of memory mid-decode, and crash;
+admission control and eviction are the two ways a server avoids it.
 
 Every modern engine picks a point on that spectrum, and the point it picks is a real design
 decision with observable consequences. This post is about watching one server, vLLM, actually
@@ -90,7 +90,7 @@ tokens and collectively they no longer fit. When an active decode step needs one
 the free pool is empty, the scheduler preempts. Admit for the prompt, grow through decode, evict
 when growth outruns the pool.
 
-That mechanism makes a sharp prediction about *when* preemption should be worst: it should peak
+That mechanism makes a prediction about *when* preemption should be worst: it should peak
 when admission is cheap but decode growth is large. Short prompts let many requests through the
 admission gate cheaply; long outputs then grow all of them until the pool goes dry. Hold that
 prediction; the positive control below is built to test it.
@@ -102,8 +102,8 @@ prediction; the positive control below is built to test it.
 I flooded vLLM with 200 concurrent requests at unbounded request rate, so the queue is always
 full and the cache is always the binding constraint, across two models and a range of cache
 sizes, and counted preemptions. The counting method matters and is its own story (see the
-sidebar), but the counter is `vllm:num_preemptions_total`, read from the server's Prometheus
-endpoint before and after each flood.
+sidebar), but the counter is `vllm:num_preemptions_total`, read from the server's
+[Prometheus](https://prometheus.io/) endpoint before and after each flood.
 
 | Arm | Model / attention | Cache (max concurrency) | Workload (in/out) | Preemptions |
 |---|---|---|---|---|
