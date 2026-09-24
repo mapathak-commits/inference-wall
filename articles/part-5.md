@@ -95,8 +95,6 @@ when admission is cheap but decode growth is large. Short prompts let many reque
 admission gate cheaply; long outputs then grow all of them until the pool goes dry. Hold that
 prediction; the positive control below is built to test it.
 
-![A cartoon of a small parking lot where cars are waved in freely because each arrives tiny, but every parked car keeps inflating like a balloon as it sits. Soon the puffed-up cars are wedged bumper to bumper with no room left, and an attendant is towing one back out to the street so a neighbor can finish inflating, a thought bubble over the towed car showing it will have to drive the whole loop again](/assets/diagrams/d7b-admit-then-grow.jpg)
-
 ## It fires on every workload, not just the pathological one
 
 I flooded vLLM with 200 concurrent requests at unbounded request rate, so the queue is always
