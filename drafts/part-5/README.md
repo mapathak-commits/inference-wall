@@ -11,7 +11,7 @@ weights through the decode loop. Every post since has been about pushing that wa
 This post is about the bluntest lever of all, the one you reach for when the model you
 *want* to run will not fit *usefully* on the GPU: **quantization.**
 
-Here is the setup that makes the point. I wanted to serve Qwen3.5-9B, a model about twice
+I wanted to serve Qwen3.5-9B, a model about twice
 the size of the 4B, on the same 23 GB GPU. In its native format (fp16, meaning each of the
 model's numbers is stored in 16 bits) its weights alone are about 18 GB (9 billion
 parameters at 2 bytes each). On a 23 GB GPU at vLLM's default 0.9 memory fraction that
