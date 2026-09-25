@@ -1,4 +1,4 @@
-# Quantization as a fit-enabler: how a 9B model serves at 80% of a 4B's speed
+# Quantization as a fit-enabler: how a 9B model serves at three-quarters of a 4B's speed
 
 *Draft 1. Part 6 of "The Inference Wall." Same rig
 throughout: one NVIDIA A10G (23 GB). Qwen3.5-4B (fp16) vs Qwen3.5-9B (4-bit AWQ).*
@@ -22,9 +22,10 @@ framing for a 23 GB GPU is not "9B fp16 vs something faster," it is "**9B in a u
 or no 9B at all.**"
 
 The surprising part is how small the penalty turns out to be. A 4-bit version of the 9B
-not only fits, it **serves at roughly 80% of the 4B's throughput**, despite having more
-than twice the parameters. This post is about why that lopsided trade exists, and it comes
-straight back to the memory-bandwidth story the whole series has been building.
+not only fits, it **serves at roughly three-quarters of the 4B's throughput** (about 75%),
+despite having more than twice the parameters. This post is about why that lopsided trade
+exists, and it comes straight back to the memory-bandwidth story the whole series has been
+building.
 
 ## What quantization actually is (the one-paragraph version)
 
@@ -96,12 +97,13 @@ Now put it next to the 4B fp16 from Part 1, at the same offered rates:
 
 Below the knee the two models are **nearly identical**: at rate 4 the 9B does 3.73 req/s
 and 478 tok/s against the 4B's 3.77 and 482, a difference you would not notice. The ceiling
-is only modestly lower: the 9B tops out around 6.4 req/s and 820 tok/s versus the 4B's
-~7 to 8.5 and ~1,000. **A model with 2.25x the parameters serves at roughly 80% of the smaller
-model's rate.** If you expected the bigger model to be roughly twice as slow, this should
-be the surprise of the post.
+is only modestly lower: the 9B tops out at 6.42 req/s and 821 tok/s versus the 4B's
+8.53 and 1,092, which is **about 75% of the 4B's sustained rate** (6.42/8.53 = 0.75;
+821/1,092 = 0.75). **A model with 2.25x the parameters serves at roughly three-quarters of
+the smaller model's rate.** If you expected the bigger model to be roughly twice as slow,
+this should be the surprise of the post.
 
-![Two throughput curves against offered rate for the 4B fp16 and the 9B AWQ: they lie nearly on top of each other below the knee, then diverge at the ceiling to about 1,092 tokens a second for the 4B and 821 for the 9B, a model with more than twice the parameters running at roughly 80% of the smaller one's speed](fig5b-throughput-curves.png)
+![Two throughput curves against offered rate for the 4B fp16 and the 9B AWQ: they lie nearly on top of each other below the knee, then diverge at the ceiling to about 1,092 tokens a second for the 4B and 821 for the 9B, a model with more than twice the parameters running at roughly three-quarters of the smaller one's speed](fig5b-throughput-curves.png)
 
 ## Why the bigger model isn't much slower: it's the bytes, not the parameters
 
@@ -119,12 +121,16 @@ Profiling both models settles which ratio governs. If you sweep the batch size a
 per-step decode time, it comes out as a fixed cost plus a per-sequence cost (the fit Part 1
 introduced and Part 3 read off the batching sweep). The per-sequence term is where the model's size shows up, and measured from
 traces it is **313 us/seq for the 4B and 395 us/seq for the 9B, a ratio of 1.26x.** That
-lands on the *byte* ratio (1.30x) and nowhere near the *parameter* ratio (2.25x). If the
-extra parameters were what cost you, the 9B would run at ~45% of the 4B's rate; because it is
-the extra *bytes* that cost you, and quantization held those to 1.3x, it runs at ~1 / 1.3 ≈
-**77%**, essentially the ~80% we measure. **That is the whole point: what a decode step
-actually spends its time moving is bytes, so a model with more than twice the parameters, but
-only 1.3x the bytes, serves at nearly the same speed.**
+lands on the *byte* ratio (1.30x) and nowhere near the *parameter* ratio (2.25x). This is
+what sets the ceiling: the per-sequence work is what does not amortize across the batch, so
+its ratio is what the sustained-throughput ratio should track. The bytes ratio predicts a
+throughput of ~1 / 1.3 ≈ **77%** of the 4B's, and the measured ceiling is **75%** (821 vs
+1,092 tok/s), close to that, and both far from the ~45% (~1 / 2.25) the parameter count implies.
+If the extra parameters were what cost you, the 9B would run at that ~45%; because it is the
+extra *bytes* that cost you, and quantization held those to 1.3x, it runs at three-quarters
+the speed. **That is the whole point: what a decode step actually spends its time moving is
+bytes, so a model with more than twice the parameters, but only 1.3x the bytes, serves at
+nearly the same speed.**
 
 ![Two rows comparing what a decode step moves: the 4B fp16 as a handful of large weight tiles, and the 9B 4-bit as 2.25x as many tiles each a quarter the size, so the two armloads of bytes come out nearly equal at about 1.3x rather than 2.25x](d8.jpg)
 
@@ -162,8 +168,8 @@ serving engine. The bytes-read mechanism is general.)
    speedup.
 2. **Parameter count is the wrong unit for decode speed; bytes-read is the right one.**
    The 9B has 2.25x the parameters but, in 4-bit, only ~1.3x the weight bytes of the 4B in
-   fp16, which is why it serves at ~80% of the speed (roughly 1 / 1.3) rather than the ~45%
-   the parameter count would suggest.
+   fp16, which is why it serves at ~75% of the speed (the byte ratio predicts ~77%) rather
+   than the ~45% the parameter count would suggest.
 3. **The 4-bit path costs you smoothness and ceiling, not correctness.** Expect modestly
    higher ITL under load and a throughput ceiling a fifth to a quarter lower. Answer
    quality held on this model; the price is in latency, not in the output.
