@@ -1,0 +1,72 @@
+########## request_rate=1 ##########
+Successful requests:                     200       
+Request throughput (req/s):              0.99      
+Output token throughput (tok/s):         126.08    
+Peak output token throughput (tok/s):    740.00    
+Median TTFT (ms):                        138.30    
+P99 TTFT (ms):                           18352.08  
+P99 ITL (ms):                            62.90     
+Median E2EL (ms):                        3281.74   
+P99 E2EL (ms):                           22495.60  
+########## request_rate=2 ##########
+Successful requests:                     200       
+Request throughput (req/s):              1.94      
+Output token throughput (tok/s):         248.22    
+Peak output token throughput (tok/s):    603.00    
+Median TTFT (ms):                        145.64    
+P99 TTFT (ms):                           268.73    
+P99 ITL (ms):                            72.80     
+Median E2EL (ms):                        3653.40   
+P99 E2EL (ms):                           4459.22   
+########## request_rate=4 ##########
+Successful requests:                     200       
+Request throughput (req/s):              3.73      
+Output token throughput (tok/s):         477.67    
+Peak output token throughput (tok/s):    862.00    
+Median TTFT (ms):                        194.57    
+P99 TTFT (ms):                           401.10    
+P99 ITL (ms):                            135.21    
+Median E2EL (ms):                        5424.00   
+P99 E2EL (ms):                           7474.60   
+########## request_rate=6 ##########
+Successful requests:                     200       
+Request throughput (req/s):              4.84      
+Output token throughput (tok/s):         619.26    
+Peak output token throughput (tok/s):    1464.00   
+Median TTFT (ms):                        580.64    
+P99 TTFT (ms):                           2910.90   
+P99 ITL (ms):                            342.06    
+Median E2EL (ms):                        16141.22  
+P99 E2EL (ms):                           20405.35  
+########## request_rate=8 ##########
+Successful requests:                     200       
+Request throughput (req/s):              5.21      
+Output token throughput (tok/s):         666.77    
+Peak output token throughput (tok/s):    1528.00   
+Median TTFT (ms):                        1010.79   
+P99 TTFT (ms):                           7402.53   
+P99 ITL (ms):                            456.69    
+Median E2EL (ms):                        18910.06  
+P99 E2EL (ms):                           20696.71  
+########## request_rate=16 ##########
+Successful requests:                     200       
+Request throughput (req/s):              6.06      
+Output token throughput (tok/s):         775.09    
+Peak output token throughput (tok/s):    1648.00   
+Median TTFT (ms):                        2549.90   
+P99 TTFT (ms):                           12997.69  
+P99 ITL (ms):                            611.59    
+Median E2EL (ms):                        18675.32  
+P99 E2EL (ms):                           25362.60  
+########## request_rate=inf ##########
+Successful requests:                     200       
+Request throughput (req/s):              6.42      
+Output token throughput (tok/s):         821.37    
+Peak output token throughput (tok/s):    1555.00   
+Median TTFT (ms):                        7649.23   
+P99 TTFT (ms):                           23275.37  
+P99 ITL (ms):                            611.83    
+Median E2EL (ms):                        22347.24  
+P99 E2EL (ms):                           31142.45  
+=== 9B SWEEP DONE ===
+SWEEP_EXIT=0
