@@ -1,0 +1,22 @@
+########## request_rate=1 ##########
+Successful requests:                     200       
+Request throughput (req/s):              0.99      
+Output token throughput (tok/s):         126.08    
+Peak output token throughput (tok/s):    358.00    
+Median TTFT (ms):                        136.38    
+P99 TTFT (ms):                           213.52    
+P99 ITL (ms):                            62.05     
+Median E2EL (ms):                        3239.99   
+P99 E2EL (ms):                           3798.76   
+########## request_rate=2 ##########
+Successful requests:                     200       
+Request throughput (req/s):              1.94      
+Output token throughput (tok/s):         248.22    
+Peak output token throughput (tok/s):    603.00    
+Median TTFT (ms):                        145.81    
+P99 TTFT (ms):                           266.64    
+P99 ITL (ms):                            72.52     
+Median E2EL (ms):                        3654.88   
+P99 E2EL (ms):                           4455.64   
+=== 9B SWEEP DONE ===
+SWEEP_EXIT=0
