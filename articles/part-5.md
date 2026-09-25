@@ -13,7 +13,7 @@ alongside: Qwen3.5-4B and Qwen2.5-7B on a single NVIDIA A10G (23 GB), served und
 
 An inference server keeps a KV cache for every request in flight, the keys and values it has
 computed so far, and the GPU memory holding it is finite. Under enough load, more requests want
-to run than that memory can hold, and something has to give. The server has two options. It can
+to run than that memory can hold. The server has two options. It can
 refuse to start new work until room frees up. That is **admission control**: a request waits in a
 queue rather than running with nowhere to store its keys and values. Or it can start the work
 optimistically and, when the cache later fills mid-generation, **evict** a running request: throw
@@ -23,8 +23,8 @@ admission control and eviction are the two ways a server avoids it.
 
 Every modern engine picks a point on that spectrum, and the point it picks is a real design
 decision with observable consequences. This post is about watching one server, vLLM, actually
-degrade under a starved cache. I don't reason about what it should do; I flood it until the
-cache is the binding constraint and read the counter that says what happened. The short version
+degrade under a starved cache. I flood it until the cache is the binding constraint and read the
+counter that says what happened. The short version
 is that vLLM lands on the *evict* end of the spectrum, its eviction backstop fires on every
 workload I tried rather than only the starved ones, and the cost is latency, not a crash. Getting
 to that answer required noticing that the most obvious way to measure it, grepping the server log,
@@ -33,7 +33,7 @@ returns zero on every run because the log line cannot print in this version.
 ## The two ends of the spectrum, across engines
 
 Before the measurements, it helps to see that "admit or evict" is not a vLLM quirk but the axis
-every serving engine sorts itself along. The engines cluster into two camps.
+every serving engine sorts itself along, and engines fall into two groups.
 
 **Pure admission control** engines never evict a running request. Hugging Face's Text Generation
 Inference profiles the GPU at startup to learn how many tokens of KV it can physically hold,
@@ -101,6 +101,14 @@ full and the cache is always the binding constraint, across two models and a ran
 sizes, and counted preemptions. The counter is `vllm:num_preemptions_total`, read from the server's
 [Prometheus](https://prometheus.io/) endpoint before and after each flood; the sidebar explains
 why I read it there and not from the server log.
+
+Reading the table: each **arm** is one server configuration I flooded. The **cache** column is
+its KV pool size, either *natural* (the pool vLLM sizes itself from the GPU's free memory) or
+*tight* (a pool I capped by hand with `--num-gpu-blocks-override` to force pressure); the `Nx` is
+the max concurrency that pool allows, how many requests of this workload's shape can hold their
+KV at once. The **workload** column is prompt length / output length in tokens (`in/out`), and
+*fixed* means every request uses those exact lengths while *variable* draws each length from a
+range around them.
 
 | Arm | Model / attention | Cache (max concurrency) | Workload (in/out) | Preemptions |
 |---|---|---|---|---|
@@ -192,14 +200,12 @@ workload cannot tolerate that tail, either give the cache more room or pick an e
 the admission-control end, where the backpressure shows up as an explicit queue rather than as
 latency.
 
-## Sidebar: counting preemptions — the log line versus the metrics counter
+## Sidebar: counting preemptions, the log line versus the metrics counter
 
-This post nearly reported the opposite conclusion, and the reason is a measurement bug worth
-warning about. The obvious way to count preemptions in vLLM is to grep the server log for the
-line it prints when it preempts, a clause that reads `Preemptions: N`. I did that first, and it
-reported **zero preemptions on every arm**, which is what led an earlier draft to conclude that
-vLLM "stays in admission control and never evicts." That conclusion was wrong, and it was wrong
-for a purely mechanical reason.
+The obvious way to count preemptions in vLLM is to grep the server log for the line it prints
+when it preempts, a clause that reads `Preemptions: N`. In the version I ran, that line reports
+**zero preemptions on every arm**, even on arms that preempt hundreds of times. It is a false
+negative, and it comes from a mechanical bug in the logging path.
 
 That log clause is dead code in the version I ran. The logging routine resets its running
 statistics, including the preemption count, to zero *before* it reaches the check that decides
