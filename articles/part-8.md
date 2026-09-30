@@ -10,10 +10,10 @@ permalink: /articles/part-8/
 
 [The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 8**
 
-FlashAttention is the most celebrated optimization in modern inference. It has two papers,
-tens of thousands of citations, and a place in every serving stack worth naming. So here is
-an uncomfortable measurement to open with. On this GPU, serving this model with a 256-token
-prompt, I swapped the attention kernel for a slower, general-purpose one that does none of
+FlashAttention is the most celebrated optimization in modern inference. It has its own line of
+papers, tens of thousands of citations, and a place in every serving stack worth naming. So
+here is an uncomfortable measurement. On this GPU, serving this model with a 256-token prompt,
+I swapped the attention kernel for a slower, general-purpose one that does none of
 FlashAttention's clever memory management. The prompt came back **0.116 seconds versus
 0.119**. Three milliseconds. If that were the only test you ran, you would conclude the
 famous optimization does nothing, ship the slow kernel, and never know.
@@ -48,7 +48,7 @@ squared. Double the prompt and the matmul work doubles, but the attention work q
 This is the single most important fact about long-context inference, and it means attention
 is a term that starts negligible and, past some crossover, takes over.
 
-You can watch the crossover happen. Here is FlashAttention's own prefill time on this rig,
+You can watch the crossover happen. Take FlashAttention's own prefill time on this rig,
 fit to a curve, with the quadratic piece pulled out as a share of the total:
 
 | Prompt length | Prefill time | Share that is the quadratic attention term |
@@ -182,14 +182,14 @@ entire divergence lives past the context length almost nobody puts on the test b
 ## The trace: the six seconds have a name
 
 The client-side numbers *say* attention is the difference. A profiler trace *shows* it, and
-settles it beyond inference. I re-ran both backends with vLLM's torch profiler armed and
+turns the claim into something you can count. I re-ran both backends with vLLM's torch profiler armed and
 captured a bounded window at three prefill lengths and two decode depths, then bucketed every
 GPU kernel in each window into three families: **attention**, **matmul** (the projections and
 MLP), and everything else. The traces are downloadable and openable in a browser with no GPU;
 the reproduce section says how.
 
-The first thing the trace establishes is the cleanest control in the whole series. Here is the
-matmul time in the prefill windows, both backends:
+The first thing the trace establishes is the cleanest control in the whole series, the matmul
+time in the prefill windows for both backends:
 
 | Prompt length | FlashAttention matmul time | FlexAttention matmul time |
 |---|---|---|
@@ -209,13 +209,15 @@ And it does. Here is the attention time in those same windows:
 |---|---|---|
 | 2,048 | 22 ms (4.6% of the window) | 51 ms (9.8%) |
 | 8,192 | 262 ms (12.9%) | 693 ms (28.0%) |
-| 28,672 | 3,098 ms (33.6%) | 8,772 ms (57.7%) |
+| 28,672 | 3,098 ms (33.6%) | 8,389 ms (57.7%) |
 
-At 28k prefill, FlashAttention computes attention in 3.1 seconds; FlexAttention needs 8.8
-seconds for the identical math, a **2.8-fold** kernel gap that fully accounts for the
-9.2-versus-14.5-second window totals. And notice the share column: on FlexAttention, attention
-has grown to 58% of all GPU time, the term that started as a rounding error now the single
-largest thing the GPU does. That is the quadratic, seen directly.
+At 28k prefill, FlashAttention computes attention in 3.1 seconds; FlexAttention needs 8.4
+seconds for the identical math, a **2.7-fold** kernel gap. That 5.3-second attention gap is,
+within a rounding error, the entire gap between the two window totals, 9.2 seconds against
+14.5: the matmuls matched, so the whole difference landed in attention and nowhere else. And
+notice the share column. On FlexAttention, attention has grown to 58% of all GPU time, the term
+that started as a rounding error now the single largest thing the GPU does. That is the
+quadratic, seen directly.
 
 The decode trace closes the loop by naming the kernels. In FlashAttention's decode windows the
 attention work is a kernel called `flash_fwd_splitkv_kernel`: literally "split the KV read,"
