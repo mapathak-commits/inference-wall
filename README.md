@@ -29,19 +29,19 @@ New parts are published weekly, on Fridays.
 | 3 | [The batching cliff](articles/part-3.md) | published 2026-09-04 |
 | 4 | [The attention sink: why deep layers fixate on the first token](articles/part-4.md) | published 2026-09-18 |
 | 5 | [Starving the cache: how a server degrades when it runs out of KV](articles/part-5.md) | published 2026-09-25 |
+| 6 | [Quantization to make a model fit: how a 9B model serves at three-quarters of a 4B's speed](articles/part-6.md) | published 2026-10-02 |
 
 **Drafted, not yet live** (publish order = part number; branches carry the draft):
 
 | Part | Title | Branch | State |
 |---|---|---|---|
-| 6 | Quantization as a fit-enabler | `preview/part-5` | full draft |
 | 7 | Speculative decoding | `preview/part-6` | full draft |
 | 8 | FlashAttention at the scale where it matters | — | **not yet drafted** |
 | 9 | Off the rig: decode on a CPU | `preview/part-9` | full draft |
 
 > **Branch names lag the numbering.** The renumbering (below) shifted every draft
 > down by one, but the `preview/<part>` branch names still read as they were first
-> cut: `preview/part-5` → Part 6, `preview/part-6` → Part 7, `preview/part-9` → Part 9.
+> cut: `preview/part-6` → Part 7, `preview/part-9` → Part 9.
 > Each draft's own body carries the correct new number; the branch name is just a
 > stable handle. (Parts 4 and 5 shipped from their `publish/*` branches and are now live.)
 
@@ -78,8 +78,8 @@ above. The drafts' own cross-references pin most of it:
 2. **Part 5 — Starving the cache** *(published 2026-09-25)*. Its finding (a starved
    cache degrades into a small-batch server) is priced by Part 3's cliff, and it
    completes the two-walls picture — Part 1's bandwidth wall plus this capacity wall.
-3. **Part 6 — Quantization.** Fewer bytes per token attacks both walls at once;
-   ties back to where the series started.
+3. **Part 6 — Quantization** *(published 2026-10-02)*. Fewer bytes per token attacks
+   both walls at once; ties back to where the series started.
 4. **Part 7 — Speculative decoding.** Must follow 5 and 6: the draft explicitly
    leans on the cache post's admission-control signature (Part 5) and references
    quantization (Part 6) and Part 3's crossover.
@@ -159,11 +159,11 @@ carries the real article with Liquid paths plus its `experiments/`, `benchmarks/
 and `assets/` material, and the index/nav flips.
 
 Current preview branches (branch name → part number; see the renumbering note under
-[The series](#the-series)): `preview/part-5` (Part 6, quantization), `preview/part-6`
-(Part 7, speculative decoding), `preview/part-9` (Part 9, decode on a CPU). See the
-recommended publishing order under [The series](#the-series). (`preview/fn2` shipped as
-Part 4 and `preview/part-4-corrected` shipped as Part 5 from `publish/part-5`; both can
-be deleted.)
+[The series](#the-series)): `preview/part-6` (Part 7, speculative decoding), `preview/part-9`
+(Part 9, decode on a CPU). See the recommended publishing order under
+[The series](#the-series). (`preview/fn2` shipped as Part 4 and `preview/part-4-corrected`
+shipped as Part 5 from `publish/part-5`; `preview/part-5` shipped as Part 6 from
+`publish/part-6`; all can be deleted.)
 
 ## Reproducing
 

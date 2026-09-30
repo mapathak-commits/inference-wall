@@ -242,7 +242,7 @@ Single A10G; absolute numbers are rig-specific, the shape and the mechanism are 
 
 ---
 
-**Previous:** [Part 4: The attention sink]({{ '/articles/part-4/' | relative_url }}) · **Next:** Part 6, coming next Friday · [All posts]({{ '/articles/' | relative_url }})
+**Previous:** [Part 4: The attention sink]({{ '/articles/part-4/' | relative_url }}) · **Next:** [Part 6: Quantization to make a model fit]({{ '/articles/part-6/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
 
 ---
 

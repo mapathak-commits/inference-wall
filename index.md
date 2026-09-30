@@ -124,11 +124,13 @@ the full arc:
    detour rides along: the obvious way to count preemptions, grepping the server log, is
    silently broken, which is its own lesson about trusting an instrument that reads zero.
 
-6. **Overcome the limit: quantization** *(coming)*. A 9B model that fp16 cannot serve
-   *usefully* on this GPU is made to fit *and* serve at roughly 80% of the 4B's speed, using
-   4-bit weights. Decode is bandwidth-bound, so what matters is bytes moved per token, and
-   the 4-bit 9B's weights come out to only ~1.3x the 4B's fp16 weights (measured, not the
-   2.25x its parameter count implies): beating a hardware limit instead of just measuring it.
+6. **[Overcome the limit: quantization]({{ '/articles/part-6/' | relative_url }})**
+   *(published)*. A 9B model that fp16 cannot serve
+   *usefully* on this GPU is made to fit *and* serve at roughly three-quarters of the 4B's
+   speed, using 4-bit weights. Decode is bandwidth-bound, so what matters is bytes moved per
+   token, and the 4-bit 9B's weights come out to only ~1.3x the 4B's fp16 weights (measured,
+   not the 2.25x its parameter count implies): beating a hardware limit instead of just
+   measuring it.
 
 7. **Speculative decoding** *(coming)*. The third lever for getting more tokens out of one
    stream of weight bytes: let a cheap guesser propose several tokens and have the big model
