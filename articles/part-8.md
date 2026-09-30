@@ -1,5 +1,5 @@
 ---
-title: "FlashAttention at the scale where it matters, and the rounding error where it doesn't"
+title: "FlashAttention: what it does, and why its payoff scales with prompt length"
 permalink: /articles/part-8/
 ---
 
@@ -10,27 +10,28 @@ permalink: /articles/part-8/
 
 [The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 8**
 
-FlashAttention is the most celebrated optimization in modern inference. It has its own line of
-papers, tens of thousands of citations, and a place in every serving stack worth naming. So
-here is an uncomfortable measurement. On this GPU, serving this model with a 256-token prompt,
-I swapped the attention kernel for a slower, general-purpose one that does none of
-FlashAttention's clever memory management. The prompt came back **0.116 seconds versus
-0.119**. Three milliseconds. If that were the only test you ran, you would conclude the
-famous optimization does nothing, ship the slow kernel, and never know.
+FlashAttention is the attention kernel underneath most modern serving stacks. It computes the
+same attention every transformer does, but it does the arithmetic without ever writing the
+large intermediate score matrix out to GPU memory, which is where a naive implementation spends
+most of its time. This post measures what that buys, and the answer turns out to depend
+entirely on one variable: how long the prompt is.
 
-Now stretch the same prompt to 30,000 tokens and run it again. The fast kernel answers in
-**10.2 seconds**; the slow one takes **16.4**. Six seconds of difference, on the identical
-model and the identical GPU, from the identical code path, changed only by which attention
-kernel is loaded. The optimization that was a rounding error at 256 tokens is worth a third
-of your latency at 30,000.
+The study is a single-variable sweep. Same model, same GPU, same single-stream probe, and the
+only thing that changes is prompt length, from 256 tokens up to 30,720. I run it twice: once
+with FlashAttention, once with a competent general-purpose attention kernel that lacks
+FlashAttention's memory tuning, so the difference between the two runs is attention and nothing
+else. Then I open a profiler trace and confirm, kernel by kernel, that the wall-clock gap lives
+exactly where the theory says it should.
 
-This post is about that gap: what FlashAttention actually does, why its benefit is invisible
-at the context lengths most people benchmark and dominant at the lengths production actually
-hits, and, using a profiler trace, exactly which kernel the six seconds live in. The one
-fact you need going in comes from the [primer]({{ '/articles/primer/' | relative_url }}):
-serving a token has two phases, a **prefill** that reads the whole prompt in one dense pass
-and a **decode** that emits the answer one token at a time. Attention behaves very
-differently in each, and FlashAttention changes both. Everything below turns on that split.
+The insight is that the benefit is not a fixed percentage. At 256 tokens the two kernels finish
+within three milliseconds of each other; at 30,720 they are six seconds apart, on the identical
+hardware. FlashAttention optimizes attention, attention cost grows with the square of the
+prompt length, so the value of the optimization grows with prompt length too. It is negligible
+at the short prompts most benchmarks use and large at the long contexts production actually
+hits. The one fact you need going in comes from the
+[primer]({{ '/articles/primer/' | relative_url }}): serving a token has two phases, a
+**prefill** that reads the whole prompt in one dense pass and a **decode** that emits the answer
+one token at a time. Attention behaves differently in each, and FlashAttention changes both.
 
 ## Why attention is the term that explodes
 
@@ -234,12 +235,11 @@ not.
 
 ## What to take away
 
-1. **An optimization's benefit is a function of the scale you test at, and attention's
-   scale is context length.** FlashAttention was three milliseconds at 256 tokens and six
-   seconds at 30,000, on the identical model and GPU. The famous kernel is a rounding error in
-   the region most benchmarks live in and dominant in the region production actually hits.
-   Before you conclude an attention optimization does or does not matter, ask how long your
-   prompts are.
+1. **The benefit scales with prompt length, it is not a fixed percentage.** FlashAttention
+   was three milliseconds ahead at 256 tokens and six seconds ahead at 30,000, on the identical
+   model and GPU. Because it optimizes attention, and attention cost grows with prompt length,
+   the value of the optimization tracks how long your prompts are. Before you decide whether an
+   attention optimization matters for you, ask what context length you actually serve.
 
 2. **The reason is the quadratic.** Matmul work grows linearly with prompt length; attention
    grows with the square. So attention starts as a negligible slice of the bill and, past a
