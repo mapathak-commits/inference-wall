@@ -114,7 +114,7 @@ differ only in the quadratic coefficient, the pure-attention part: **3,689 picos
 token-squared for FlashAttention against 10,099 for FlexAttention**, 2.7 times steeper. Because
 that coefficient multiplies *N* squared, it is invisible at small *N* and merciless at large.
 
-![FlashAttention versus FlexAttention prefill time as prompt length grows from 256 to 30,720 tokens: the two curves are indistinguishable below about 2,000 tokens and diverge sharply after, with FlexAttention bending upward far more steeply as the quadratic attention term takes over]({{ '/assets/figures/fig8a-prefill-divergence.png' | relative_url }})
+![FlashAttention versus FlexAttention prefill time as prompt length grows from 256 to 30,720 tokens: the two curves are indistinguishable below about 2,000 tokens and diverge sharply after, with FlexAttention bending upward far more steeply as the quadratic attention term takes over](../assets/figures/fig8a-prefill-divergence.png)
 
 ## Decode: the gap that a flat line hides
 
@@ -183,7 +183,7 @@ at 28k it swells to **58% of the window**, and the window is 17.0 seconds agains
 FlashAttention's 10.3. That is the +11%-versus-+159% decode gap at the kernel level: one kernel
 that parallelizes the long read against one that does not.
 
-![Kernel-family breakdown of GPU time at 2k, 8k, and 28k prefill for both backends: the matmul family is identical between the two, while the attention family grows far faster for FlexAttention, reaching 58% of GPU time at 28k against FlashAttention's 34%]({{ '/assets/figures/fig8b-kernel-family-split.png' | relative_url }})
+![Kernel-family breakdown of GPU time at 2k, 8k, and 28k prefill for both backends: the matmul family is identical between the two, while the attention family grows far faster for FlexAttention, reaching 58% of GPU time at 28k against FlashAttention's 34%](../assets/figures/fig8b-kernel-family-split.png)
 
 ## What to take away
 
