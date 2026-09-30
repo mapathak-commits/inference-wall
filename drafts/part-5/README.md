@@ -37,8 +37,8 @@ A model's "weights" are just a giant pile of numbers. By default each is stored 
 using a scheme that picks the 4-bit levels carefully so the numbers stay close to their
 originals. The immediate payoff is size: 4-bit weights take about a quarter of the bytes
 of 16-bit weights. The method used here is **AWQ** (Activation-aware Weight Quantization), a
-4-bit scheme that chooses the levels so the model's answers stay close to the fp16 original;
-vLLM runs it with a fast GPU kernel called `awq_marlin`. You do not need the internals; you need
+4-bit scheme designed to choose the levels so the model's answers stay close to the fp16
+original; vLLM runs it with a fast GPU kernel called `awq_marlin`. You do not need the internals; you need
 one fact, which the rest of the post leans on: **a 4-bit weight is ~4x fewer bytes to read
 than the same weight in fp16.** (In practice a real 4-bit model keeps a few tensors, such as
 the embeddings, in higher precision, so the whole-model shrink is less than a clean 4x, as
@@ -148,12 +148,20 @@ The 4-bit path is not a pure win, and the curve shows where it pays:
   2.6x the ITL gap at rate 6 might suggest.
 - **A lower ceiling.** The 9B saturates around 6.4 req/s vs the 4B's ~7 to 8.5, roughly a
   fifth to a quarter lower sustained throughput.
+- **Possible quality loss, which I did not measure here.** Rounding every weight to 4 bits
+  is lossy, so a quantized model can answer slightly worse than its fp16 self. AWQ exists
+  precisely to keep that loss small, and published evaluations of 4-bit AWQ generally report
+  small drops on standard benchmarks, but "generally small" is not "zero," and it varies by
+  model and task. This post measured throughput and latency, not accuracy, so I am not
+  claiming the 9B-AWQ answers as well as the 9B in fp16 would. If output quality is what you
+  care about, that is its own benchmark to run, on your own task, before you ship a quantized
+  model.
 
-So the trade is real: you spend some steady-state speed and some smoothness to buy the
-ability to run a model that otherwise would not load. When the alternative is "the model
-does not fit," that trade is overwhelmingly worth it. When you already have headroom, it is
-a genuine judgment call, and the curve above is the kind of measurement that lets you make
-it rather than guess.
+So the trade is real: you spend some steady-state speed, some smoothness, and possibly a
+little answer quality to buy the ability to run a model that otherwise would not load. When
+the alternative is not running the model at all, that trade is overwhelmingly worth it. When
+you already have headroom, it is a genuine judgment call, and the curve above, plus a quality
+eval on your own task, is what lets you make it rather than guess.
 
 One check on different hardware, so it stays out of the main comparison: on a separate rig I
 ran 4-bit against fp16 head-to-head inside a single model, and the same shape held. The
@@ -171,9 +179,10 @@ so the bytes-read mechanism should carry over beyond this setup.
    The 9B has 2.25x the parameters but, in 4-bit, only ~1.3x the weight bytes of the 4B in
    fp16, which is why it serves at ~75% of the speed (the byte ratio predicts ~77%) rather
    than the ~45% the parameter count would suggest.
-3. **The 4-bit path costs you smoothness and ceiling, not correctness.** Expect modestly
-   higher ITL under load and a throughput ceiling a fifth to a quarter lower. Answer
-   quality held on this model; the price is in latency, not in the output.
+3. **The 4-bit path costs you smoothness, ceiling, and possibly a little accuracy.** Expect
+   modestly higher ITL under load and a throughput ceiling a fifth to a quarter lower. 4-bit
+   rounding is also lossy, so answer quality can slip; AWQ is built to keep that small, but I
+   did not measure it here, so treat quality as its own benchmark to run on your task.
 4. **Measure the curve before you decide.** If the model does not fit, quantize it. If it
    already fits with cache headroom to spare, the throughput you give up may not be worth it.
    The rate sweep, the same one Part 1 used to find the wall and Part 3 used to price
