@@ -25,32 +25,25 @@ exactly where the theory says it should.
 
 The insight is that the benefit is not a fixed percentage. At 256 tokens the two kernels finish
 within three milliseconds of each other; at 30,720 they are six seconds apart, on the identical
-hardware. FlashAttention optimizes attention, attention cost grows with the square of the
-prompt length, so the value of the optimization grows with prompt length too. It is negligible
-at the short prompts most benchmarks use and large at the long contexts production actually
-hits. The one fact you need going in comes from the
-[primer]({{ '/articles/primer/' | relative_url }}): serving a token has two phases, a
+hardware. FlashAttention optimizes attention, attention cost grows with the square of prompt
+length, so the value of the optimization grows with it too: negligible at the short prompts most
+benchmarks use, large at the long contexts production hits. The one fact you need going in comes
+from the [primer]({{ '/articles/primer/' | relative_url }}): serving a token has two phases, a
 **prefill** that reads the whole prompt in one dense pass and a **decode** that emits the answer
 one token at a time. Attention behaves differently in each, and FlashAttention changes both.
 
 ## Why attention is the term that explodes
 
-Start with the shape of the work, because the whole post follows from it. A transformer
-layer does two large things per token: a stack of matrix multiplies (the projections and the
-MLP) and an attention step. The matrix multiplies are the model's fixed cost. Their size
-depends on the model's width, not on how long your prompt is, so processing a 30,000-token
-prompt runs the same per-token matmul work as processing a 256-token one, just more times.
-That cost grows **linearly** with prompt length.
+A transformer layer does two large things per token: a stack of matrix multiplies (the
+projections and the MLP) and an attention step. The matmuls are the model's fixed cost; their
+size depends on the model's width, not the prompt, so they grow **linearly** with prompt
+length. Attention does not. Every token attends to every token before it, so over a prompt of
+length *N* the work is *N* positions each scoring up to *N* others: it scales as *N* squared.
+Double the prompt and the matmuls double, but the attention quadruples. That is why attention
+starts negligible and, past some crossover, takes over.
 
-Attention does not. In attention, every token looks at every token before it. At position
-*n* there are *n* prior tokens to score against, so the total work of attending over a prompt
-of length *N* grows with *N* positions each doing up to *N* comparisons: it scales as *N*
-squared. Double the prompt and the matmul work doubles, but the attention work quadruples.
-This is the single most important fact about long-context inference, and it means attention
-is a term that starts negligible and, past some crossover, takes over.
-
-You can watch the crossover happen. Take FlashAttention's own prefill time on this rig,
-fit to a curve, with the quadratic piece pulled out as a share of the total:
+You can watch the crossover in FlashAttention's own prefill time, fit to a curve with the
+quadratic piece pulled out as a share of the total:
 
 | Prompt length | Prefill time | Share that is the quadratic attention term |
 |---|---|---|
@@ -58,66 +51,49 @@ fit to a curve, with the quadratic piece pulled out as a share of the total:
 | 8,192 | 2.07 s | 12.2% |
 | 32,768 | (extrapolated) | 35.8% |
 
-At 2,000 tokens the quadratic term is 3%, lost in the noise of the linear matmul cost. This
-is the region where a casual benchmark lives, and it is exactly why attention optimizations
-look pointless there: there is almost no attention cost to optimize. By 32,000 tokens the
-quadratic term is more than a third of the entire prefill and climbing. Optimizing attention
-only matters once attention is a large enough slice of the bill to be worth optimizing, and
-whether it is depends entirely on how long your prompts are.
+At 2,000 tokens the quadratic term is 3%, lost in the linear matmul cost, which is exactly the
+region a casual benchmark lives in and exactly why attention optimizations look pointless
+there. By 32,000 tokens it is more than a third of the prefill and climbing. Optimizing
+attention only matters once attention is a large enough slice of the bill to matter, and that
+depends entirely on prompt length.
 
 ## What FlashAttention actually does
 
-The name suggests speed; the mechanism is about memory, and it is worth being concrete
-rather than waving at the word.
+The name suggests speed; the mechanism is about memory. The naive way to compute attention is
+to build the full table of scores: for a prompt of length *N*, an *N* by *N* grid where entry
+(i, j) is how much token *i* attends to token *j*. At 30,000 tokens that grid is 900 million
+numbers **per attention head**, across many heads and many layers. Writing it out to the GPU's
+main memory (its HBM) and reading it back for the softmax is a staggering amount of memory
+traffic, and on modern GPUs memory traffic, not arithmetic, is the binding constraint.
 
-The naive way to compute attention is to build the full table of scores: for a prompt of
-length *N*, an *N* by *N* grid where entry (i, j) is how much token *i* attends to token *j*.
-At 30,000 tokens that grid is 900 million numbers **per attention head**, and there are many
-heads per layer and many layers. Writing that grid out to the GPU's main memory (its HBM) and
-reading it back to apply the softmax is a staggering amount of memory traffic, and on modern
-GPUs memory traffic, not arithmetic, is the binding constraint. The grid is also why a naive
-implementation can simply run out of memory on a long prompt: there is nowhere to put it.
+FlashAttention's insight, from [Dao et al. 2022](https://arxiv.org/abs/2205.14135), is that you
+never need the whole grid at once. It walks the prompt in tiles that fit in the GPU's tiny
+on-chip scratchpad (its SRAM, far faster than HBM), computes each tile's scores there, folds
+them into a running softmax, and discards them before the next tile. The *N* by *N* grid is
+never written to main memory. The arithmetic is the same; the memory traffic collapses from
+quadratic to linear. That is why the kernel is "IO-aware": it is optimized for the memory
+system, not the math.
 
-FlashAttention's insight, from [Dao et al. 2022](https://arxiv.org/abs/2205.14135), is that
-you never need the whole grid at once. It walks the prompt in tiles that fit in the GPU's
-tiny on-chip scratchpad (its SRAM, far smaller and far faster than HBM), computes each tile's
-scores there, folds them into a running softmax, and discards them before moving to the next
-tile. The full *N* by *N* grid is never written to main memory at all. The arithmetic is the
-same; the memory traffic collapses from quadratic to linear. That is the entire trick, and it
-is why the kernel is "IO-aware": it is optimized for the memory system, not the math.
+Decode gets a second, related trick. To emit token 30,001 the model attends back over all
+30,000 cached tokens, but produces only one new token, so there is little arithmetic to hide
+the cost of that long read. The decode-side form, sometimes called FlashDecoding, splits the
+read across many parallel workers on the GPU and combines their partial results, so the read is
+done by the whole chip at once. Hold onto this split-the-read idea; the trace shows it is where
+the decode gap comes from.
 
-Decode gets a second, related trick. When the model emits token number 30,001, it must attend
-back over all 30,000 cached tokens, but it is producing only one new token, so there is very
-little arithmetic to hide the cost of reading that much cached state. The decode-side form of
-FlashAttention, sometimes called FlashDecoding, splits that long backward read across many
-parallel workers on the GPU and combines their partial results, so the one new token's
-attention is computed by the whole chip at once instead of a single underused slice of it.
-Hold onto this split-the-read idea; the trace at the end shows it is where the decode gap
-comes from.
-
-## The counterfactual: what "off" even means
-
-Here is a wrinkle that shapes the whole experiment. On a modern serving stack there is no
-"FlashAttention off" switch. The kernel is not a feature bolted onto a default; it *is* the
-default. To measure what it buys, you have to serve the model with a **different** attention
-backend and compare.
-
-The comparison here is FlashAttention against **FlexAttention**, PyTorch's general-purpose,
-compiled attention kernel. This matters for honesty about what the gap means. FlexAttention is
-not a naive, materialize-the-whole-grid implementation; it is a real, tiled, compiled kernel.
-So the numbers below are **not** flash-versus-nothing. They are flash versus a competent
-general-purpose kernel that lacks FlashAttention's specific memory-traffic tuning and, more
-importantly for decode, lacks its split-the-read trick. Read every gap in this post as "what
-FlashAttention's specialization buys over a solid generic baseline," which is the honest
-version of the question and a harder bar than beating a strawman. Everything else is held
-fixed: same model, same GPU, same prompts, same single-stream probe, the attention backend
-selected by an environment variable at server start and nothing else touched.
+One note on the comparison, because it shapes what the gaps below mean. There is no
+"FlashAttention off" switch; it *is* the default, so measuring it means swapping in a different
+backend. The counterfactual here is **FlexAttention**, PyTorch's general-purpose compiled
+kernel. It is not a naive materialize-the-grid implementation, it is a real tiled compiled
+kernel that simply lacks FlashAttention's memory tuning and its split-the-read decode. So the
+numbers are what FlashAttention's specialization buys over a competent generalist, a harder bar
+than beating a strawman. Everything else is held fixed and the backend is selected by one
+environment variable at server start.
 
 ## Prefill: the quadratic gets steeper
 
-The probe sends one prompt at a time, warm, and records time-to-first-token as prompt length
-climbs from 256 to 30,720 tokens. Time-to-first-token is essentially prefill time: it is how
-long the model takes to read the prompt before it can emit anything. Here are both backends:
+The probe sends one prompt at a time, warm, and records time-to-first-token, which is
+essentially prefill time, as prompt length climbs from 256 to 30,720 tokens:
 
 | Prompt length | FlashAttention TTFT | FlexAttention TTFT |
 |---|---|---|
@@ -130,28 +106,21 @@ long the model takes to read the prompt before it can emit anything. Here are bo
 | 24,576 | 7.620 s | 11.704 s |
 | 30,720 | 10.181 s | 16.410 s |
 
-Read it top to bottom and the whole thesis is in one column. At 256 tokens the two are three
-milliseconds apart, indistinguishable. The gap widens slowly, then not slowly: by 8k it is
-half a second, by 16k it is nearly two seconds, by 30k it is **6.2 seconds**. The two kernels
-are running the identical model through the identical matmuls; the only thing that differs is
-how each computes attention, and attention is the term going quadratic.
-
-Fitting each column to a curve makes the mechanism explicit. Both fits have nearly the same
-linear coefficient, about 220 microseconds per token, which is the matmul cost both kernels
-share. They differ in the quadratic coefficient, the part that is pure attention: **3,689
-picoseconds per token-squared for FlashAttention against 10,099 for FlexAttention.** The slow
-kernel's attention term is 2.7 times steeper. That single number is the difference between the
-two, and because it multiplies *N* squared, it is invisible at small *N* and merciless at
-large *N*. It is the entire story of the table.
+The whole thesis is in one column. At 256 tokens the two are three milliseconds apart,
+indistinguishable; by 8k the gap is half a second, by 16k nearly two seconds, by 30k it is
+**6.2 seconds**. Fit each column to a curve and the mechanism is explicit: both fits share the
+same linear coefficient, about 220 microseconds per token, the matmul cost common to both, and
+differ only in the quadratic coefficient, the pure-attention part: **3,689 picoseconds per
+token-squared for FlashAttention against 10,099 for FlexAttention**, 2.7 times steeper. Because
+that coefficient multiplies *N* squared, it is invisible at small *N* and merciless at large.
 
 ![FlashAttention versus FlexAttention prefill time as prompt length grows from 256 to 30,720 tokens: the two curves are indistinguishable below about 2,000 tokens and diverge sharply after, with FlexAttention bending upward far more steeply as the quadratic attention term takes over]({{ '/assets/figures/fig8a-prefill-divergence.png' | relative_url }})
 
 ## Decode: the gap that a flat line hides
 
-Prefill is the dramatic half, but decode is where the split-the-read trick earns its keep,
-and the numbers are more lopsided. The probe also measures **inter-token latency**, the gap
-between successive output tokens during generation, as a function of how much context the model
-is decoding on top of. Same two backends:
+Decode is where the split-the-read trick earns its keep, and the numbers are more lopsided. The
+probe also measures **inter-token latency**, the gap between successive output tokens, as a
+function of how much context the model is decoding on top of:
 
 | Context length | FlashAttention decode ITL | FlexAttention decode ITL |
 |---|---|---|
@@ -163,31 +132,22 @@ is decoding on top of. Same two backends:
 | 30,720 | 37.3 ms | 91.8 ms |
 
 FlashAttention's decode is **essentially flat**: 33.8 ms at short context, 37.3 ms at 30k, an
-11% rise across a 120-fold increase in context. From the outside the model barely notices how
-much history it is carrying. FlexAttention starts at the same place and then climbs steadily
-to 91.8 ms, **159%** slower at depth, nearly tripling its per-token latency purely because the
-context got longer.
-
-This is the split-the-read trick, felt from the client side. Each decode step reads the entire
-cached context to attend over it. FlashAttention's decode kernel spreads that read across the
-whole GPU, so a longer read is still done in about the same wall-clock time; the line stays
-flat. FlexAttention reads that context in a way that does not parallelize the same way, so
-every additional thousand tokens of history adds directly to every single token's latency.
-For an interactive assistant deep in a long conversation, that is the difference between a
-steady stream and a visible slowdown that gets worse the longer you talk to it.
-
-Note which column would have lied to you. If you benchmarked decode at 2,000 tokens of
-context, the number every quick test uses, you would see 33.9 against 38.7 ms and shrug. The
-entire divergence lives past the context length almost nobody puts on the test bench.
+11% rise across a 120-fold increase in context. FlexAttention starts at the same place and
+climbs to 91.8 ms, **159%** slower at depth, nearly tripling per-token latency purely because
+the context got longer. This is the split-the-read trick from the client side: FlashAttention's
+decode kernel spreads the long cached-context read across the whole GPU, so it costs about the
+same wall-clock time no matter how long it is, while FlexAttention's read does not parallelize
+that way, so every extra thousand tokens of history adds directly to every token's latency. And
+note that a decode benchmark at 2,000 tokens, the length most quick tests use, would show 33.9
+against 38.7 ms and hide the entire divergence.
 
 ## The trace: the six seconds have a name
 
-The client-side numbers *say* attention is the difference. A profiler trace *shows* it, and
-turns the claim into something you can count. I re-ran both backends with vLLM's torch profiler armed and
-captured a bounded window at three prefill lengths and two decode depths, then bucketed every
-GPU kernel in each window into three families: **attention**, **matmul** (the projections and
-MLP), and everything else. The traces are downloadable and openable in a browser with no GPU;
-the reproduce section says how.
+The client-side numbers *say* attention is the difference; a profiler trace *shows* it. I
+re-ran both backends with vLLM's torch profiler armed, captured a bounded window at three
+prefill lengths and two decode depths, and bucketed every GPU kernel into three families:
+**attention**, **matmul** (projections and MLP), and everything else. The traces are openable
+in a browser with no GPU; the reproduce section says how.
 
 The first thing the trace establishes is the cleanest control in the whole series, the matmul
 time in the prefill windows for both backends:
@@ -199,12 +159,9 @@ time in the prefill windows for both backends:
 | 28,672 | 5,756 ms | 5,755 ms |
 
 The matmul work is **byte-for-byte identical** between the two backends, to within a
-millisecond, because it is the same model doing the same projections and the same MLP. Every
-difference between FlashAttention and FlexAttention is therefore in the attention family and
-nowhere else. The trace has isolated the one variable perfectly: whatever the wall-clock gap
-is, the trace can point to the exact kernel it lives in.
-
-And it does. Here is the attention time in those same windows:
+millisecond, because it is the same model doing the same projections and MLP. Every difference
+between the two is therefore in the attention family and nowhere else. Here is the attention
+time in those same windows:
 
 | Prompt length | FlashAttention attention | FlexAttention attention |
 |---|---|---|
@@ -212,57 +169,41 @@ And it does. Here is the attention time in those same windows:
 | 8,192 | 262 ms (12.9%) | 693 ms (28.0%) |
 | 28,672 | 3,098 ms (33.6%) | 8,389 ms (57.7%) |
 
-At 28k prefill, FlashAttention computes attention in 3.1 seconds; FlexAttention needs 8.4
-seconds for the identical math, a **2.7-fold** kernel gap. That 5.3-second attention gap is,
-within a rounding error, the entire gap between the two window totals, 9.2 seconds against
-14.5: the matmuls matched, so the whole difference landed in attention and nowhere else. And
-notice the share column. On FlexAttention, attention has grown to 58% of all GPU time, the term
-that started as a rounding error now the single largest thing the GPU does. That is the
-quadratic, seen directly.
+At 28k prefill, FlashAttention computes attention in 3.1 seconds; FlexAttention needs 8.4 for
+the identical math, a **2.7-fold** gap. Since the matmuls matched, that 5.3-second attention
+gap is, within a rounding error, the entire gap between the two window totals (9.2 seconds
+against 14.5). On FlexAttention attention has grown to 58% of all GPU time, the single largest
+thing the GPU does: the quadratic, seen directly.
 
-The decode trace closes the loop by naming the kernels. In FlashAttention's decode windows the
-attention work is a kernel called `flash_fwd_splitkv_kernel`: literally "split the KV read,"
-the split-the-read trick from earlier, appearing by name. It is the same tiled, parallel-read
-kernel FlashAttention uses in prefill, so decode attention stays around 31% of the window even
-at 28k context and the per-token latency stays flat. FlexAttention runs a single monolithic
-kernel, `triton_tem_fused_0`, with no such split. At 28k decode context that one kernel swells
-to **58% of the entire window**, and the window itself is 17.0 seconds against
-FlashAttention's 10.3. The +11%-versus-+159% decode gap from the client-side table is, at the
-kernel level, exactly this: one kernel that parallelizes the long read against one that does
-not.
+The decode trace names the kernels. FlashAttention's is `flash_fwd_splitkv_kernel`, literally
+"split the KV read," the split-the-read trick appearing by name. It is the same tiled kernel it
+uses in prefill, so decode attention stays around 31% of the window at 28k and per-token
+latency stays flat. FlexAttention runs a single monolithic `triton_tem_fused_0` with no split;
+at 28k it swells to **58% of the window**, and the window is 17.0 seconds against
+FlashAttention's 10.3. That is the +11%-versus-+159% decode gap at the kernel level: one kernel
+that parallelizes the long read against one that does not.
 
 ![Kernel-family breakdown of GPU time at 2k, 8k, and 28k prefill for both backends: the matmul family is identical between the two, while the attention family grows far faster for FlexAttention, reaching 58% of GPU time at 28k against FlashAttention's 34%]({{ '/assets/figures/fig8b-kernel-family-split.png' | relative_url }})
 
 ## What to take away
 
-1. **The benefit scales with prompt length, it is not a fixed percentage.** FlashAttention
-   was three milliseconds ahead at 256 tokens and six seconds ahead at 30,000, on the identical
-   model and GPU. Because it optimizes attention, and attention cost grows with prompt length,
-   the value of the optimization tracks how long your prompts are. Before you decide whether an
-   attention optimization matters for you, ask what context length you actually serve.
+1. **The benefit scales with prompt length, it is not a fixed percentage.** FlashAttention was
+   three milliseconds ahead at 256 tokens and six seconds ahead at 30,000, on the identical
+   model and GPU. It optimizes attention, attention cost grows with the square of prompt length,
+   so the value of the optimization tracks the context length you actually serve. Decide whether
+   it matters for you by that, not by a short-prompt benchmark.
 
-2. **The reason is the quadratic.** Matmul work grows linearly with prompt length; attention
-   grows with the square. So attention starts as a negligible slice of the bill and, past a
-   crossover this rig puts around a few thousand tokens, becomes the largest slice. Everything
-   FlashAttention does is aimed at the term that eventually takes over.
-
-3. **What it actually does is cut memory traffic, not arithmetic.** It computes attention in
-   on-chip tiles and never writes the full score grid to main memory, turning quadratic memory
-   traffic into linear. For decode it additionally splits the long backward read over the whole
-   GPU, which is why its per-token latency stays flat as context grows while a generic kernel's
+2. **What it does is cut memory traffic, not arithmetic.** It computes attention in on-chip
+   tiles and never writes the full score grid to main memory, turning quadratic memory traffic
+   into linear, and for decode it splits the long cached-context read across the whole GPU,
+   which is why its per-token latency stays flat as context grows while the generic kernel's
    climbs 159%.
 
-4. **The trace isolates the variable perfectly.** Because the matmul time was byte-for-byte
-   identical between the two backends, every second of difference provably lived in the
-   attention family, and the decode gap resolved to a single named kernel: `flash_fwd_splitkv`,
-   the split-the-read trick, against a monolithic kernel that does not split. When two backends
-   share everything but one kernel, the trace turns "attention is the difference" from a claim
-   into a measurement.
-
-5. **Beating a strawman would have been easy; this was not one.** The baseline here,
-   FlexAttention, is itself a real tiled compiled kernel, not a naive implementation. The gaps
-   in this post are what FlashAttention's specialization buys over a competent generalist, which
-   is the number worth knowing.
+3. **The trace turns the claim into a measurement.** Because matmul time was byte-for-byte
+   identical between the two backends, every second of difference provably lived in attention,
+   and the decode gap resolved to a single named kernel, `flash_fwd_splitkv`, against a
+   monolithic kernel that does not split the read. The baseline, FlexAttention, is a real
+   compiled kernel and not a strawman, so these are the gains over a competent generalist.
 
 Next in the series: this post kept everything on the A10G. I take the model off the rig
 entirely and decode it on a CPU, where a subtlety about how two byte-identical weight files are
