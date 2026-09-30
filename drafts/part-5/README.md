@@ -1,4 +1,4 @@
-# Quantization as a fit-enabler: how a 9B model serves at three-quarters of a 4B's speed
+# Quantization to make a model fit: how a 9B model serves at three-quarters of a 4B's speed
 
 *Draft 1. Part 6 of "The Inference Wall." Same rig
 throughout: one NVIDIA A10G (23 GB). Qwen3.5-4B (fp16) vs Qwen3.5-9B (4-bit AWQ).*
@@ -6,28 +6,31 @@ throughout: one NVIDIA A10G (23 GB). Qwen3.5-4B (fp16) vs Qwen3.5-9B (4-bit AWQ)
 ---
 
 This series opened by hitting a wall: a 4B model on one mid-range GPU, saturating at about
-seven requests a second, bottlenecked not by memory but by how fast the GPU could push its
-weights through the decode loop. Every post since has been about pushing that wall back.
-This post is about the bluntest lever of all, the one you reach for when the model you
-*want* to run will not fit *usefully* on the GPU: **quantization.**
+seven requests a second, bottlenecked not by memory but by how fast the GPU could copy its
+weights from HBM to the compute cores on each decode step. Every post since has been about
+pushing that wall back. This post is about the bluntest lever of all, the one you reach for
+when the model you *want* to run does not fit on the GPU, whether because its weights
+overflow memory or because so little memory is left for the KV cache that the server cannot
+hold enough concurrent requests to be worth running: **quantization.**
 
-I wanted to serve Qwen3.5-9B, a model about twice
-the size of the 4B, on the same 23 GB GPU. In its native format (fp16, meaning each of the
+I wanted to serve Qwen3.5-9B, a model about twice the size of the 4B, on the same 23 GB GPU.
+In its native format (fp16, meaning each of the
 model's numbers is stored in 16 bits) its weights alone are about 18 GB (9 billion
 parameters at 2 bytes each). On a 23 GB GPU at vLLM's default 0.9 memory fraction that
 leaves under 3 GB for the KV cache, which is why I did not run fp16 here: even if it loads,
-a KV budget that small serves only a trivial amount of concurrent context, which defeats the
-point of standing the model up at all. I did not benchmark that degenerate config; the honest
-framing for a 23 GB GPU is not "9B fp16 vs something faster," it is "**9B in a usable form,
-or no 9B at all.**"
+a KV budget that small caps the server at a handful of concurrent requests, far below the
+concurrency the whole exercise is meant to serve. I did not benchmark that degenerate config.
+On a 23 GB GPU the practical question is whether the 9B can run at all, and the only form
+that answers yes is a quantized one.
 
 The surprising part is how small the penalty turns out to be. A 4-bit version of the 9B
 not only fits, it **serves at roughly three-quarters of the 4B's throughput** (about 75%),
-despite having more than twice the parameters. This post is about why that lopsided trade
-exists, and it comes straight back to the memory-bandwidth story the whole series has been
-building.
+despite having more than twice the parameters. The rest of the post works out why the
+penalty is that small, and the answer is the same memory-bandwidth argument the series has
+made throughout: decode speed tracks the bytes moved per token, and 4-bit weights move far
+fewer bytes than the parameter count implies.
 
-## What quantization actually is (the one-paragraph version)
+## What quantization actually is
 
 A model's "weights" are just a giant pile of numbers. By default each is stored in 16 bits
 (fp16, "half precision"). **Quantization** stores them in fewer bits, here 4 bits each,
@@ -41,7 +44,7 @@ than the same weight in fp16.** (In practice a real 4-bit model keeps a few tens
 the embeddings, in higher precision, so the whole-model shrink is less than a clean 4x, as
 the memory table below shows.)
 
-## First, does it fit? (this is the whole point)
+## First, does it fit?
 
 Before any speed number, the memory table, because "it fits at all" is the result that
 matters most. Here is how vLLM carves up the 23 GB GPU for each model, measured at load:
@@ -134,7 +137,7 @@ nearly the same speed.**
 
 ![Two rows comparing what a decode step moves: the 4B fp16 as a handful of large weight tiles, and the 9B 4-bit as 2.25x as many tiles each a quarter the size, so the two armloads of bytes come out nearly equal at about 1.3x rather than 2.25x](d8.jpg)
 
-## The cost side (nothing is free)
+## The cost side
 
 The 4-bit path is not a pure win, and the curve shows where it pays:
 
