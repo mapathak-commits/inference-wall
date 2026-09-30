@@ -1,0 +1,21 @@
+[run_s0] 2026-09-30T19:09:29Z launching server
+[run_s0] server pid=1196545
+[run_s0] server ready, verifying backend line
+[1;36m(EngineCore_DP0 pid=1196983)[0;0m INFO 09-30 19:09:45 [cuda.py:325] Using Flash Attention backend on V1 engine.
+[run_s0] running sweep
+# S0 prefill sweep  model=Qwen/Qwen2.5-7B-Instruct port=8001
+#  target actual_tok    ttft_s  per_tok_ms  decode_ms
+      256        257     0.116       0.453      33.91
+     1024       1025     0.281       0.274      33.82
+     2048       2050     0.503       0.245      33.86
+     4096       4097     0.991       0.242      34.32
+     8192       8193     2.067       0.252      34.96
+    16384      16385     4.591       0.280      36.06
+    24576      24577     7.617       0.310      36.86
+    30720      30720    10.183       0.331      37.21
+# fit: t = 0.0501 + 216.6us*n + 3695.3ps*n^2
+#   at n= 2048: quad share of marginal = 3.4%
+#   at n= 8192: quad share of marginal = 12.3%
+#   at n=32768: quad share of marginal = 35.9%
+[run_s0] stopping server pid=1196545
+[run_s0] 2026-09-30T19:14:44Z DONE

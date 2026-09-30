@@ -1,0 +1,54 @@
+[run_s3] START 2026-09-30T20:23:32Z
+[run_s3] 2026-09-30T20:23:32Z ARM flash backend=FLASH_ATTN tracedir=/var/tmp/vllm-study/traces_fa/flash
+[1;36m(EngineCore_DP0 pid=1530963)[0;0m INFO 09-30 20:23:48 [cuda.py:325] Using Flash Attention backend on V1 engine.
+# S3 capture arm=flash phase=prefill len=2050
+# done flash prefill 2050
+# S3 capture arm=flash phase=prefill len=8193
+# done flash prefill 8193
+# S3 capture arm=flash phase=prefill len=28673
+# done flash prefill 28673
+# S3 capture arm=flash phase=decode len=2050
+# done flash decode 2050
+# S3 capture arm=flash phase=decode len=28673
+# done flash decode 28673
+[run_s3] flash traces:
+total 10628
+drwxr-xr-x 2 mpathak users    4096 Sep 30 20:26 .
+drwxr-xr-x 4 mpathak users    4096 Sep 30 20:23 ..
+-rw-r--r-- 1 mpathak users  109790 Sep 30 20:24 devrestricted-mpathak_1530762.async_llm.1790799854319923777.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users  119275 Sep 30 20:24 devrestricted-mpathak_1530762.async_llm.1790799871115424945.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users  195450 Sep 30 20:25 devrestricted-mpathak_1530762.async_llm.1790799917755373750.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users  287427 Sep 30 20:25 devrestricted-mpathak_1530762.async_llm.1790799933130035657.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users  382852 Sep 30 20:26 devrestricted-mpathak_1530762.async_llm.1790799982138607301.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users  325264 Sep 30 20:24 devrestricted-mpathak_1530963.1790799854355296674.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users  945941 Sep 30 20:24 devrestricted-mpathak_1530963.1790799871260757772.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users 3157767 Sep 30 20:25 devrestricted-mpathak_1530963.1790799918275256009.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users 1248629 Sep 30 20:25 devrestricted-mpathak_1530963.1790799933327672026.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users 4086832 Sep 30 20:26 devrestricted-mpathak_1530963.1790799982763999453.pt.trace.json.gz
+[run_s3] 2026-09-30T20:26:46Z ARM flex backend=FLEX_ATTENTION tracedir=/var/tmp/vllm-study/traces_fa/flex
+[1;36m(EngineCore_DP0 pid=1547810)[0;0m INFO 09-30 20:27:02 [cuda.py:319] Using FlexAttention backend on V1 engine.
+# S3 capture arm=flex phase=prefill len=2050
+# done flex prefill 2050
+# S3 capture arm=flex phase=prefill len=8193
+# done flex prefill 8193
+# S3 capture arm=flex phase=prefill len=28673
+# done flex prefill 28673
+# S3 capture arm=flex phase=decode len=2050
+# done flex decode 2050
+# S3 capture arm=flex phase=decode len=28673
+# done flex decode 28673
+[run_s3] flex traces:
+total 32176
+drwxr-xr-x 2 mpathak users     4096 Sep 30 20:30 .
+drwxr-xr-x 4 mpathak users     4096 Sep 30 20:26 ..
+-rw-r--r-- 1 mpathak users   110204 Sep 30 20:27 devrestricted-mpathak_1546621.async_llm.1790800062603316937.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users   124496 Sep 30 20:28 devrestricted-mpathak_1546621.async_llm.1790800085968768234.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users   211662 Sep 30 20:29 devrestricted-mpathak_1546621.async_llm.1790800154987033922.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users   287469 Sep 30 20:29 devrestricted-mpathak_1546621.async_llm.1790800174494953981.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users   403733 Sep 30 20:30 devrestricted-mpathak_1546621.async_llm.1790800255955633863.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users   750026 Sep 30 20:27 devrestricted-mpathak_1547810.1790800062705955769.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users  1965970 Sep 30 20:28 devrestricted-mpathak_1547810.1790800086261900150.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users  6117498 Sep 30 20:29 devrestricted-mpathak_1547810.1790800156037735506.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users  8762262 Sep 30 20:29 devrestricted-mpathak_1547810.1790800175843512732.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users 14173424 Sep 30 20:31 devrestricted-mpathak_1547810.1790800258352936174.pt.trace.json.gz
+[run_s3] ALL DONE 2026-09-30T20:31:32Z

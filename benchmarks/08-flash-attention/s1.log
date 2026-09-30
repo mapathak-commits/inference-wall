@@ -1,0 +1,72 @@
+[run_s1] START 2026-09-30T19:33:52Z
+[run_s1] 2026-09-30T19:33:52Z ARM 7b_flash model=Qwen/Qwen2.5-7B-Instruct backend=FLASH_ATTN
+[1;36m(EngineCore_DP0 pid=1306673)[0;0m INFO 09-30 19:34:10 [cuda.py:325] Using Flash Attention backend on V1 engine.
+# S1 arm=7b_flash  model=Qwen/Qwen2.5-7B-Instruct port=8001 gen=64
+#  target  actual    ttft_s  pref_ms/tok  decode_ms
+      256     257     0.116        0.451      33.76
+     1024    1025     0.280        0.273      33.68
+     2048    2050     0.502        0.245      33.86
+     4096    4097     0.992        0.242      34.20
+     8192    8193     2.067        0.252      34.96
+    16384   16385     4.591        0.280      35.81
+    24576   24577     7.620        0.310      36.81
+    30720   30720    10.181        0.331      37.33
+# prefill fit: t = 0.0497 + 216.8us*n + 3688.6ps*n^2
+#   quad share @ n= 2048: 3.4%
+#   quad share @ n= 8192: 12.2%
+#   quad share @ n=32768: 35.8%
+# decode ITL: 33.8 ms @ 257 -> 37.3 ms @ 30720  (+11%)
+[run_s1] 7b_flash done
+[run_s1] 2026-09-30T19:38:37Z ARM 7b_flex model=Qwen/Qwen2.5-7B-Instruct backend=FLEX_ATTENTION
+[1;36m(EngineCore_DP0 pid=1329131)[0;0m INFO 09-30 19:38:53 [cuda.py:319] Using FlexAttention backend on V1 engine.
+# S1 arm=7b_flex  model=Qwen/Qwen2.5-7B-Instruct port=8001 gen=64
+#  target  actual    ttft_s  pref_ms/tok  decode_ms
+      256     257     0.119        0.463      35.43
+     1024    1025     0.292        0.285      36.74
+     2048    2050     0.544        0.265      38.72
+     4096    4097     1.127        0.275      42.73
+     8192    8193     2.540        0.310      49.94
+    16384   16385     6.393        0.390      65.06
+    24576   24577    11.704        0.476      80.68
+    30720   30720    16.410        0.534      91.83
+# prefill fit: t = 0.0469 + 223.5us*n + 10099.6ps*n^2
+#   quad share @ n= 2048: 8.5%
+#   quad share @ n= 8192: 27.0%
+#   quad share @ n=32768: 59.7%
+# decode ITL: 35.4 ms @ 257 -> 91.8 ms @ 30720  (+159%)
+[run_s1] 7b_flex done
+[run_s1] 2026-09-30T19:45:57Z ARM hy4b_flash model=Qwen/Qwen3.5-4B backend=FLASH_ATTN
+[run_s1] hy4b_flash server died early
+[run_s1] hy4b_flash NOT READY - tail:
+[1;36m(APIServer pid=1364020)[0;0m     return await main
+[1;36m(APIServer pid=1364020)[0;0m            ^^^^^^^^^^
+[1;36m(APIServer pid=1364020)[0;0m   File "/var/tmp/vllm-study/venv/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 1884, in run_server
+[1;36m(APIServer pid=1364020)[0;0m     await run_server_worker(listen_address, sock, args, **uvicorn_kwargs)
+[1;36m(APIServer pid=1364020)[0;0m   File "/var/tmp/vllm-study/venv/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 1902, in run_server_worker
+[1;36m(APIServer pid=1364020)[0;0m     async with build_async_engine_client(
+[1;36m(APIServer pid=1364020)[0;0m   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+[1;36m(APIServer pid=1364020)[0;0m     return await anext(self.gen)
+[1;36m(APIServer pid=1364020)[0;0m            ^^^^^^^^^^^^^^^^^^^^^
+[1;36m(APIServer pid=1364020)[0;0m   File "/var/tmp/vllm-study/venv/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 180, in build_async_engine_client
+[1;36m(APIServer pid=1364020)[0;0m     async with build_async_engine_client_from_engine_args(
+[1;36m(APIServer pid=1364020)[0;0m   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+[1;36m(APIServer pid=1364020)[0;0m     return await anext(self.gen)
+[1;36m(APIServer pid=1364020)[0;0m            ^^^^^^^^^^^^^^^^^^^^^
+[1;36m(APIServer pid=1364020)[0;0m   File "/var/tmp/vllm-study/venv/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 206, in build_async_engine_client_from_engine_args
+[1;36m(APIServer pid=1364020)[0;0m     vllm_config = engine_args.create_engine_config(usage_context=usage_context)
+[1;36m(APIServer pid=1364020)[0;0m                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[1;36m(APIServer pid=1364020)[0;0m   File "/var/tmp/vllm-study/venv/lib/python3.12/site-packages/vllm/engine/arg_utils.py", line 1142, in create_engine_config
+[1;36m(APIServer pid=1364020)[0;0m     model_config = self.create_model_config()
+[1;36m(APIServer pid=1364020)[0;0m                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+[1;36m(APIServer pid=1364020)[0;0m   File "/var/tmp/vllm-study/venv/lib/python3.12/site-packages/vllm/engine/arg_utils.py", line 994, in create_model_config
+[1;36m(APIServer pid=1364020)[0;0m     return ModelConfig(
+[1;36m(APIServer pid=1364020)[0;0m            ^^^^^^^^^^^^
+[1;36m(APIServer pid=1364020)[0;0m   File "/var/tmp/vllm-study/venv/lib/python3.12/site-packages/pydantic/_internal/_dataclasses.py", line 121, in __init__
+[1;36m(APIServer pid=1364020)[0;0m     s.__pydantic_validator__.validate_python(ArgsKwargs(args, kwargs), self_instance=s)
+[1;36m(APIServer pid=1364020)[0;0m pydantic_core._pydantic_core.ValidationError: 1 validation error for ModelConfig
+[1;36m(APIServer pid=1364020)[0;0m   Value error, The checkpoint you are trying to load has model type `qwen3_5` but Transformers does not recognize this architecture. This could be because of an issue with the checkpoint, or because your version of Transformers is out of date.
+[1;36m(APIServer pid=1364020)[0;0m 
+[1;36m(APIServer pid=1364020)[0;0m You can update Transformers with the command `pip install --upgrade transformers`. If this does not work, and the checkpoint is very new, then there may not be a release version that supports this model yet. In this case, you can get the most up-to-date code by installing Transformers from source with the command `pip install git+https://github.com/huggingface/transformers.git` [type=value_error, input_value=ArgsKwargs((), {'model': ...rocessor_plugin': None}), input_type=ArgsKwargs]
+[1;36m(APIServer pid=1364020)[0;0m     For further information visit https://errors.pydantic.dev/2.13/v/value_error
+[run_s1] hy4b_flash done
+[run_s1] ALL DONE 2026-09-30T19:46:17Z
