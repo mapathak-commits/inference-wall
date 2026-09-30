@@ -36,9 +36,9 @@ A model's "weights" are just a giant pile of numbers. By default each is stored 
 (fp16, "half precision"). **Quantization** stores them in fewer bits, here 4 bits each,
 using a scheme that picks the 4-bit levels carefully so the numbers stay close to their
 originals. The immediate payoff is size: 4-bit weights take about a quarter of the bytes
-of 16-bit weights. The scheme used here is **AWQ** (Activation-aware Weight Quantization),
-which is designed to keep the quantized model's answers close to the original's, and vLLM
-runs it with a fast GPU kernel called `awq_marlin`. You do not need the internals; you need
+of 16-bit weights. The method used here is **AWQ** (Activation-aware Weight Quantization), a
+4-bit scheme that chooses the levels so the model's answers stay close to the fp16 original;
+vLLM runs it with a fast GPU kernel called `awq_marlin`. You do not need the internals; you need
 one fact, which the rest of the post leans on: **a 4-bit weight is ~4x fewer bytes to read
 than the same weight in fp16.** (In practice a real 4-bit model keeps a few tensors, such as
 the embeddings, in higher precision, so the whole-model shrink is less than a clean 4x, as
@@ -110,30 +110,28 @@ this should be the surprise of the post.
 
 ## Why the bigger model isn't much slower: it's the bytes, not the parameters
 
-The explanation is the per-sequence cost from Parts 1 and 3. A decode step's cost per
-sequence, the part that does not amortize across the batch and so sets the ceiling, is
-dominated by *how many bytes of weights it moves*, not by the parameter count or the raw
-arithmetic. That is the number to compare between two models.
+The explanation is the per-sequence cost from Parts 1 and 3: the slice of each decode step
+that a sequence cannot share with the others, which is what sets the ceiling. That cost is
+governed by *how many bytes of weights move per token*, not by the parameter count. So bytes
+per token is the number to compare between two models.
 
 And that reframes this comparison completely. Read the weights row of the table again: the
 9B in 4-bit weighs **11.2 GiB** against the 4B-fp16's **8.6 GiB**, only about **1.3x the
 bytes** even though it has 2.25x the parameters. Quantization took a would-be ~2.25x increase
 in bytes-per-token and compressed it to ~1.3x.
 
-Profiling both models settles which ratio governs. If you sweep the batch size and fit the
-per-step decode time, it comes out as a fixed cost plus a per-sequence cost (the fit Part 1
-introduced and Part 3 read off the batching sweep). The per-sequence term is where the model's size shows up, and measured from
-traces it is **313 us/seq for the 4B and 395 us/seq for the 9B, a ratio of 1.26x.** That
-lands on the *byte* ratio (1.30x) and nowhere near the *parameter* ratio (2.25x). This is
-what sets the ceiling: the per-sequence work is what does not amortize across the batch, so
-its ratio is what the sustained-throughput ratio should track. The bytes ratio predicts a
-throughput of ~1 / 1.3 ≈ **77%** of the 4B's, and the measured ceiling is **75%** (821 vs
-1,092 tok/s), close to that, and both far from the ~45% (~1 / 2.25) the parameter count implies.
-If the extra parameters were what cost you, the 9B would run at that ~45%; because it is the
-extra *bytes* that cost you, and quantization held those to 1.3x, it runs at three-quarters
-the speed. **That is the whole point: what a decode step actually spends its time moving is
-bytes, so a model with more than twice the parameters, but only 1.3x the bytes, serves at
-nearly the same speed.**
+The traces settle which ratio the ceiling follows. Sweeping the batch size and fitting the
+per-step decode time splits it into a fixed cost plus a per-sequence cost, and the
+per-sequence term is where model size shows up: **313 us/seq for the 4B and 395 us/seq for
+the 9B, a ratio of 1.26x.** That matches the *byte* ratio (1.30x) and is nowhere near the
+*parameter* ratio (2.25x). So the per-sequence cost, and therefore the sustained-throughput
+ratio, tracks bytes, not parameters. The byte ratio predicts a throughput of ~1 / 1.3 ≈
+**77%** of the 4B's; the measured ceiling is **75%** (821 vs 1,092 tok/s), close to that.
+Both are far from the ~45% (~1 / 2.25) the parameter count would imply. If parameters set the
+cost, the 9B would run at that ~45%; because bytes set it, and quantization held bytes to
+1.3x, it runs at three-quarters the speed. **That is the whole point: a decode step spends
+its time moving bytes, so a model with more than twice the parameters but only 1.3x the bytes
+serves at nearly the same speed.**
 
 ![Two rows comparing what a decode step moves: the 4B fp16 as a handful of large weight tiles, and the 9B 4-bit as 2.25x as many tiles each a quarter the size, so the two armloads of bytes come out nearly equal at about 1.3x rather than 2.25x](d8.jpg)
 
@@ -157,18 +155,18 @@ does not fit," that trade is overwhelmingly worth it. When you already have head
 a genuine judgment call, and the curve above is the kind of measurement that lets you make
 it rather than guess.
 
-(A note for the curious, kept out of the main thread because it is on different hardware: I
-also compared 4-bit against fp16 head-to-head inside a single model on a separate rig, and
-the shape held, the int4 win is mostly a property of *quantization itself*, not of any one
-serving engine. The bytes-read mechanism is general.)
+One check on different hardware, so it stays out of the main comparison: on a separate rig I
+ran 4-bit against fp16 head-to-head inside a single model, and the same shape held. The
+int4 win is mostly a property of quantization itself rather than of any one serving engine,
+so the bytes-read mechanism should carry over beyond this setup.
 
 ## What to take away
 
-1. **Quantization's first job is to make a model usable, not to make it fast.** In fp16 the
+1. **Quantization's first job is to make a model fit, not to make it fast.** In fp16 the
    9B's ~18 GiB of weights would leave under 3 GiB for the KV cache on this GPU, too little
    to serve real context; 4-bit AWQ dropped the weights to 11.2 GiB and left room for 59
-   concurrent requests. "Serves usefully or doesn't" is a bigger lever than any percentage
-   speedup.
+   concurrent requests. Turning "cannot serve enough concurrent requests to be worth it" into
+   "serves 59 at once" is a bigger lever than any percentage speedup.
 2. **Parameter count is the wrong unit for decode speed; bytes-read is the right one.**
    The 9B has 2.25x the parameters but, in 4-bit, only ~1.3x the weight bytes of the 4B in
    fp16, which is why it serves at ~75% of the speed (the byte ratio predicts ~77%) rather
@@ -176,9 +174,10 @@ serving engine. The bytes-read mechanism is general.)
 3. **The 4-bit path costs you smoothness and ceiling, not correctness.** Expect modestly
    higher ITL under load and a throughput ceiling a fifth to a quarter lower. Answer
    quality held on this model; the price is in latency, not in the output.
-4. **Measure the curve before you decide.** "Quantize it" is not automatically right when
-   the model already fits; it is automatically right when it does not. In between, the rate
-   sweep tells you what you are actually trading.
+4. **Measure the curve before you decide.** If the model does not fit, quantize it. If it
+   already fits with cache headroom to spare, the throughput you give up may not be worth it.
+   The rate sweep, the same one Part 1 used to find the wall and Part 3 used to price
+   batching, is what tells you which case you are in and what the trade actually costs.
 
 That ties back to where the series started. Part 1 found the wall, an ordinary GPU running out
 of decode throughput long before it runs out of memory. The posts since read the trace to
