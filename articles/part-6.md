@@ -4,51 +4,50 @@ permalink: /articles/part-6/
 image: /assets/diagrams/d8.jpg
 ---
 
-*Part 6 of "The Inference Wall". Same rig throughout: one NVIDIA A10G (23 GB).
-Qwen3.5-4B (fp16) vs Qwen3.5-9B (4-bit AWQ).*
+*Part 6 of "The Inference Wall". Same rig throughout: one NVIDIA A10G with 23 GB.
+Qwen3.5-4B in fp16 vs Qwen3.5-9B in 4-bit AWQ.*
 
 *Manas Pathak · October 2, 2026*
 
 [The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 6**
 
-This series opened by hitting a wall: a 4B model on one mid-range GPU, saturating at about
-seven requests a second, bottlenecked not by memory but by how fast the GPU could copy its
-weights from HBM to the compute cores on each decode step. Every post since has been about
-pushing that wall back. This post is about the bluntest lever of all, the one you reach for
-when the model you *want* to run does not fit on the GPU, whether because its weights
-overflow memory or because so little memory is left for the KV cache that the server cannot
-hold enough concurrent requests to be worth running: **quantization.**
+The wall this series keeps returning to showed up in Part 1: a 4B model on one mid-range GPU,
+saturating at about seven requests a second, bottlenecked not by memory but by how fast the
+GPU could copy its weights from HBM to the compute cores on each decode step. Every post
+since has been about pushing that wall back. This post is about the bluntest lever of all,
+the one you reach for when the model you *want* to run does not fit on the GPU, whether
+because its weights overflow memory or because so little memory is left for the KV cache that
+the server cannot hold enough concurrent requests to be worth running: **quantization.**
 
-I wanted to serve Qwen3.5-9B, a model about twice the size of the 4B, on the same 23 GB GPU.
-In its native format (fp16, meaning each of the
-model's numbers is stored in 16 bits) its weights alone are about 18 GB (9 billion
-parameters at 2 bytes each). On a 23 GB GPU at vLLM's default 0.9 memory fraction that
-leaves under 3 GB for the KV cache, which is why I did not run fp16 here: even if it loads,
-a KV budget that small caps the server at a handful of concurrent requests, far below the
-concurrency the whole exercise is meant to serve. I did not benchmark that degenerate config.
-On a 23 GB GPU the practical question is whether the 9B can run at all, and the only form
-that answers yes is a quantized one.
+The model under test is Qwen3.5-9B, about twice the size of the 4B, on the same 23 GB GPU.
+In its native fp16 format, where each of the model's numbers is stored in 16 bits, its
+weights alone are about 18 GB: 9 billion parameters at 2 bytes each. On a 23 GB GPU at
+vLLM's default 0.9 memory fraction that leaves under 3 GB for the KV cache, which is why
+fp16 is not an option here. Even if it loads, a KV budget that small caps the server at a
+handful of concurrent requests, far below the concurrency the whole exercise is meant to
+serve, so that degenerate config was not benchmarked. On a 23 GB GPU the practical question
+is whether the 9B can run at all, and the only form that answers yes is a quantized one.
 
-The surprising part is how small the penalty turns out to be. A 4-bit version of the 9B
-not only fits, it **serves at roughly three-quarters of the 4B's throughput** (about 75%),
-despite having more than twice the parameters. The rest of the post works out why the
+What makes this worth a post is how small the penalty turns out to be. A 4-bit version of
+the 9B not only fits, it **serves at roughly three-quarters of the 4B's throughput**, about
+75%, despite having more than twice the parameters. The rest of the post works out why the
 penalty is that small, and the answer is the same memory-bandwidth argument the series has
 made throughout: decode speed tracks the bytes moved per token, and 4-bit weights move far
 fewer bytes than the parameter count implies.
 
 ## What quantization actually is
 
-A model's "weights" are just a giant pile of numbers. By default each is stored in 16 bits
-(fp16, "half precision"). **Quantization** stores them in fewer bits, here 4 bits each,
-using a scheme that picks the 4-bit levels carefully so the numbers stay close to their
-originals. The immediate payoff is size: 4-bit weights take about a quarter of the bytes
-of 16-bit weights. The method used here is **AWQ** (Activation-aware Weight Quantization), a
-4-bit scheme designed to choose the levels so the model's answers stay close to the fp16
-original; vLLM runs it with a fast GPU kernel called `awq_marlin`. You do not need the internals; you need
-one fact, which the rest of the post leans on: **a 4-bit weight is ~4x fewer bytes to read
-than the same weight in fp16.** (In practice a real 4-bit model keeps a few tensors, such as
-the embeddings, in higher precision, so the whole-model shrink is less than a clean 4x, as
-the memory table below shows.)
+A model's "weights" are just a giant pile of numbers. By default each is stored in 16 bits,
+the format called fp16 or "half precision". **Quantization** stores them in fewer bits,
+here 4 bits each, using a scheme that picks the 4-bit levels carefully so the numbers stay
+close to their originals. What this buys you is space: 4-bit weights take about a quarter of
+the bytes of 16-bit weights. The method used here is **AWQ**, short for Activation-aware
+Weight Quantization, a 4-bit scheme designed to choose the levels so the model's answers
+stay close to the fp16 original; vLLM runs it with a fast GPU kernel called `awq_marlin`.
+You do not need the internals; you need one fact, which the rest of the post leans on:
+**a 4-bit weight is ~4x fewer bytes to read than the same weight in fp16.** A real 4-bit
+model keeps a few tensors such as the embeddings in higher precision, so the whole-model
+shrink is less than a clean 4x, as the memory table below shows.
 
 ## First, does it fit?
 
@@ -64,26 +63,26 @@ matters most. Here is how vLLM carves up the 23 GB GPU for each model, measured 
 
 ![Stacked memory-budget bars for both models against the 23 GB GPU: the 4B in fp16 uses 8.61 GB of weights and 9.45 GB of KV cache, while the 9B in 4-bit AWQ uses 11.21 GB of weights and 6.65 GB of KV cache, so a model with 2.25x the parameters weighs only ~1.3x as much and still leaves room for a real cache]({{ '/assets/figures/fig6a-memory-budget.png' | relative_url }})
 
-(Every cell is quoted from vLLM's own startup log for each model, the `gpu_worker.py`
-"Available KV cache memory" line and the `kv_cache_utils.py` "GPU KV cache size" /
+Every cell is quoted from vLLM's own startup log for each model, the `gpu_worker.py`
+"Available KV cache memory" line and the `kv_cache_utils.py` "GPU KV cache size" and
 "Maximum concurrency" lines, not computed by hand. As Part 1 noted, the concurrency figure
-is vLLM's own hybrid-aware count, not tokens divided by request length.)
+is vLLM's own hybrid-aware count, not tokens divided by request length.
 
-Read the weights row. A **9B** model in 4-bit weighs **11.2 GiB**, only about 1.3x the
-**4B**'s fp16 weights (8.6 GiB), even though it has 2.25x the parameters. That compression
-is the entire reason it fits on the GPU at all: 11.2 GiB of weights leaves 6.65 GiB for
-the KV cache (the server's per-request working memory), which is still room for **54,000
-tokens, or 59 concurrent max-length requests**. The fp16 version's ~18 GiB of weights
-would have left under 3 GiB for the KV cache, less than half of this, and a serving
-budget that thin is not worth standing up. **Quantization did not make the 9B faster here;
-it made it usable here.** That is the framing to hold onto.
+The weights row is where the result lives. A **9B** model in 4-bit weighs **11.2 GiB**,
+only about 1.3x the **4B**'s fp16 weights of 8.6 GiB, even though it has 2.25x the
+parameters. That compression is the entire reason it fits on the GPU at all: 11.2 GiB of
+weights leaves 6.65 GiB for the KV cache, the server's per-request working memory, which is
+still room for **54,000 tokens, or 59 concurrent max-length requests**. The fp16 version's
+~18 GiB of weights would have left under 3 GiB for the KV cache, less than half of this, and
+a serving budget that thin is not worth standing up. **Quantization did not make the 9B
+faster here; it made it usable here.** That is the framing to hold onto.
 
 ## Now the surprise: it serves almost as fast as the smaller model
 
 With the 9B-AWQ actually running, here is its warm serving curve under the same rate sweep
-this series has used throughout (256-token in, 128-token out, warm server, percentiles).
-The latency columns: TTFT is time-to-first-token (the wait before the answer starts), ITL
-is inter-token latency (the gap between streamed tokens), E2E is the end-to-end total:
+this series has used throughout: 256-token in, 128-token out, warm server, percentiles.
+The latency columns: TTFT is time-to-first-token, the wait before the answer starts; ITL
+is inter-token latency, the gap between streamed tokens; E2E is the end-to-end total.
 
 | Offered rate | Achieved req/s | Output tok/s | TTFT p50 | TTFT p99 | ITL p99 | E2E p99 |
 |---|---|---|---|---|---|---|
