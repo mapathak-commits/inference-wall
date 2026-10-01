@@ -7,11 +7,12 @@ image: /assets/diagrams/d8.jpg
 *Part 6 of "The Inference Wall". Same rig throughout: one NVIDIA A10G with 23 GB.
 Qwen3.5-4B in fp16 vs Qwen3.5-9B in 4-bit AWQ.*
 
-*Manas Pathak · October 2, 2026*
+*Manas Pathak · October 1, 2026*
 
 [The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 6**
 
-The wall this series keeps returning to showed up in Part 1: a 4B model on one mid-range GPU,
+The wall this series keeps returning to showed up in
+[Part 1]({{ '/articles/part-1/' | relative_url }}): a 4B model on one mid-range GPU,
 saturating at about seven requests a second, bottlenecked not by memory but by how fast the
 GPU could copy its weights from HBM to the compute cores on each decode step. Every post
 since has been about pushing that wall back. This post is about the bluntest lever of all,
