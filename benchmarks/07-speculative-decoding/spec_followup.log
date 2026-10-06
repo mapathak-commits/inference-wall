@@ -1,0 +1,70 @@
+=== [k5] starting server 20:50:57 ===
+=== [k5] server ready ===
+=== [k5] warm ===
+########## [k5-stability] request_rate=inf ##########
+Successful requests:                     200       
+Request throughput (req/s):              3.84      
+Output token throughput (tok/s):         491.03    
+Peak output token throughput (tok/s):    784.00    
+Median TTFT (ms):                        22058.78  
+P99 TTFT (ms):                           46559.00  
+Median E2EL (ms):                        29057.57  
+P99 E2EL (ms):                           51710.89  
+########## [k5-stability] request_rate=inf ##########
+Successful requests:                     200       
+Request throughput (req/s):              3.85      
+Output token throughput (tok/s):         493.19    
+Peak output token throughput (tok/s):    728.00    
+Median TTFT (ms):                        22229.48  
+P99 TTFT (ms):                           45771.73  
+Median E2EL (ms):                        29754.61  
+P99 E2EL (ms):                           50700.73  
+########## [k5-knee] request_rate=3 ##########
+Successful requests:                     200       
+Request throughput (req/s):              2.85      
+Output token throughput (tok/s):         364.67    
+Peak output token throughput (tok/s):    547.00    
+Median TTFT (ms):                        102.28    
+P99 TTFT (ms):                           550.50    
+Median E2EL (ms):                        4894.19   
+P99 E2EL (ms):                           7411.98   
+########## [k5-knee] request_rate=4 ##########
+Successful requests:                     200       
+Request throughput (req/s):              3.55      
+Output token throughput (tok/s):         454.19    
+Peak output token throughput (tok/s):    680.00    
+Median TTFT (ms):                        1480.40   
+P99 TTFT (ms):                           3160.59   
+Median E2EL (ms):                        7994.72   
+P99 E2EL (ms):                           10864.90  
+=== [k5] trace capture (predictable decoders, spec armed) ===
+start_profile: 200
+stop_profile: 200
+=== SPEC TRACE CAPTURE DONE ===
+drwxr-xr-x  2 mpathak users    4096 Aug 24 20:59 .
+drwxr-xr-x 10 mpathak users    4096 Aug 24 20:50 ..
+-rw-r--r--  1 mpathak users    1041 Aug 24 20:59 devrestricted-mpathak_420199.async_llm.1787605186170278435.pt.trace.json.gz
+-rw-r--r--  1 mpathak users   20651 Aug 24 20:59 profiler_out_0.txt
+-rw-r--r--  1 mpathak users 2282840 Aug 24 20:59 rank0.1787605186746875720.pt.trace.json.gz
+=== [off] starting server 21:00:05 ===
+=== [off] server ready ===
+=== [off] warm ===
+########## [off-stability] request_rate=inf ##########
+Successful requests:                     200       
+Request throughput (req/s):              8.58      
+Output token throughput (tok/s):         1097.82   
+Peak output token throughput (tok/s):    2190.00   
+Median TTFT (ms):                        4994.92   
+P99 TTFT (ms):                           18724.21  
+Median E2EL (ms):                        18954.22  
+P99 E2EL (ms):                           23270.93  
+########## [off-stability] request_rate=inf ##########
+Successful requests:                     200       
+Request throughput (req/s):              8.57      
+Output token throughput (tok/s):         1097.29   
+Peak output token throughput (tok/s):    2190.00   
+Median TTFT (ms):                        5007.12   
+P99 TTFT (ms):                           18747.08  
+Median E2EL (ms):                        18963.45  
+P99 E2EL (ms):                           23291.30  
+=== FOLLOWUP DONE 21:03:23 ===

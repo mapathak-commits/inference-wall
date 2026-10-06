@@ -16,7 +16,7 @@ the number, and read the trace that explains why. New parts publish weekly.*
 | **Part 4** | [The attention sink]({{ '/articles/part-4/' | relative_url }}) | on a CPU, a deep head pours its whole attention onto the first token, whose state towers 12x over the rest, and why that limits what you can evict from a long context |
 | **Part 5** | [Starving the cache]({{ '/articles/part-5/' | relative_url }}) | flood vLLM until the KV cache binds and it preempts on every workload, not just the pathological one; the cost is tail latency you can see coming, not a crash |
 | **Part 6** | [Quantization to make a model fit]({{ '/articles/part-6/' | relative_url }}) | a 9B that fp16 can't serve on this GPU is quantized to 4-bit and serves at ~75% of a 4B's speed, because decode moves bytes, not parameters |
-| Part 7 | Speculative decoding | *coming soon* |
+| **Part 7** | [Speculative decoding]({{ '/articles/part-7/' | relative_url }}) | a flag that runs single-stream generation 1.8x faster cuts a flooded server's throughput from 1,096 to 473 tok/s and triples time-to-first-token, because speculation multiplies the per-request work batching can't share and eats concurrency on a hybrid model |
 | Part 8 | FlashAttention at the scale where it matters | *coming soon* |
 | Part 9 | Off the rig: decode on a CPU | *coming soon* |
 

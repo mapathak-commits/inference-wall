@@ -132,10 +132,11 @@ the full arc:
    not the 2.25x its parameter count implies): beating a hardware limit instead of just
    measuring it.
 
-7. **Speculative decoding** *(coming)*. The third lever for getting more tokens out of one
-   stream of weight bytes: let a cheap guesser propose several tokens and have the big model
-   verify them in a single pass. Unlike batching and quantization, this one is a bet placed
-   per token, and the post measures where the bet stops paying, and even inverts, under load.
+7. **[Speculative decoding]({{ '/articles/part-7/' | relative_url }})** *(published)*. The
+   third lever for getting more tokens out of one stream of weight bytes: let a cheap guesser
+   propose several tokens and have the big model verify them in a single pass. Unlike batching
+   and quantization, this one is a bet placed per token, and the post measures where the bet
+   stops paying, and even inverts, under load.
 
 8. **FlashAttention** *(planned)*. Generalizes the bytes-through-memory law one level down,
    into the attention kernel itself, and is the first part to run a dense model alongside the

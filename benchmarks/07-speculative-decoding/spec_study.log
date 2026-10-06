@@ -1,0 +1,306 @@
+=== [off] starting server 14:41:51 ===
+=== [off] server ready ===
+=== [off] warm pass ===
+=== [off] probes ===
+PROBE tag=off kind=single label=predictable rep=0 tokens=160 seconds=3.207 ms_per_tok=20.04
+PROBE tag=off kind=single label=predictable rep=1 tokens=160 seconds=3.209 ms_per_tok=20.05
+PROBE tag=off kind=single label=predictable rep=2 tokens=160 seconds=3.207 ms_per_tok=20.05
+PROBE tag=off kind=selfconsistency label=predictable identical_reps=True
+PROBETEXT tag=off label=predictable head=" The quick brown fox jumps over the lazy dog. The quick brown sentence.\n\n<think>\nThinking Process:\n\n1.  **Analyze the Request:**\n    *   Task: Repeat a specific sentence 20 times.\n    *   Sentence: 'T"
+PROBE tag=off kind=single label=creative rep=0 tokens=160 seconds=3.208 ms_per_tok=20.05
+PROBE tag=off kind=single label=creative rep=1 tokens=160 seconds=3.208 ms_per_tok=20.05
+PROBE tag=off kind=single label=creative rep=2 tokens=160 seconds=3.208 ms_per_tok=20.05
+PROBE tag=off kind=selfconsistency label=creative identical_reps=True
+PROBETEXT tag=off label=creative head="\n\n<think>\nHere's a thinking process that leads to the poem:\n\n1.  **Analyze the Request:**\n    *   **Topic:** A clockwork octopus dreaming in colors.\n    *   **Genre:** Surreal poem.\n    *   **Key Elem"
+PROBE tag=off kind=concurrent label=predictable n=32 total_tokens=4096 seconds=3.956 agg_tok_per_s=1035.4
+PROBE tag=off kind=concurrent label=creative n=32 total_tokens=4096 seconds=3.823 agg_tok_per_s=1071.4
+PROBE tag=off kind=done
+=== [off] sweep ===
+########## [off] request_rate=1 ##########
+Successful requests:                     200       
+Request throughput (req/s):              0.99      
+Output token throughput (tok/s):         126.26    
+Peak output token throughput (tok/s):    372.00    
+Median TTFT (ms):                        94.64     
+P99 TTFT (ms):                           138.08    
+Median ITL (ms):                         20.80     
+P99 ITL (ms):                            55.52     
+Median E2EL (ms):                        2827.03   
+P99 E2EL (ms):                           3153.40   
+########## [off] request_rate=2 ##########
+Successful requests:                     200       
+Request throughput (req/s):              1.95      
+Output token throughput (tok/s):         248.98    
+Peak output token throughput (tok/s):    523.00    
+Median TTFT (ms):                        101.51    
+P99 TTFT (ms):                           168.29    
+Median ITL (ms):                         21.75     
+P99 ITL (ms):                            57.98     
+Median E2EL (ms):                        3074.97   
+P99 E2EL (ms):                           3538.22   
+########## [off] request_rate=4 ##########
+Successful requests:                     199       
+Request throughput (req/s):              3.75      
+Output token throughput (tok/s):         479.94    
+Peak output token throughput (tok/s):    762.00    
+Median TTFT (ms):                        123.31    
+P99 TTFT (ms):                           219.25    
+Median ITL (ms):                         24.94     
+P99 ITL (ms):                            78.06     
+Median E2EL (ms):                        3950.17   
+P99 E2EL (ms):                           4800.27   
+########## [off] request_rate=6 ##########
+Successful requests:                     200       
+Request throughput (req/s):              5.41      
+Output token throughput (tok/s):         692.50    
+Peak output token throughput (tok/s):    1099.00   
+Median TTFT (ms):                        197.16    
+P99 TTFT (ms):                           400.69    
+Median ITL (ms):                         32.07     
+P99 ITL (ms):                            129.07    
+Median E2EL (ms):                        5859.47   
+P99 E2EL (ms):                           8034.81   
+########## [off] request_rate=8 ##########
+Successful requests:                     200       
+Request throughput (req/s):              6.32      
+Output token throughput (tok/s):         809.42    
+Peak output token throughput (tok/s):    2120.00   
+Median TTFT (ms):                        416.90    
+P99 TTFT (ms):                           851.37    
+Median ITL (ms):                         59.70     
+P99 ITL (ms):                            301.55    
+Median E2EL (ms):                        13489.09  
+P99 E2EL (ms):                           18257.36  
+########## [off] request_rate=16 ##########
+Successful requests:                     200       
+Request throughput (req/s):              7.07      
+Output token throughput (tok/s):         904.62    
+Peak output token throughput (tok/s):    2190.00   
+Median TTFT (ms):                        811.85    
+P99 TTFT (ms):                           11283.68  
+Median ITL (ms):                         70.38     
+P99 ITL (ms):                            381.61    
+Median E2EL (ms):                        17305.74  
+P99 E2EL (ms):                           19898.12  
+########## [off] request_rate=inf ##########
+Successful requests:                     200       
+Request throughput (req/s):              8.57      
+Output token throughput (tok/s):         1096.39   
+Peak output token throughput (tok/s):    2190.00   
+Median TTFT (ms):                        5011.33   
+P99 TTFT (ms):                           18752.82  
+Median ITL (ms):                         69.99     
+P99 ITL (ms):                            456.90    
+Median E2EL (ms):                        18977.21  
+P99 E2EL (ms):                           23303.66  
+(EngineCore pid=2922558) INFO 08-24 14:44:53 [gpu_worker.py:456] Available KV cache memory: 9.45 GiB
+(EngineCore pid=2922558) INFO 08-24 14:44:53 [gpu_worker.py:490] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.9000 to 0.9235 to maintain the same effective KV cache size.
+(EngineCore pid=2922558) INFO 08-24 14:44:53 [kv_cache_utils.py:1316] GPU KV cache size: 77,088 tokens
+(EngineCore pid=2922558) INFO 08-24 14:44:53 [kv_cache_utils.py:1321] Maximum concurrency for 2,048 tokens per request: 83.71x
+=== [ngram-k5] starting server 14:56:48 ===
+=== [ngram-k5] server ready ===
+=== [ngram-k5] warm pass ===
+=== [ngram-k5] probes ===
+PROBE tag=ngram-k5 kind=single label=predictable rep=0 tokens=160 seconds=1.788 ms_per_tok=11.17
+PROBE tag=ngram-k5 kind=single label=predictable rep=1 tokens=160 seconds=1.811 ms_per_tok=11.32
+PROBE tag=ngram-k5 kind=single label=predictable rep=2 tokens=160 seconds=1.791 ms_per_tok=11.19
+PROBE tag=ngram-k5 kind=selfconsistency label=predictable identical_reps=True
+PROBETEXT tag=ngram-k5 label=predictable head=" The quick brown fox jumps over the lazy dog. The quick brown sentence.\n\n<think>\nThinking Process:\n\n1.  **Analyze the Request:**\n    *   Task: Repeat a specific sentence exactly 20 times.0 times.\n    "
+PROBE tag=ngram-k5 kind=single label=creative rep=0 tokens=160 seconds=3.112 ms_per_tok=19.45
+PROBE tag=ngram-k5 kind=single label=creative rep=1 tokens=160 seconds=3.116 ms_per_tok=19.48
+PROBE tag=ngram-k5 kind=single label=creative rep=2 tokens=160 seconds=3.099 ms_per_tok=19.37
+PROBE tag=ngram-k5 kind=selfconsistency label=creative identical_reps=True
+PROBETEXT tag=ngram-k5 label=creative head="\n\n<think>\nHere's a thinking process that leads to the poem:\n\n1.  **Analyze the Request:**\n    *   **Topic:** A clockwork octopus dreaming in colors.\n    *   **Genre: Surreal poem.\n    *   **Key Elemen"
+PROBE tag=ngram-k5 kind=concurrent label=predictable n=32 total_tokens=4096 seconds=3.462 agg_tok_per_s=1183.0
+PROBE tag=ngram-k5 kind=concurrent label=creative n=32 total_tokens=4096 seconds=7.099 agg_tok_per_s=577.0
+PROBE tag=ngram-k5 kind=done
+=== [ngram-k5] sweep ===
+########## [ngram-k5] request_rate=1 ##########
+Successful requests:                     200       
+Request throughput (req/s):              0.98      
+Output token throughput (tok/s):         125.89    
+Peak output token throughput (tok/s):    330.00    
+Median TTFT (ms):                        80.08     
+P99 TTFT (ms):                           133.57    
+Median ITL (ms):                         23.58     
+P99 ITL (ms):                            63.30     
+Median E2EL (ms):                        3438.71   
+P99 E2EL (ms):                           4518.02   
+########## [ngram-k5] request_rate=2 ##########
+Successful requests:                     200       
+Request throughput (req/s):              1.93      
+Output token throughput (tok/s):         246.67    
+Peak output token throughput (tok/s):    415.00    
+Median TTFT (ms):                        89.46     
+P99 TTFT (ms):                           150.56    
+Median ITL (ms):                         25.80     
+P99 ITL (ms):                            73.53     
+Median E2EL (ms):                        4068.63   
+P99 E2EL (ms):                           4939.94   
+########## [ngram-k5] request_rate=4 ##########
+Successful requests:                     200       
+Request throughput (req/s):              3.46      
+Output token throughput (tok/s):         443.28    
+Peak output token throughput (tok/s):    638.00    
+Median TTFT (ms):                        2104.19   
+P99 TTFT (ms):                           3713.54   
+Median ITL (ms):                         63.22     
+P99 ITL (ms):                            128.52    
+Median E2EL (ms):                        8830.79   
+P99 E2EL (ms):                           11576.89  
+########## [ngram-k5] request_rate=6 ##########
+Successful requests:                     200       
+Request throughput (req/s):              3.68      
+Output token throughput (tok/s):         471.62    
+Peak output token throughput (tok/s):    644.00    
+Median TTFT (ms):                        8592.19   
+P99 TTFT (ms):                           16192.51  
+Median ITL (ms):                         61.67     
+P99 ITL (ms):                            128.65    
+Median E2EL (ms):                        15425.07  
+P99 E2EL (ms):                           20996.20  
+########## [ngram-k5] request_rate=8 ##########
+Successful requests:                     200       
+Request throughput (req/s):              3.86      
+Output token throughput (tok/s):         494.17    
+Peak output token throughput (tok/s):    697.00    
+Median TTFT (ms):                        10705.49  
+P99 TTFT (ms):                           22409.88  
+Median ITL (ms):                         33.55     
+P99 ITL (ms):                            131.56    
+Median E2EL (ms):                        18195.12  
+P99 E2EL (ms):                           26782.62  
+########## [ngram-k5] request_rate=16 ##########
+Successful requests:                     200       
+Request throughput (req/s):              3.80      
+Output token throughput (tok/s):         486.87    
+Peak output token throughput (tok/s):    669.00    
+Median TTFT (ms):                        17086.16  
+P99 TTFT (ms):                           34507.50  
+Median ITL (ms):                         63.86     
+P99 ITL (ms):                            135.03    
+Median E2EL (ms):                        23889.55  
+P99 E2EL (ms):                           39229.69  
+########## [ngram-k5] request_rate=inf ##########
+Successful requests:                     200       
+Request throughput (req/s):              3.70      
+Output token throughput (tok/s):         473.40    
+Peak output token throughput (tok/s):    700.00    
+Median TTFT (ms):                        22616.96  
+P99 TTFT (ms):                           48017.86  
+Median ITL (ms):                         64.31     
+P99 ITL (ms):                            165.85    
+Median E2EL (ms):                        30576.73  
+P99 E2EL (ms):                           53207.13  
+(APIServer pid=2989057) INFO 08-24 15:09:52 [metrics.py:100] SpecDecoding metrics: Mean acceptance length: 1.97, Accepted throughput: 6.60 tokens/s, Drafted throughput: 30.89 tokens/s, Accepted: 66 tokens, Drafted: 309 tokens, Per-position acceptance rate: 0.324, 0.221, 0.176, 0.147, 0.103, Avg Draft acceptance rate: 21.4%
+(APIServer pid=2989057) INFO 08-24 15:10:02 [metrics.py:100] SpecDecoding metrics: Mean acceptance length: 1.94, Accepted throughput: 9.50 tokens/s, Drafted throughput: 45.50 tokens/s, Accepted: 95 tokens, Drafted: 455 tokens, Per-position acceptance rate: 0.327, 0.218, 0.178, 0.119, 0.099, Avg Draft acceptance rate: 20.9%
+(APIServer pid=2989057) INFO 08-24 15:10:12 [metrics.py:100] SpecDecoding metrics: Mean acceptance length: 1.25, Accepted throughput: 0.10 tokens/s, Drafted throughput: 2.00 tokens/s, Accepted: 1 tokens, Drafted: 20 tokens, Per-position acceptance rate: 0.250, 0.000, 0.000, 0.000, 0.000, Avg Draft acceptance rate: 5.0%
+(APIServer pid=2989057) INFO 08-24 15:10:22 [metrics.py:100] SpecDecoding metrics: Mean acceptance length: 2.51, Accepted throughput: 14.80 tokens/s, Drafted throughput: 46.19 tokens/s, Accepted: 148 tokens, Drafted: 462 tokens, Per-position acceptance rate: 0.459, 0.316, 0.286, 0.224, 0.224, Avg Draft acceptance rate: 32.0%
+(APIServer pid=2989057) INFO 08-24 15:10:32 [metrics.py:100] SpecDecoding metrics: Mean acceptance length: 2.25, Accepted throughput: 13.50 tokens/s, Drafted throughput: 49.90 tokens/s, Accepted: 135 tokens, Drafted: 499 tokens, Per-position acceptance rate: 0.370, 0.269, 0.222, 0.194, 0.194, Avg Draft acceptance rate: 27.1%
+(APIServer pid=2989057) INFO 08-24 15:10:42 [metrics.py:100] SpecDecoding metrics: Mean acceptance length: 2.00, Accepted throughput: 14.30 tokens/s, Drafted throughput: 67.69 tokens/s, Accepted: 143 tokens, Drafted: 677 tokens, Per-position acceptance rate: 0.336, 0.210, 0.168, 0.147, 0.140, Avg Draft acceptance rate: 21.1%
+(APIServer pid=2989057) INFO 08-24 15:10:52 [metrics.py:100] SpecDecoding metrics: Mean acceptance length: 1.43, Accepted throughput: 4.70 tokens/s, Drafted throughput: 51.59 tokens/s, Accepted: 47 tokens, Drafted: 516 tokens, Per-position acceptance rate: 0.255, 0.118, 0.055, 0.000, 0.000, Avg Draft acceptance rate: 9.1%
+(APIServer pid=2989057) INFO 08-24 15:11:02 [metrics.py:100] SpecDecoding metrics: Mean acceptance length: 2.02, Accepted throughput: 11.90 tokens/s, Drafted throughput: 54.69 tokens/s, Accepted: 119 tokens, Drafted: 547 tokens, Per-position acceptance rate: 0.393, 0.214, 0.162, 0.128, 0.120, Avg Draft acceptance rate: 21.8%
+=== [ngram-k3] starting server 15:11:12 ===
+=== [ngram-k3] server ready ===
+=== [ngram-k3] warm pass ===
+=== [ngram-k3] probes ===
+PROBE tag=ngram-k3 kind=single label=predictable rep=0 tokens=160 seconds=1.959 ms_per_tok=12.24
+PROBE tag=ngram-k3 kind=single label=predictable rep=1 tokens=160 seconds=1.956 ms_per_tok=12.23
+PROBE tag=ngram-k3 kind=single label=predictable rep=2 tokens=160 seconds=1.966 ms_per_tok=12.29
+PROBE tag=ngram-k3 kind=selfconsistency label=predictable identical_reps=True
+PROBETEXT tag=ngram-k3 label=predictable head=" The quick brown fox jumps over the lazy dog. The quick brown sentence.\n\n<think>\nThinking Process:\n\n1.  **Analyze the Request:**\n    *   Task: Repeat a specific sentence exactly 20 times.0 times.\n    "
+PROBE tag=ngram-k3 kind=single label=creative rep=0 tokens=160 seconds=3.507 ms_per_tok=21.92
+PROBE tag=ngram-k3 kind=single label=creative rep=1 tokens=160 seconds=3.538 ms_per_tok=22.11
+PROBE tag=ngram-k3 kind=single label=creative rep=2 tokens=160 seconds=3.518 ms_per_tok=21.98
+PROBE tag=ngram-k3 kind=selfconsistency label=creative identical_reps=True
+PROBETEXT tag=ngram-k3 label=creative head="\n\n<think>\nHere's a thinking process that leads to the poem:\n\n1.  **Analyze the Request:**\n    *   **Topic:** A clockwork octopus dreaming in colors.\n</think>\n\nThe brass gears grind a silent, silver so"
+PROBE tag=ngram-k3 kind=concurrent label=predictable n=32 total_tokens=4096 seconds=3.167 agg_tok_per_s=1293.2
+PROBE tag=ngram-k3 kind=concurrent label=creative n=32 total_tokens=4096 seconds=5.049 agg_tok_per_s=811.2
+PROBE tag=ngram-k3 kind=done
+=== [ngram-k3] sweep ===
+########## [ngram-k3] request_rate=1 ##########
+Successful requests:                     200       
+Request throughput (req/s):              0.98      
+Output token throughput (tok/s):         126.05    
+Peak output token throughput (tok/s):    319.00    
+Median TTFT (ms):                        80.31     
+P99 TTFT (ms):                           129.69    
+Median ITL (ms):                         23.57     
+P99 ITL (ms):                            63.83     
+Median E2EL (ms):                        3440.04   
+P99 E2EL (ms):                           5488.31   
+########## [ngram-k3] request_rate=2 ##########
+Successful requests:                     200       
+Request throughput (req/s):              1.93      
+Output token throughput (tok/s):         246.69    
+Peak output token throughput (tok/s):    432.00    
+Median TTFT (ms):                        92.94     
+P99 TTFT (ms):                           172.22    
+Median ITL (ms):                         25.43     
+P99 ITL (ms):                            75.00     
+Median E2EL (ms):                        4068.22   
+P99 E2EL (ms):                           5526.57   
+########## [ngram-k3] request_rate=4 ##########
+Successful requests:                     200       
+Request throughput (req/s):              3.64      
+Output token throughput (tok/s):         465.63    
+Peak output token throughput (tok/s):    702.00    
+Median TTFT (ms):                        154.99    
+P99 TTFT (ms):                           1823.02   
+Median ITL (ms):                         66.19     
+P99 ITL (ms):                            149.01    
+Median E2EL (ms):                        8733.87   
+P99 E2EL (ms):                           12214.14  
+########## [ngram-k3] request_rate=6 ##########
+Successful requests:                     200       
+Request throughput (req/s):              3.91      
+Output token throughput (tok/s):         499.93    
+Peak output token throughput (tok/s):    697.00    
+Median TTFT (ms):                        6243.14   
+P99 TTFT (ms):                           12494.94  
+Median ITL (ms):                         78.64     
+P99 ITL (ms):                            150.33    
+Median E2EL (ms):                        16040.54  
+P99 E2EL (ms):                           19066.50  
+########## [ngram-k3] request_rate=8 ##########
+Successful requests:                     200       
+Request throughput (req/s):              3.93      
+Output token throughput (tok/s):         503.53    
+Peak output token throughput (tok/s):    741.00    
+Median TTFT (ms):                        10486.61  
+P99 TTFT (ms):                           20599.25  
+Median ITL (ms):                         78.78     
+P99 ITL (ms):                            151.36    
+Median E2EL (ms):                        20552.83  
+P99 E2EL (ms):                           26407.47  
+########## [ngram-k3] request_rate=16 ##########
+Successful requests:                     200       
+Request throughput (req/s):              4.12      
+Output token throughput (tok/s):         527.79    
+Peak output token throughput (tok/s):    943.00    
+Median TTFT (ms):                        13860.89  
+P99 TTFT (ms):                           29648.69  
+Median ITL (ms):                         78.39     
+P99 ITL (ms):                            193.44    
+Median E2EL (ms):                        24233.59  
+P99 E2EL (ms):                           36445.65  
+########## [ngram-k3] request_rate=inf ##########
+Successful requests:                     200       
+Request throughput (req/s):              4.24      
+Output token throughput (tok/s):         542.38    
+Peak output token throughput (tok/s):    1025.00   
+Median TTFT (ms):                        18466.25  
+P99 TTFT (ms):                           40196.89  
+Median ITL (ms):                         77.89     
+P99 ITL (ms):                            307.69    
+Median E2EL (ms):                        28851.92  
+P99 E2EL (ms):                           47154.16  
+(APIServer pid=3056840) INFO 08-24 15:23:39 [metrics.py:100] SpecDecoding metrics: Mean acceptance length: 2.44, Accepted throughput: 26.19 tokens/s, Drafted throughput: 53.29 tokens/s, Accepted: 262 tokens, Drafted: 533 tokens, Per-position acceptance rate: 0.566, 0.467, 0.407, Avg Draft acceptance rate: 49.2%
+(APIServer pid=3056840) INFO 08-24 15:23:49 [metrics.py:100] SpecDecoding metrics: Mean acceptance length: 1.91, Accepted throughput: 12.00 tokens/s, Drafted throughput: 38.89 tokens/s, Accepted: 120 tokens, Drafted: 389 tokens, Per-position acceptance rate: 0.394, 0.288, 0.227, Avg Draft acceptance rate: 30.8%
+(APIServer pid=3056840) INFO 08-24 15:23:59 [metrics.py:100] SpecDecoding metrics: Mean acceptance length: 1.76, Accepted throughput: 5.70 tokens/s, Drafted throughput: 22.50 tokens/s, Accepted: 57 tokens, Drafted: 225 tokens, Per-position acceptance rate: 0.533, 0.133, 0.093, Avg Draft acceptance rate: 25.3%
+(APIServer pid=3056840) INFO 08-24 15:24:09 [metrics.py:100] SpecDecoding metrics: Mean acceptance length: 3.05, Accepted throughput: 9.00 tokens/s, Drafted throughput: 12.80 tokens/s, Accepted: 90 tokens, Drafted: 128 tokens, Per-position acceptance rate: 0.773, 0.636, 0.636, Avg Draft acceptance rate: 70.3%
+(APIServer pid=3056840) INFO 08-24 15:24:19 [metrics.py:100] SpecDecoding metrics: Mean acceptance length: 2.14, Accepted throughput: 11.40 tokens/s, Drafted throughput: 29.10 tokens/s, Accepted: 114 tokens, Drafted: 291 tokens, Per-position acceptance rate: 0.600, 0.300, 0.240, Avg Draft acceptance rate: 39.2%
+(APIServer pid=3056840) INFO 08-24 15:24:29 [metrics.py:100] SpecDecoding metrics: Mean acceptance length: 2.62, Accepted throughput: 25.29 tokens/s, Drafted throughput: 43.79 tokens/s, Accepted: 253 tokens, Drafted: 438 tokens, Per-position acceptance rate: 0.667, 0.506, 0.449, Avg Draft acceptance rate: 57.8%
+(APIServer pid=3056840) INFO 08-24 15:24:39 [metrics.py:100] SpecDecoding metrics: Mean acceptance length: 2.46, Accepted throughput: 23.10 tokens/s, Drafted throughput: 46.29 tokens/s, Accepted: 231 tokens, Drafted: 463 tokens, Per-position acceptance rate: 0.620, 0.462, 0.380, Avg Draft acceptance rate: 49.9%
+(APIServer pid=3056840) INFO 08-24 15:24:49 [metrics.py:100] SpecDecoding metrics: Mean acceptance length: 1.99, Accepted throughput: 19.20 tokens/s, Drafted throughput: 56.90 tokens/s, Accepted: 192 tokens, Drafted: 569 tokens, Per-position acceptance rate: 0.474, 0.289, 0.227, Avg Draft acceptance rate: 33.7%
+=== SPEC STUDY DONE 15:24:52 ===
