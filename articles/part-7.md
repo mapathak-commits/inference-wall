@@ -7,23 +7,24 @@ image: /assets/diagrams/d9.jpg
 *Part 7 of "The Inference Wall". Same rig as the whole series: Qwen3.5-4B, fp16,
 one NVIDIA A10G with 23 GB, measured under real load.*
 
-*Manas Pathak · draft, September 2026*
+*Manas Pathak · October 9, 2026*
 
 [The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 7**
 
-There is a flag in vLLM that is supposed to make your model generate faster. The papers
-behind it report 2x-and-better speedups, the blog posts call it close to free, and it
-takes one line of config to turn on. I turned it on. On a quiet server it delivered:
-single-request generation ran up to **1.8x faster**. Then I put the same server under
-production-style load, and the same flag **cut total throughput from ~1,100 tokens a
-second to ~490**, while time-to-first-token went from 5 seconds to 22. Same model, same
-GPU, same flag: whether it speeds you up or halves your capacity depends on how busy the
-server is, and nothing in the documentation warns you which side of that line you are on.
+Speculative decoding is a one-line vLLM flag that is supposed to make a model generate
+faster. The two founding papers report 2-to-2.5x single-stream speedups, and the common
+framing is that it is close to free. This post measures the flag on the series rig across
+the full load range, from one request on an idle server to a saturated flood, and the
+result splits in two. On a quiet server it does deliver: single-request generation runs
+up to **1.8x faster**. Under production-style load the same flag **cuts total throughput
+from ~1,100 tokens a second to ~490** and raises time-to-first-token from 5 seconds to
+22. Same model, same GPU, same flag; which way it goes is set by how busy the server is,
+and the documentation does not say where that line falls.
 
-The flag is **speculative decoding**. This post measures both of its faces, explains the
-inversion through two measurable mechanisms, and ends at a profiler trace showing that
-the flag does something more drastic than advertised: it replaces the model's decode
-loop with a different machine.
+The rest of the post pins down that line. It explains the inversion through two
+measurable mechanisms, then opens a profiler trace that shows the flag doing something
+more structural than the framing suggests: it replaces the model's decode loop with a
+different one.
 
 If you have not read the earlier parts, one fact carries everything below, and it was
 measured in [Part 1]({{ '/articles/part-1/' | relative_url }}): generating text is *memory-bound*. To produce each token of the
@@ -99,6 +100,15 @@ context the server already holds and no compute worth naming, which makes it the
 cleanest possible probe: **everything measured below is the cost and benefit of L's
 verification machinery**, with S's cost pinned at zero. A real draft model would change
 the guess quality, not the cost structure of checking.
+
+One note before the measurements, because it is easy to wave a result away as an artifact
+of one engine. Prompt lookup is not a vLLM invention or a vLLM quirk. The same model-free
+guesser ships in HuggingFace `transformers` as the `prompt_lookup_num_tokens` option, and
+in TensorRT-LLM, SGLang, and TGI, which is part of why it is worth measuring: the flag a
+reader is likely to reach for is widely available, and so is the behavior it produces
+here. Neither is the inversion engine-specific. The first mechanism below is a property of
+any server that batches requests continuously, and the second of any hybrid-attention
+model, whichever engine happens to serve it. vLLM is the instrument, not the cause.
 
 The acceptance behavior is intuitive. Text that repeats itself is easy to look up:
 boilerplate, code, structured output, a document being quoted back. Novel prose is
@@ -347,8 +357,8 @@ analyzers `tp_spec_kernels.py` and `tp_spec_steps.py`, and the animation rendere
 all raw logs, `spec_study.log`, `spec_followup.log`, and the per-arm `server_*.log` files
 carrying the acceptance metrics and `Running:` lines, plus the trace, are in
 [`benchmarks/07-speculative-decoding/`](https://github.com/mapathak-commits/inference-wall/tree/main/benchmarks/07-speculative-decoding)
-and back every number here. Single A10G, vLLM 0.18.0; absolute numbers are rig-specific,
-the inversion and its two mechanisms are not.*
+and back every number here. Single A10G, vLLM 0.18.0; the absolute numbers are
+rig-specific.*
 
 *Further reading: the two founding papers,
 [Leviathan et al., "Fast Inference from Transformers via Speculative Decoding"](https://arxiv.org/abs/2211.17192)
