@@ -74,49 +74,67 @@ wrong, the pass bought exactly what a normal decode step buys, one token, plus t
 wasted work of checking dead proposals. The economics reduce to one
 number, the **acceptance rate**: what fraction of S's guesses survive verification.
 
-The idea comes from two 2023 papers, by
-[Leviathan, Kalman and Matias at Google](https://arxiv.org/abs/2211.17192) and by
-[Chen et al. at DeepMind](https://arxiv.org/abs/2302.01318), which both report roughly
-**2 to 2.5x** single-stream speedups with a small draft model. Those are the numbers the
-folklore rounds up from, and it is worth noting what they measured: one request at a
-time, a well-matched drafter, and generation tasks the drafter could predict. All three
-qualifiers will matter below.
+The 2 to 2.5x the founding papers report, the figure the folklore rounds up from, was
+measured one request at a time, with a well-matched drafter, on tasks the drafter could
+predict. All three qualifiers matter below.
 
 ## What S is in this experiment, and what "ngram" actually means
 
 The classic S is a small language model from the same family, maybe one-tenth of L's
-size, loaded onto the same GPU alongside L. A 0.5B drafter next to this 4B would fit
-easily: both simply occupy memory, and the server runs S's cheap pass before each of L's
-verify passes. vLLM 0.18 supports that, plus trained-guesser variants like
-[EAGLE](https://arxiv.org/abs/2401.15077) and [Medusa](https://arxiv.org/abs/2401.10774)
-that bolt a small guessing head onto L itself.
+size, loaded onto the same GPU alongside L. vLLM 0.18 supports that, plus trained
+guessers like [EAGLE](https://arxiv.org/abs/2401.15077) and
+[Medusa](https://arxiv.org/abs/2401.10774) that bolt a small guessing head onto L
+itself. All of those *compute* their candidates, which is what makes them useful on
+open-ended text, and all of them cost something to run.
 
-This post uses the simplest S available, and it is important to be precise because the
-name misleads. vLLM's **ngram** method, also known as
+This post uses the simplest S available, and the name misleads, so it needs stating
+exactly. vLLM's **ngram** method, also known as
 [prompt lookup decoding](https://github.com/apoorvumang/prompt-lookup-decoding), is
-**not a language model and keeps no table of n-gram statistics**. It is a string search
-over text this request already has. Take the last few tokens just generated; the server
-tries phrase lengths from four down to two, the `prompt_lookup_max` and
-`prompt_lookup_min` settings. Scan backwards through this request's own prompt-plus-output
-for an earlier occurrence of the same phrase. If found, propose the k tokens that
-followed it last time. It costs no extra memory beyond the
-context the server already holds and no compute worth naming, which makes it the
-cleanest possible probe: **everything measured below is the cost and benefit of L's
-verification machinery**, with S's cost pinned at zero. A real draft model would change
-the guess quality, not the cost structure of checking.
+**not a language model and keeps no table of n-gram statistics**. It never computes or
+scores a candidate. Its one operation is a string search over the text this request
+already holds, prompt plus output so far: take the last few tokens L just produced, find
+the same phrase earlier in that text, and copy whatever followed it.
 
-One note before the measurements, because it is easy to wave a result away as an artifact
-of one engine. Prompt lookup is not a vLLM invention or a vLLM quirk. The same model-free
-guesser ships in HuggingFace `transformers` as the `prompt_lookup_num_tokens` option, and
-in TensorRT-LLM, SGLang, and TGI, which is part of why it is worth measuring: the flag a
-reader is likely to reach for is widely available, and so is the behavior it produces
-here. Neither is the inversion engine-specific. The first mechanism below is a property of
-any server that batches requests continuously, and the second of any hybrid-attention
-model, whichever engine happens to serve it. vLLM is the instrument, not the cause.
+A worked example, with words standing in for tokens. The prompt is `Repeat this
+sentence: The quick brown fox jumps over the lazy dog.` and L has so far produced `The
+quick brown`. The text the server holds for this request is:
 
-The acceptance behavior is intuitive. Text that repeats itself is easy to look up:
-boilerplate, code, structured output, a document being quoted back. Novel prose is
-impossible. The two probe prompts below sit at those poles on purpose.
+```
+Repeat this sentence : The quick brown fox jumps over the lazy dog . The quick brown
+```
+
+S takes the last tokens L emitted, `The quick brown`, as its search key, trying phrase
+lengths from four down to two, the `prompt_lookup_max` and `prompt_lookup_min` settings.
+It finds the same three words inside the prompt. The five tokens that followed there,
+`fox jumps over the lazy`, become the k5 proposal. S did not judge that `fox` is likely.
+It copied `fox` because `fox` sat after `The quick brown` the one earlier time that
+phrase appeared. L then verifies all five in one pass. Had there been no prompt, so that
+the whole text was just `The quick brown`, there would be nothing earlier to search, S
+would propose nothing, and the step would run as an ordinary decode.
+
+So the search key is always text L has already committed, the candidates are always a
+copy of what once followed it, and L is the only party that ever judges a token. S's
+cost is a string search, which pins its share of every measurement below at zero:
+**everything measured here is the cost and benefit of L's verification machinery**. A
+real draft model would change the guess quality, not the cost structure of checking.
+
+Prompt lookup is not a vLLM quirk. The same guesser ships in HuggingFace `transformers`
+as `prompt_lookup_num_tokens`, and in TensorRT-LLM, SGLang, and TGI. Nor is the
+inversion below engine-specific: the first mechanism is a property of any server that
+batches requests continuously, the second of any hybrid-attention model, whichever
+engine serves it. vLLM is the instrument, not the cause.
+
+What this buys in practice follows from the mechanism: ngram helps wherever the output
+reuses stretches of text the request already contains. Output that copies from the
+input: summarization and retrieval-augmented answers that quote their source, code edits
+that re-emit a function with a few lines changed, document rewrites, agent loops that
+restate tool arguments and file paths from context. Output that copies from itself: JSON
+with repeated keys, tables and lists built on a fixed per-item template, code that reuses
+its own names and signatures, boilerplate. Where nothing recurs, open-ended chat,
+creative writing, reasoning from scratch, the search finds no match and S contributes
+nothing; that is the workload draft models and EAGLE exist for. The two probe prompts
+below sit at the poles, perfect copy and no copy, so the mechanism shows cleanly; real
+traffic lands in between.
 
 ## Single stream on an idle server
 
@@ -140,15 +158,13 @@ per 19 ms in the bottom. Playback is slowed 4x; the clocks are real.
 
 ![Two token streams under k5 speculation: predictable text arrives in bursts and finishes early, creative text ticks token by token](../assets/figures/fig7-token-stream.gif)
 
-A note on the 1.8x, because the cited papers say 2 to 2.5x and toy benchmarks
-say more; an earlier small-model study of mine clocked this same ngram method at 3.7x on
-a purely repetitive prompt. The repeat-a-sentence prompt looks like it should accept
-everything, and early in the answer it does. But this model drifts into free-form
-reasoning text partway through the generation, which a string lookup cannot predict, and
-over the full run the speedup works out to a **mean accepted length of about 2** per
-verify step, out of a possible 6. A probe that catches only the early, fully-accepted
-window reports 4x and is wrong as a steady-state number. The 1.8x is what a real
-160-token generation got.
+A note on the 1.8x, since the papers say 2 to 2.5x and an earlier small-model study of
+mine clocked this same ngram method at 3.7x on a purely repetitive prompt. The
+repeat-a-sentence prompt accepts nearly everything early in the answer, but this model
+drifts into free-form reasoning text partway through, which a lookup cannot predict, and
+over the full run the **mean accepted length is about 2** per verify step out of a
+possible 6. A probe that catches only the early window reports 4x and is wrong as a
+steady-state number; 1.8x is what a real 160-token generation got.
 
 ## The same configuration under load
 
@@ -287,63 +303,50 @@ for a gappier fast one, and the gaps are part of the price.
 
 ## Does it make the answers worse?
 
-No, by construction, and the guarantee is worth understanding because it is also worth
-double-checking. The accept-reject rule is designed so that the final output provably
-comes from the same distribution L alone would have produced; the proof is in the
-[Leviathan et al.](https://arxiv.org/abs/2211.17192) paper. At temperature 0 the
-guarantee is easy to see without any math: a guess is accepted only if it is exactly the
-token L would have picked, so every token in the final answer is a token L chose. S
-never overrules L. It only pre-computes what L was going to say anyway, and when it
-guesses wrong, the wrong tokens are discarded before anyone sees them. Speed is the
-thing at stake in this trade, not quality.
+No, by construction. The accept-reject rule is designed so the final output provably
+comes from the same distribution L alone would produce; the proof is in the
+[Leviathan et al.](https://arxiv.org/abs/2211.17192) paper. At temperature 0 it needs no
+math: a guess is accepted only if it is exactly the token L would have picked, so every
+token in the answer is one L chose. S never overrules L. It pre-computes what L was going
+to say, and wrong guesses are discarded before anyone sees them.
 
-Two qualifications apply. First, "same distribution" does not mean
-"same text." Within each server configuration our temperature-0 runs were perfectly
-repeatable, three repetitions byte-identical. Across configurations they diverged: the
-spec-on and spec-off servers wrote different continuations of the same temperature-0
-prompt, and k3 wrote a different poem than k5. Nothing is broken. Verification changes
-the shapes of the GPU kernels, kernel shapes perturb logits in their last decimal
-places, and at a near-tie a flipped choice cascades into a different continuation, the
-same class of nondeterminism that batch size already causes. Neither continuation is
-worse; they are different draws from the same model. But if your tests assert exact
-strings, this flag will fail them.
+Two qualifications. First, same distribution does not mean same text. Within each
+configuration our temperature-0 runs were byte-identical across three repetitions;
+across configurations they diverged, spec-on and spec-off writing different
+continuations of the same prompt, k3 a different poem than k5. Verification changes the
+GPU kernel shapes, kernel shapes perturb logits in their last decimal places, and at a
+near-tie a flipped choice cascades into a different continuation, the same
+nondeterminism batch size already causes. Neither continuation is worse, but tests that
+assert exact strings will fail. Second, the guarantee belongs to the *strict* acceptance
+rule. Variants that relax it to accept more guesses, Medusa's "typical acceptance" for
+one, genuinely change the output distribution; know which rule your engine runs.
 
-Second, the guarantee belongs to the *strict* acceptance rule. Some variants
-deliberately relax it to accept more guesses, Medusa's "typical acceptance" being the
-best-known example, and a relaxed rule genuinely changes the output distribution. Know
-which rule your engine is running before you lean on the proof.
-
-If quality matters enough to verify rather than trust, measure it the way you would
-measure any model change, because diffing strings is doomed by the nondeterminism above.
-Run the evaluation you already trust, a benchmark suite or an LLM-judged eval, against
-the server with the flag off and then on, and compare scores within noise. This study
-measured speed and leaned on the strict-acceptance design for the quality claim; an eval
-suite is how you verify that claim holds in your own deployment.
+If quality matters enough to verify rather than trust, diffing strings is ruled out by
+the above. Run the eval suite you already trust against the server with speculation off
+and then on, and compare scores within noise. This study measured speed and leaned on
+the strict-acceptance design for the quality claim.
 
 ## What to take away
 
 1. **Speculative decoding spends idle capacity to buy latency.** Where there is slack, a
-   single stream on an otherwise-quiet GPU, it converts unused verify headroom into a
-   real speedup: 1.8x here on predictable text. Where there is no slack, the spending
-   continues and the buying stops.
-2. **Under load it can invert, hard.** On this rig and a low-acceptance workload, the
-   flag cut saturated throughput from 1,096 to 473 tokens a second and moved the knee
-   from rate 6-to-8 down to 3-to-4. Speculation multiplies exactly the per-request work
-   that batching cannot amortize.
-3. **On hybrid models, speculation also eats concurrency.** Rewinding recurrent state
-   means k+1 state checkpoints per request: max concurrency fell from 83.7x to 24.6x and
-   the flooded running batch from 146 to 28, admission control triggered by an
-   optimization flag. Check your engine's startup concurrency line before and after
-   enabling it.
+   single stream on a quiet GPU, it converts unused verify headroom into a real speedup,
+   1.8x here on predictable text. Where there is no slack, the spending continues and the
+   buying stops.
+2. **Under load it can invert, hard.** On this rig and a low-acceptance workload it cut
+   saturated throughput from 1,096 to 473 tokens a second and moved the knee from rate
+   6-to-8 down to 3-to-4, by multiplying exactly the per-request work batching cannot
+   amortize.
+3. **On hybrid models it also cuts concurrency.** Rewinding recurrent state means k+1
+   checkpoints per request: max concurrency fell from 83.7x to 24.6x and the flooded
+   running batch from 146 to 28. Check your engine's startup concurrency line before and
+   after enabling it.
 4. **The decision is a workload measurement, not a belief.** At the same 32-request
-   concurrency, the same k5 flag gained 14% on predictable text and lost 46% on novel
-   text. The server's own acceptance metrics, drafted versus accepted and the
-   per-position rates, tell you where your traffic sits; read them before and after
-   flipping the flag, and again when your traffic changes.
-5. **Quality is preserved by design; reproducibility is not.** Strict acceptance
-   guarantees the same output distribution, and your eval suite can confirm it. Exact
-   temperature-0 strings will still change, for the same reason they change with batch
-   size.
+   concurrency, k5 gained 14% on predictable text and lost 46% on novel text. The
+   server's acceptance metrics tell you where your traffic sits; read them before and
+   after enabling it, and again when traffic changes.
+5. **Quality is preserved by design; reproducibility is not.** Strict acceptance keeps
+   the output distribution; exact temperature-0 strings will still change, as they do
+   with batch size.
 
 Part 1's claim gets one more face: inference on this hardware is a bytes-through-memory
 problem, and every lever this series has measured, batching, quantization, speculation,
