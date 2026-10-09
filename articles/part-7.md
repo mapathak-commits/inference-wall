@@ -172,17 +172,8 @@ Now the series' standard measurement: a fixed workload of 256 input and 128 outp
 tokens, randomly generated, the request rate swept from 1 per second to a flood, 200
 prompts per point, warm server. Random tokens are the acceptance-hostile extreme, and
 the server metrics confirm it: in the k5 arm, the guess-5 configuration, **about 21% of
-drafted tokens are accepted**. Output tokens per second:
-
-| Offered rate | Spec off | k5 | k3 |
-|---|---|---|---|
-| 1 | 126 | 126 | 126 |
-| 2 | 249 | 247 | 247 |
-| 4 | 480 | 443 | 466 |
-| 6 | 693 | 472 | 500 |
-| 8 | 809 | 494 | 504 |
-| 16 | 905 | 487 | 528 |
-| flood | **1,096** | **473** | **542** |
+drafted tokens are accepted**. Output tokens per second against offered rate, for all
+three arms:
 
 ![Three throughput curves against offered rate: with speculation off the server climbs to about 1,100 tokens a second; with k3 or k5 speculation it flattens near 540 and 470 from rate 4 onward](../assets/figures/fig7a-sweep-inversion.png)
 
