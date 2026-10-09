@@ -46,9 +46,9 @@ warm, under real load.
 
 ![The big model is a press whose one wide arm verifies a whole row of proposed tokens in a single pass: accepted tiles come out green, rejected ones are crossed out and tumble off the track, while the small guesser runs ahead sketching the next tiles](../assets/diagrams/d9.jpg)
 
-Call the model you are serving **L**, for large. Why must L pay one full weight-stream
-per token, instead of producing the whole answer in one go? Because each token of the
-answer is an *input* to the next one: token 13 cannot be computed until token 12 exists.
+Call the model you are serving **L**, for large. L pays one full weight-stream per token
+because each token of the answer is an *input* to the next: token 13 cannot be computed
+until token 12 exists.
 A prompt's tokens all exist up front, which is why reading a prompt is fast; an answer's
 tokens do not. One token, one pass, one 8.6 GB stream: the 20 ms floor.
 
@@ -87,8 +87,7 @@ guessers like [EAGLE](https://arxiv.org/abs/2401.15077) and
 itself. All of those *compute* their candidates, which is what makes them useful on
 open-ended text, and all of them cost something to run.
 
-This post uses the simplest S available, and the name misleads, so it needs stating
-exactly. vLLM's **ngram** method, also known as
+This post uses the simplest S available. The name misleads. vLLM's **ngram** method, also known as
 [prompt lookup decoding](https://github.com/apoorvumang/prompt-lookup-decoding), is
 **not a language model and keeps no table of n-gram statistics**. It never computes or
 scores a candidate. Its one operation is a string search over the text this request
@@ -124,8 +123,8 @@ inversion below engine-specific: the first mechanism is a property of any server
 batches requests continuously, the second of any hybrid-attention model, whichever
 engine serves it. vLLM is the instrument, not the cause.
 
-What this buys in practice follows from the mechanism: ngram helps wherever the output
-reuses stretches of text the request already contains. Output that copies from the
+In practice, ngram helps wherever the output reuses stretches of text the request
+already contains. Output that copies from the
 input: summarization and retrieval-augmented answers that quote their source, code edits
 that re-emit a function with a few lines changed, document rewrites, agent loops that
 restate tool arguments and file paths from context. Output that copies from itself: JSON
@@ -319,7 +318,7 @@ near-tie a flipped choice cascades into a different continuation, the same
 nondeterminism batch size already causes. Neither continuation is worse, but tests that
 assert exact strings will fail. Second, the guarantee belongs to the *strict* acceptance
 rule. Variants that relax it to accept more guesses, Medusa's "typical acceptance" for
-one, genuinely change the output distribution; know which rule your engine runs.
+one, do change the output distribution; know which rule your engine runs.
 
 If quality matters enough to verify rather than trust, diffing strings is ruled out by
 the above. Run the eval suite you already trust against the server with speculation off
