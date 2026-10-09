@@ -220,7 +220,7 @@ Single A10G; absolute numbers are rig-specific, the bytes-read mechanism is not.
 
 ---
 
-**Previous:** [Part 5: Starving the cache]({{ '/articles/part-5/' | relative_url }}) · **Next:** Part 7, coming next Friday · [All posts]({{ '/articles/' | relative_url }})
+**Previous:** [Part 5: Starving the cache]({{ '/articles/part-5/' | relative_url }}) · **Next:** [Part 7: Speculative decoding]({{ '/articles/part-7/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
 
 ---
 
