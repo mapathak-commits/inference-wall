@@ -74,9 +74,9 @@ wrong, the pass bought exactly what a normal decode step buys, one token, plus t
 wasted work of checking dead proposals. The economics reduce to one
 number, the **acceptance rate**: what fraction of S's guesses survive verification.
 
-The 2 to 2.5x the founding papers report, the figure the folklore rounds up from, was
-measured one request at a time, with a well-matched drafter, on tasks the drafter could
-predict. All three qualifiers matter below.
+The 2 to 2.5x the founding papers report was measured one request at a time, with a
+well-matched drafter, on tasks the drafter could predict. All three qualifiers matter
+below.
 
 ## What S is in this experiment, and what "ngram" actually means
 
@@ -102,10 +102,11 @@ quick brown`. The text the server holds for this request is:
 Repeat this sentence : The quick brown fox jumps over the lazy dog . The quick brown
 ```
 
-S takes the last tokens L emitted, `The quick brown`, as its search key, trying phrase
-lengths from four down to two, the `prompt_lookup_max` and `prompt_lookup_min` settings.
-It finds the same three words inside the prompt. The five tokens that followed there,
-`fox jumps over the lazy`, become the k5 proposal. S did not judge that `fox` is likely.
+S looks at the end of that text and tries to find the closing phrase somewhere earlier
+in it. It tries a four-word phrase first, then three, then two, the `prompt_lookup_max`
+and `prompt_lookup_min` settings. The last four words, `. The quick brown`, appear
+nowhere earlier. The last three, `The quick brown`, do: they are inside the prompt. The
+five tokens that followed them there, `fox jumps over the lazy`, become the k5 proposal. S did not judge that `fox` is likely.
 It copied `fox` because `fox` sat after `The quick brown` the one earlier time that
 phrase appeared. L then verifies all five in one pass. Had there been no prompt, so that
 the whole text was just `The quick brown`, there would be nothing earlier to search, S
