@@ -11,20 +11,24 @@ one NVIDIA A10G with 23 GB, measured under real load.*
 
 [The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 7**
 
-Speculative decoding is a one-line vLLM flag that is supposed to make a model generate
-faster. The two founding papers report 2-to-2.5x single-stream speedups, and the common
-framing is that it is close to free. This post measures the flag on the series rig across
-the full load range, from one request on an idle server to a saturated flood, and the
-result splits in two. On a quiet server it does deliver: single-request generation runs
-up to **1.8x faster**. Under production-style load the same flag **cuts total throughput
-from ~1,100 tokens a second to ~490** and raises time-to-first-token from 5 seconds to
-22. Same model, same GPU, same flag; which way it goes is set by how busy the server is,
-and the documentation does not say where that line falls.
+Speculative decoding is a technique for getting several tokens of one request out of a
+single pass over the model's weights: a cheap guesser proposes a run of tokens and the
+model verifies them all at once. The two founding papers,
+[Leviathan, Kalman and Matias](https://arxiv.org/abs/2211.17192) and
+[Chen et al.](https://arxiv.org/abs/2302.01318), report 2-to-2.5x single-stream
+speedups, and serving guides generally present it as close to free. This post measures
+vLLM's implementation on the series rig across the full load range, from one request on
+an idle server to a saturated flood, and the result splits in two. On a quiet server it
+does deliver: single-request generation runs up to **1.8x faster**. Under
+production-style load the same configuration **cuts total throughput from ~1,100 tokens
+a second to ~490** and raises time-to-first-token from 5 seconds to 22. Same model, same
+GPU, same configuration; which way it goes is set by how busy the server is, and the
+documentation does not say where that line falls.
 
 The rest of the post pins down that line. It explains the inversion through two
-measurable mechanisms, then opens a profiler trace that shows the flag doing something
-more structural than the framing suggests: it replaces the model's decode loop with a
-different one.
+measurable mechanisms, then opens a profiler trace showing that speculation does
+something more structural than the framing suggests: it replaces the model's decode loop
+with a different one.
 
 If you have not read the earlier parts, one fact carries everything below, and it was
 measured in [Part 1]({{ '/articles/part-1/' | relative_url }}): generating text is *memory-bound*. To produce each token of the
@@ -34,11 +38,11 @@ this rig, about 20 ms. Every real speedup in serving is some way of getting more
 out of one stream of those bytes. Batching shares one stream across many users'
 requests; that was [Part 3]({{ '/articles/part-3/' | relative_url }}). Quantization shrinks the bytes in the stream; that was
 [Part 6]({{ '/articles/part-6/' | relative_url }}). Speculative decoding is the third lever: getting several tokens *of the same
-request* out of one stream. That is the whole frame you need. The rig is one NVIDIA
+request* out of one stream. That frame carries everything below. The rig is one NVIDIA
 A10G with 23 GB serving Qwen3.5-4B in fp16, and every number here is measured on it,
 warm, under real load.
 
-## The trick, with names for the moving parts
+## How speculative decoding works
 
 ![The big model is a press whose one wide arm verifies a whole row of proposed tokens in a single pass: accepted tiles come out green, rejected ones are crossed out and tumble off the track, while the small guesser runs ahead sketching the next tiles](../assets/diagrams/d9.jpg)
 
@@ -67,7 +71,7 @@ small:
 
 If all k guesses are right, one weight-stream bought k+1 tokens. If the first guess is
 wrong, the pass bought exactly what a normal decode step buys, one token, plus the
-wasted work of checking dead proposals. The whole economics of the trick reduces to one
+wasted work of checking dead proposals. The economics reduce to one
 number, the **acceptance rate**: what fraction of S's guesses survive verification.
 
 The idea comes from two 2023 papers, by
@@ -95,7 +99,7 @@ over text this request already has. Take the last few tokens just generated; the
 tries phrase lengths from four down to two, the `prompt_lookup_max` and
 `prompt_lookup_min` settings. Scan backwards through this request's own prompt-plus-output
 for an earlier occurrence of the same phrase. If found, propose the k tokens that
-followed it last time. Copy-paste as prophecy. It costs no extra memory beyond the
+followed it last time. It costs no extra memory beyond the
 context the server already holds and no compute worth naming, which makes it the
 cleanest possible probe: **everything measured below is the cost and benefit of L's
 verification machinery**, with S's cost pinned at zero. A real draft model would change
@@ -114,7 +118,7 @@ The acceptance behavior is intuitive. Text that repeats itself is easy to look u
 boilerplate, code, structured output, a document being quoted back. Novel prose is
 impossible. The two probe prompts below sit at those poles on purpose.
 
-## The good end: one request on an idle server
+## Single stream on an idle server
 
 Single stream, temperature 0, 160 output tokens, three repetitions, spread under 1%:
 
@@ -129,14 +133,14 @@ Speculation breaks the flatness in both directions: 1.8x on text the lookup can 
 nothing on text it cannot, and at k3 a real 8% penalty, the proposal-and-verify
 machinery paid for and never once useful.
 
-What this feels like at the token level is worth seeing rather than describing. The
+The per-token arrival pattern makes the difference concrete. The
 animation below replays both prompts against the k5 server using the measured arrival
 process: bursts of about three tokens every 36 ms in the top pane, a steady one token
 per 19 ms in the bottom. Playback is slowed 4x; the clocks are real.
 
 ![Two token streams under k5 speculation: predictable text arrives in bursts and finishes early, creative text ticks token by token](../assets/figures/fig7-token-stream.gif)
 
-An honest aside on the 1.8x, because the cited papers say 2 to 2.5x and toy benchmarks
+A note on the 1.8x, because the cited papers say 2 to 2.5x and toy benchmarks
 say more; an earlier small-model study of mine clocked this same ngram method at 3.7x on
 a purely repetitive prompt. The repeat-a-sentence prompt looks like it should accept
 everything, and early in the answer it does. But this model drifts into free-form
@@ -146,7 +150,7 @@ verify step, out of a possible 6. A probe that catches only the early, fully-acc
 window reports 4x and is wrong as a steady-state number. The 1.8x is what a real
 160-token generation got.
 
-## The bad end: the same flag on a busy server
+## The same configuration under load
 
 Now the series' standard measurement: a fixed workload of 256 input and 128 output
 tokens, randomly generated, the request rate swept from 1 per second to a flood, 200
@@ -207,7 +211,7 @@ private work becomes what fills the step. A loaded server lives past that point.
 steps are already full of private work.
 
 Now watch what speculation does to each part. The shared stream it leaves alone; that is
-the whole trick, same stream, more verdicts. The **private work it multiplies by k+1**:
+the point of the technique: same stream, more verdicts. The **private work it multiplies by k+1**:
 at k5, verifying a request means processing six positions against that request's private
 history instead of one. On an idle server the multiplied private work hides in the
 stream's shadow, which is why rates 1 and 2 showed no cost. On a loaded server the
@@ -217,9 +221,9 @@ for tokens that get thrown away. Each wasted position displaces a real one.
 **Speculation and batching compete for the same headroom, and under load batching has
 already spent it.**
 
-## Why it inverts, mechanism 2: the guessing eats the server's seats
+## Why it inverts, mechanism 2: state checkpoints cut concurrency
 
-The second mechanism was not in the plan; the startup log forced it into the post. To
+The second mechanism shows up in the startup log, before any request is served. To
 discard a wrong guess, the server must be able to *rewind* the model's internal state to
 before the guess. For most of a transformer that is trivial: the model's memory of the
 conversation is a per-token cache, the KV cache, and rewinding three tokens means
@@ -252,9 +256,9 @@ each weight-stream cannot approach the throughput of 146 sharing it. The two mec
 compound, wasted verdicts inside each step and fewer requests allowed into the step, and
 together they are how a "speedup" halves your throughput.
 
-## The trace: speculation does not decorate decode, it replaces it
+## The trace: a verify loop in place of the decode loop
 
-The numbers are above; here is the trace that shows the machine making them. The
+The numbers are above; here is the trace that shows the steps producing them. The
 capture: eight long-lived predictable-text decoders against the k5 server, profiler
 window with no arrivals, 35,202 GPU kernels over two seconds.
 
@@ -266,17 +270,17 @@ instead runs the *multi-token* variant of the same layer,
 layers per pass is exactly 55 engine steps. Turning on speculation does not bolt some
 machinery onto the decode loop; it swaps the loop out for a verify loop, a different
 kernel doing prompt-reading-shaped work at generation time. Reading a prompt is "one
-stream, many tokens"; speculation is generation impersonating that.
+stream, many tokens"; speculation runs generation through that same shape of work.
 
 The step timing puts the entire trade in two numbers. A verify step takes **36 ms**
 where an ordinary decode step at this batch size takes about 20 ms, but it processes six
 positions per sequence instead of one: **6 ms per position, versus 20**. There, in one
-measurement, is everything the trick promises. And everything it risks: at the flood
+measurement, is the gain the technique offers. The risk sits in the same number: at the flood
 workload's 21% acceptance, that same 36 ms step keeps only about two tokens, roughly
 18 ms per *accepted* token, the baseline's price paid through a costlier machine, before
 the collapsed batch is even counted.
 
-One more honest reading: during verify-heavy decode the GPU is only **80% busy**,
+One more reading: during verify-heavy decode the GPU is only **80% busy**,
 against 97 to 99.7% in Part 1's pure decode loop. The proposer and the accept-reject
 bookkeeping between steps leave real gaps. Speculation trades a fully-packed slow loop
 for a gappier fast one, and the gaps are part of the price.
@@ -293,7 +297,7 @@ never overrules L. It only pre-computes what L was going to say anyway, and when
 guesses wrong, the wrong tokens are discarded before anyone sees them. Speed is the
 thing at stake in this trade, not quality.
 
-Two qualifications keep that claim honest. First, "same distribution" does not mean
+Two qualifications apply. First, "same distribution" does not mean
 "same text." Within each server configuration our temperature-0 runs were perfectly
 repeatable, three repetitions byte-identical. Across configurations they diverged: the
 spec-on and spec-off servers wrote different continuations of the same temperature-0
@@ -344,8 +348,8 @@ suite is how you verify that claim holds in your own deployment.
 Part 1's claim gets one more face: inference on this hardware is a bytes-through-memory
 problem, and every lever this series has measured, batching, quantization, speculation,
 is a different way of getting more tokens out of the same stream of bytes. The first two
-spend little and stack cleanly. This one is a bet, placed per token, with the odds set
-by your traffic, and the house edge grows with load.
+spend little and stack cleanly. This one pays only when a guess is accepted, your
+traffic sets how often that happens, and the cost of a miss grows with load.
 
 ---
 
