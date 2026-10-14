@@ -106,27 +106,16 @@ everything else is held fixed.
 The probe sends one prompt at a time, warm, and records time-to-first-token, which is
 essentially prefill time, as prompt length climbs from 256 to 30,720 tokens:
 
-| Prompt length | FlashAttention TTFT | FlexAttention TTFT |
-|---|---|---|
-| 256 | 0.116 s | 0.119 s |
-| 1,024 | 0.280 s | 0.292 s |
-| 2,048 | 0.502 s | 0.544 s |
-| 4,096 | 0.992 s | 1.127 s |
-| 8,192 | 2.067 s | 2.540 s |
-| 16,384 | 4.591 s | 6.393 s |
-| 24,576 | 7.620 s | 11.704 s |
-| 30,720 | 10.181 s | 16.410 s |
+![FlashAttention versus FlexAttention prefill time as prompt length grows from 256 to 30,720 tokens: the two curves are indistinguishable below about 2,000 tokens and diverge sharply after, with FlexAttention bending upward far more steeply as the quadratic attention term takes over](../assets/figures/fig8a-prefill-divergence.png)
 
 At 256 tokens the two are three milliseconds apart, by 8k the gap is half a second, by 16k
-nearly two seconds, and by 30k it is **6.2 seconds**. Fitting each column to a curve makes
-the mechanism explicit. Both fits share the same linear coefficient, about 220
+nearly two seconds, and by 30k it is **6.2 seconds**. Fitting each curve to a quadratic
+makes the mechanism explicit. Both fits share the same linear coefficient, about 220
 microseconds per token, which is the matmul cost common to both, and they differ only in
 the quadratic coefficient, the pure-attention part: **3,689 picoseconds per token-squared
 for FlashAttention against 10,099 for FlexAttention**, 2.7 times steeper. Because that
 coefficient multiplies *N* squared, it is invisible at small *N* and dominant at large
 *N*.
-
-![FlashAttention versus FlexAttention prefill time as prompt length grows from 256 to 30,720 tokens: the two curves are indistinguishable below about 2,000 tokens and diverge sharply after, with FlexAttention bending upward far more steeply as the quadratic attention term takes over](../assets/figures/fig8a-prefill-divergence.png)
 
 ## Decode: a flat line hides the gap
 
@@ -134,14 +123,7 @@ Decode is where the split-the-read trick pays, and the numbers are more lopsided
 also measures **inter-token latency**, the gap between successive output tokens, as a
 function of how much context the model is decoding on top of:
 
-| Context length | FlashAttention decode ITL | FlexAttention decode ITL |
-|---|---|---|
-| 257 | 33.8 ms | 35.4 ms |
-| 2,050 | 33.9 ms | 38.7 ms |
-| 8,193 | 35.0 ms | 49.9 ms |
-| 16,385 | 35.8 ms | 65.1 ms |
-| 24,577 | 36.8 ms | 80.7 ms |
-| 30,720 | 37.3 ms | 91.8 ms |
+![Inter-token latency against context length for both backends: FlashAttention stays nearly flat from 33.8 ms at 257 tokens to 37.3 ms at 30,720, while FlexAttention climbs in a straight line from 35.4 ms to 91.8 ms](../assets/figures/fig8c-decode-itl.png)
 
 FlashAttention's decode stays close to flat, rising from 33.8 ms at short context to
 37.3 ms at 30k, an 11% increase across a 120-fold increase in context. FlexAttention starts
@@ -160,30 +142,22 @@ at three prefill lengths and two decode depths, and every GPU kernel was buckete
 three families: **attention**, **matmul** for the projections and MLP, and everything
 else. The traces open in a browser with no GPU, as the reproduce section describes.
 
-The first thing the trace establishes is the control, the matmul time in the prefill
-windows for both backends:
+A trace is a timeline of every kernel the GPU ran, each with a name and a duration, so
+adding up the durations by family says where the seconds went. The figure below does that
+for the three prefill windows: each bar is the total GPU time in one window, split into
+how much went to matmuls, to attention, and to everything else.
 
-| Prompt length | FlashAttention matmul time | FlexAttention matmul time |
-|---|---|---|
-| 2,048 | 439 ms | 438 ms |
-| 8,192 | 1,664 ms | 1,663 ms |
-| 28,672 | 5,756 ms | 5,755 ms |
+![Kernel-family breakdown of GPU time at 2k, 8k, and 28k prefill for both backends: the matmul family is identical between the two, while the attention family grows far faster for FlexAttention, reaching 58% of GPU time at 28k against FlashAttention's 34%](../assets/figures/fig8b-kernel-family-split.png)
 
-The matmul time is identical between the two backends to within a millisecond, because it
-is the same model doing the same projections and MLP. Every difference between the two is
-therefore in the attention family. Here is the attention time in those same windows:
-
-| Prompt length | FlashAttention attention | FlexAttention attention |
-|---|---|---|
-| 2,048 | 22 ms, 4.6% of the window | 52 ms, 10.0% |
-| 8,192 | 262 ms, 12.9% | 697 ms, 28.2% |
-| 28,672 | 3,098 ms, 33.6% | 8,403 ms, 57.8% |
-
-At 28k prefill, FlashAttention computes attention in 3.1 seconds; FlexAttention needs 8.4
-for the same math, a **2.7-fold** gap. Since the matmuls matched, that 5.3-second attention
-gap is, within rounding, the entire gap between the two window totals, 9.2 seconds against
-14.5. On FlexAttention, attention has grown to 58% of all GPU time and is the single
-largest thing the GPU does, which is the quadratic term seen directly.
+The blue matmul segments are the control. They are identical between the two backends to
+within a millisecond at every length, 5,756 against 5,755 ms at 28k, because it is the
+same model doing the same projections and MLP, so every difference between the bars is in
+the attention segment. At 2k that segment is small for both, 22 ms against 52. At 28k
+FlashAttention computes attention in 3.1 seconds and FlexAttention needs 8.4 for the same
+math, a **2.7-fold** gap, and since the matmuls matched, that 5.3-second attention gap is,
+within rounding, the entire gap between the two bars, 9.2 seconds against 14.5. On
+FlexAttention, attention has grown to 58% of all GPU time and is the single largest thing
+the GPU does, which is the quadratic term seen directly.
 
 The decode trace puts names on the two kernels. FlashAttention's is
 `flash_fwd_splitkv_kernel`, "split the KV read", the split-the-read trick by name, and it
@@ -192,8 +166,6 @@ window at 28k and per-token latency stays flat. FlexAttention runs a single comp
 split; at 28k it takes **58% of the window**, and the window is 17.0 seconds against
 FlashAttention's 10.3. That is the 11%-versus-159% decode gap at the kernel level: one
 kernel that parallelizes the long read against one that does not.
-
-![Kernel-family breakdown of GPU time at 2k, 8k, and 28k prefill for both backends: the matmul family is identical between the two, while the attention family grows far faster for FlexAttention, reaching 58% of GPU time at 28k against FlashAttention's 34%](../assets/figures/fig8b-kernel-family-split.png)
 
 ## What to take away
 

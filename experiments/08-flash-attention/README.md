@@ -12,7 +12,7 @@ backend is selected at server start with the `VLLM_ATTENTION_BACKEND` environmen
 | `s1_probe.py` | S1 core probe: per length, records TTFT (prefill) and median inter-token latency (decode at depth). Args: `PORT MODEL LABEL`. |
 | `s3_capture.py` | S3: drives `/start_profile` and `/stop_profile` around one controlled request to capture a bounded profiler window. Args: `PORT MODEL LABEL PHASE LENGTH [GENSTEPS]`. |
 | `tp_census.py` | buckets every GPU kernel in a trace into attention / matmul / other by kernel name and prints family shares plus the top kernels. FlexAttention lowers to a compiled Triton template kernel, `triton_tem_fused_0`, which the script counts as attention. Args: `TRACE ...`. |
-| `render_figs.py` | renders `fig8a-prefill-divergence.png` and `fig8b-kernel-family-split.png` from the S1 numbers and the S3 census. |
+| `render_figs.py` | renders `fig8a-prefill-divergence.png`, `fig8b-kernel-family-split.png`, and `fig8c-decode-itl.png` from the S1 numbers and the S3 census. |
 | `run_s0.sh`, `run_s1.sh`, `run_s3.sh` | drivers that start a server per arm, wait for readiness, run the probe or captures, then tear the server down. |
 | `run_census.sh` | runs `tp_census.py` over the captured engine-process traces for both arms in capture order. |
 

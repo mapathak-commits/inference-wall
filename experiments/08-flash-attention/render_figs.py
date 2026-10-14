@@ -2,6 +2,7 @@
 """Render Part 8 figures from S1 probe data and S3 census.
 fig8a: prefill TTFT divergence (flash vs flex) across prompt length.
 fig8b: kernel-family GPU-time split at 2k/8k/28k prefill, both backends.
+fig8c: decode inter-token latency vs context depth (flash vs flex).
 """
 import matplotlib
 matplotlib.use("Agg")
@@ -45,7 +46,7 @@ data = {
     "FlexAttention": {
         "attention": [51.8, 696.5, 8403.4],
         "matmul":    [438.4, 1663.4, 5754.8],
-        "other":     [30.7, 116.9, 395.7],
+        "other":     [30.0, 112.8, 381.3],
     },
 }
 colors = {"attention": "#c1440e", "matmul": "#1f6fb2", "other": "#bbbbbb"}
@@ -82,3 +83,27 @@ fig.suptitle("Matmul time is identical between backends; only attention differs"
 fig.tight_layout(rect=[0, 0, 1, 0.86])
 fig.savefig(f"{OUT}/fig8b-kernel-family-split.png", dpi=130)
 print("wrote fig8b")
+
+# ---- S1 decode ITL (ms per token) vs context depth ----
+ctx       = [257, 1025, 2050, 4097, 8193, 16385, 24577, 30720]
+itl_flash = [33.76, 33.68, 33.86, 34.20, 34.96, 35.81, 36.81, 37.33]
+itl_flex  = [35.43, 36.74, 38.72, 42.73, 49.94, 65.06, 80.68, 91.83]
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.plot(ctx, itl_flex,  "o-", color="#c1440e", lw=2, ms=6, label="FlexAttention (generic kernel)")
+ax.plot(ctx, itl_flash, "o-", color="#1f6fb2", lw=2, ms=6, label="FlashAttention")
+ax.set_xlabel("Context length the model is decoding on top of (tokens)")
+ax.set_ylabel("Inter-token latency (ms)")
+ax.set_title("Decode latency per token stays flat with FlashAttention as context grows")
+ax.set_ylim(0, 105)
+ax.grid(True, alpha=0.3)
+ax.legend(loc="upper left", frameon=False)
+ax.annotate("91.8 ms at 30k, up 159%", xy=(30720, 91.83), xytext=(17500, 96),
+            fontsize=9, color="#c1440e", va="center",
+            arrowprops=dict(arrowstyle="->", color="#999"))
+ax.annotate("37.3 ms at 30k, up 11%", xy=(30720, 37.33), xytext=(19000, 22),
+            fontsize=9, color="#1f6fb2", va="center",
+            arrowprops=dict(arrowstyle="->", color="#999"))
+fig.tight_layout()
+fig.savefig(f"{OUT}/fig8c-decode-itl.png", dpi=130)
+print("wrote fig8c")
