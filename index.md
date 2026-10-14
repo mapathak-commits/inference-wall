@@ -138,9 +138,13 @@ the full arc:
    and quantization, this one is a bet placed per token, and the post measures where the bet
    stops paying, and even inverts, under load.
 
-8. **FlashAttention** *(planned)*. Generalizes the bytes-through-memory law one level down,
-   into the attention kernel itself, and is the first part to run a dense model alongside the
-   rig.
+8. **[FlashAttention]({{ '/articles/part-8/' | relative_url }})** *(published)*. The
+   bytes-through-memory law one level down, inside the attention kernel itself, and the
+   first part to run a dense model alongside the rig. Against a competent generic kernel,
+   FlashAttention is 3 ms ahead at 256 tokens and 6 s ahead at 30,000, and its per-token
+   decode latency stays flat as context grows while the generic kernel's climbs 159%. The
+   trace shows why: matmul time is identical between the two, and every second of the gap
+   is in attention.
 
 9. **Off the rig: decode on a CPU** *(coming)*. What the same model looks like when the GPU is
    gone entirely, and what that teaches about which of the series' walls are about the GPU

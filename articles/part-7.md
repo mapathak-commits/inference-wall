@@ -297,7 +297,7 @@ for the configuration surface.*
 
 ---
 
-**Previous:** [Part 6: Quantization to make a model fit]({{ '/articles/part-6/' | relative_url }}) · **Next:** Part 8, coming next Friday · [All posts]({{ '/articles/' | relative_url }})
+**Previous:** [Part 6: Quantization to make a model fit]({{ '/articles/part-6/' | relative_url }}) · **Next:** [Part 8: FlashAttention]({{ '/articles/part-8/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
 
 ---
 

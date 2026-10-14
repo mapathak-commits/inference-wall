@@ -6,9 +6,9 @@ image: /assets/diagrams/d10.jpg
 
 *Part 8 of "The Inference Wall". Same GPU as the rest of the series, one NVIDIA A10G with
 23 GB, but a different model and an earlier engine: Qwen2.5-7B-Instruct, bf16, single
-stream, vLLM 0.11.0. Draft.*
+stream, vLLM 0.11.0.*
 
-*Manas Pathak · draft, September 2026*
+*Manas Pathak · October 16, 2026*
 
 [The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 8**
 
