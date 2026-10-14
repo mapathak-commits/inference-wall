@@ -2,7 +2,9 @@
 """Kernel-family CUDA-time census over a torch/chrome trace (json or json.gz).
 
 Sums device (GPU) kernel durations, buckets by family from the kernel name:
-  attention : flash / splitkv / flex_attention / fmha / attn / softmax-in-attn
+  attention : flash / splitkv / flex_attention / fmha / attn / softmax-in-attn,
+              plus triton_tem_fused, the compiled template kernel FlexAttention
+              lowers to (it carries no "attention" in its name)
   gemm      : gemm / cutlass / matmul / *_mm / linear / moe
   other     : everything else (elementwise, norm, rope, copy, reduce, ...)
 
@@ -19,7 +21,7 @@ def load(path):
         return json.load(f)
 
 ATTN = ("flash", "splitkv", "flex_attention", "fmha", "attention", "attn",
-        "single_query", "paged")
+        "single_query", "paged", "triton_tem_fused")
 GEMM = ("gemm", "cutlass", "matmul", "_mm", "wgmma", "s16816", "linear",
         "moe", "grouped")
 

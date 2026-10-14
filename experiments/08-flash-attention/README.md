@@ -1,7 +1,7 @@
 # Experiments 08 — FlashAttention at the scale where it matters
 
 Scripts behind [Part 8](../../articles/part-8.md). Everything ran on a single NVIDIA A10G
-(23 GB) serving Qwen2.5-7B-Instruct in fp16 through vLLM, single stream. The attention
+(23 GB) serving Qwen2.5-7B-Instruct in bf16 through vLLM 0.11.0, single stream. The attention
 backend is selected at server start with the `VLLM_ATTENTION_BACKEND` environment variable
 (`FLASH_ATTN` against `FLEX_ATTENTION`); nothing else changes between arms.
 
@@ -11,7 +11,7 @@ backend is selected at server start with the `VLLM_ATTENTION_BACKEND` environmen
 | `s0_prefill_sweep.py` | S0 de-risk: single-stream streamed-TTFT prefill sweep over 256..30720 tokens, quadratic least-squares fit. |
 | `s1_probe.py` | S1 core probe: per length, records TTFT (prefill) and median inter-token latency (decode at depth). Args: `PORT MODEL LABEL`. |
 | `s3_capture.py` | S3: drives `/start_profile` and `/stop_profile` around one controlled request to capture a bounded profiler window. Args: `PORT MODEL LABEL PHASE LENGTH [GENSTEPS]`. |
-| `tp_census.py` | buckets every GPU kernel in a trace into attention / matmul / other by kernel name and prints family shares plus the top kernels. Args: `TRACE ...`. |
+| `tp_census.py` | buckets every GPU kernel in a trace into attention / matmul / other by kernel name and prints family shares plus the top kernels. FlexAttention lowers to a compiled Triton template kernel, `triton_tem_fused_0`, which the script counts as attention. Args: `TRACE ...`. |
 | `render_figs.py` | renders `fig8a-prefill-divergence.png` and `fig8b-kernel-family-split.png` from the S1 numbers and the S3 census. |
 | `run_s0.sh`, `run_s1.sh`, `run_s3.sh` | drivers that start a server per arm, wait for readiness, run the probe or captures, then tear the server down. |
 | `run_census.sh` | runs `tp_census.py` over the captured engine-process traces for both arms in capture order. |

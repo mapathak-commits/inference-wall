@@ -2,7 +2,7 @@
 
 Raw measurement logs and profiler traces behind [Part 8](../../articles/part-8.md).
 Nothing here is post-processed; the numbers in the post are transcribed from these files.
-Single A10G, Qwen2.5-7B-Instruct, fp16, single stream.
+Single A10G, Qwen2.5-7B-Instruct, bf16, single stream, vLLM 0.11.0.
 
 | File | Produced by | Backs |
 |---|---|---|
@@ -17,7 +17,7 @@ Single A10G, Qwen2.5-7B-Instruct, fp16, single stream.
 
 Run `experiments/08-flash-attention/tp_census.py` against any trace for its attention /
 matmul / other split. The 28k prefill windows are the headline: matmul is ~5,755 ms either
-backend, while attention is 3,098 ms (FLASH) against 8,389 ms (FLEX), a 2.7x kernel gap that
+backend, while attention is 3,098 ms (FLASH) against 8,403 ms (FLEX), a 2.7x kernel gap that
 equals the entire wall-clock gap between the two windows.
 
 ## Reading the traces yourself
