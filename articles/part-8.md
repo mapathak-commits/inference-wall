@@ -1,6 +1,7 @@
 ---
 title: "FlashAttention: what it does, and why its payoff scales with prompt length"
 permalink: /articles/part-8/
+image: /assets/diagrams/d10.jpg
 ---
 
 *Part 8 of "The Inference Wall". Same GPU as the rest of the series, one NVIDIA A10G with
@@ -67,6 +68,8 @@ matters once attention is a large enough slice of the bill, and that depends on 
 length.
 
 ## What FlashAttention does
+
+![Two accountants at the same desk with the same archive shelf behind them: the left one hauls a wall-sized printed grid back and forth to the shelf on a cart, wearing a path into the floor; the right one holds a single small tile of that grid at the desk with a running tally beside them, the shelf untouched](../assets/diagrams/d10.jpg)
 
 Although the name suggests speed, the mechanism is about memory. The naive way to compute
 attention is to build the full table of scores: for a prompt of length *N*, an *N* by *N*
