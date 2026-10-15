@@ -23,17 +23,15 @@ time per token  =  weight bytes / memory bandwidth  +  fixed cost per token
 
 On the server slice, streaming the weights takes a quarter of a second and anything that
 does not scale with bytes is invisible beside it. On the laptop the same stream takes
-seven times less, and the things it used to hide come into view: a fixed cost that is
-suddenly a tenth or more of a token, a per-format compute cost that the earlier fit
+seven times less, and the things it used to hide come into view: a fixed cost that is a tenth or more of a small model's token, a per-format compute cost that the earlier fit
 mistook for that fixed cost, a gap between CPU and GPU that bends as models get small,
 and two practical rules for unified-memory machines that run the opposite way from
-discrete-GPU habits. Along the way it answers the question Part 9 raised but did not
-settle: is the Mac fast because of its CPU, or because of its memory?
+discrete-GPU habits. Along the way it answers the question Part 9 answered in one sentence and did not demonstrate: is the Mac fast because of its CPU, or because of its memory?
 
 ## What the fast machine makes visible
 
-Part 9 fitted that line to the M4 Pro's four weight formats and read the bandwidth off
-the slope. The same fit produced intercepts, 2.4 ms for the GPU and about 4.6 ms for the
+Part 9 fitted that line to the M4 Pro's four weight formats, the weights stored at 4, 6,
+8, or 16 bits each, called Q4, Q6, Q8, and F16, and read the bandwidth off the slope. The same fit produced intercepts, 2.4 ms for the GPU and about 4.6 ms for the
 CPU, which looked like a difference in fixed cost. They are not. The follow-up with
 smaller models below, which holds the weight format fixed, puts the fixed cost near 1 ms
 on both engines. What the ladder fit was most likely absorbing into its intercept is a third thing the
@@ -59,8 +57,8 @@ be measured with the format held fixed.
 
 In the equation, model size cancels out of the ratio between two chips as long as the
 first term dominates, so the gap should not depend on size until the fixed cost does.
-Three smaller models, Qwen2.5 at 0.5B and 1.5B in several formats, were run on both
-machines with the same engine and a same-session 4B anchor. Because these files store an
+Two smaller models, Qwen2.5 at 0.5B and 1.5B, in five files across several formats, were
+run on both machines with the same engine and a same-session 4B anchor. Because these files store an
 output head separate from the embedding table, the table is read one row per token rather
 than streamed, so the bytes that matter are the file minus the table; file bytes exceed streamed bytes by
 14 to 29%. The
@@ -96,8 +94,8 @@ token is more than half overhead, while the CPU's 3 ms is a fifth of its 12 ms s
 3x, and the GPU's bandwidth advantage stops counting. On the M4 Pro the two fixed costs
 are equal, so the gap stays near 1x at every size for F16, and the two engines tie at the
 4B anchor, 0.99x and 1.04x across sessions. The small quantized files are the one
-departure: there the CPU wins, 0.86 to 0.95x, because Metal's four-bit and eight-bit
-kernels fall further below their own line than the CPU's do on a model whose internal
+departure: there the CPU wins, 0.86 to 0.95x, because the GPU's four-bit and eight-bit kernels, the programs that run one operation
+each, fall further below their own line than the CPU's do on a model whose internal
 vectors are only 896 numbers wide. The
 likely reason is that the work is too small to fill the GPU, but that was not measured.
 
@@ -124,7 +122,7 @@ machine no longer hides.
 
 The server slice is not a slow CPU either. It is a narrow slice of one socket's memory
 system. A full EPYC socket with all eight memory channels in use delivers roughly 200
-GB/s and would land near the M4 Pro; a twelve-channel DDR5 socket at roughly 460 GB/s
+GB/s and would land near the M4 Pro; a newer twelve-channel server socket at roughly 460 GB/s
 would beat it and approach the A10G. Neither was measured here. The point stands as
 arithmetic: the thing to ask about a CPU is how wide its memory bus is, and "server" or
 "laptop" does not answer it.
@@ -152,9 +150,9 @@ box you offload as many layers to the GPU as its memory holds. On the M4 Pro, mo
 layers from the CPU to the GPU a few at a time made decode slower across most of the
 range: any split from 4 to 16 of the 32 layers ran at 0.80 to 0.87x of all-CPU,
 break-even came at about 20 layers, and from 24 layers up
-it was faster, reaching 1.19x at full offload.
-No bytes cross a bus here, so the cost sits in the handoff between two engines sharing
-one memory, measured at about 7 ms per token and not yet explained. The rule on unified
+it was faster, reaching 1.18x at full offload.
+No bytes cross a bus here, so the cost must be somewhere in the handoff between two engines sharing one memory; it
+measures about 7 ms per token and is not yet explained. The rule on unified
 memory is to pick one engine and commit; partial offload exists to cope with limited GPU
 memory, and this machine has no such limit.
 
@@ -186,10 +184,11 @@ the server slice and dfc29b6 on the M4 Pro. Streamed bytes exclude the untied em
 table, read from the GGUF headers. The M4 Pro runs were repeated on an idle machine and
 both sessions are reported. Power is from `powermetrics --samplers cpu_power,gpu_power`,
 two captures at 4B and one at 0.5B Q4. The offload sweep is three round-robin rounds at
-`-t 6`. Scripts are in
+`-t 6`. The server scripts and the figure renderer are in
 [`experiments/09-cpu-decode/`](https://github.com/mapathak-commits/inference-wall/tree/main/experiments/09-cpu-decode)
-and the raw tables, the small-model analysis, the power summaries, and the Mac study's
-audit ledger in
+with the Mac protocol described in that folder's README; the raw tables, the small-model
+analysis, the 4B power summaries, the Mac results file that carries the 0.5B energy
+capture, and the Mac study's audit ledger are in
 [`benchmarks/09-cpu-decode/`](https://github.com/mapathak-commits/inference-wall/tree/main/benchmarks/09-cpu-decode),
 shared with Part 9.*
 
