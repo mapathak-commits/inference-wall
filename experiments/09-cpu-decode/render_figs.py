@@ -115,7 +115,7 @@ for b, v in zip(bb, bf16):
 for b, v in zip(bf, f16):
     ax.text(b.get_x() + b.get_width() / 2, v + 0.5, f"{v:.2f}", ha="center",
             fontsize=10.5, fontweight=700, color=BLUE)
-ax.text(0, 8.6, "1.005x", ha="center", fontsize=12, fontweight=700, color=TXT)
+ax.text(0, 8.6, "1.01x", ha="center", fontsize=12, fontweight=700, color=TXT)
 ax.text(1, 23.4, "5.22x", ha="center", fontsize=12, fontweight=700, color=TXT)
 ax.text(0.5, 14.0, "same model, both files exactly 8,665,620,192 bytes",
         ha="center", fontsize=10.5, style="italic", color=SOFT)

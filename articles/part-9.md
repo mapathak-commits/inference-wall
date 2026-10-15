@@ -63,9 +63,9 @@ engine that runs the identical code on a CPU, on an Apple GPU through Metal, and
 NVIDIA GPU through CUDA. The series' own engine was ruled out first: vLLM's CPU backend
 has no kernel for Qwen3.5's linear-attention layers, so the same server cannot be pointed
 at a CPU at all, a finding in its own right. Two llama.cpp builds were used, 458681e on
-the server and dfc29b6 on the laptop, both from 2026-09-01. The model is Qwen3.5-4B in
-GGUF form at four weight sizes. In the tables, pp512 is prefill throughput and tg128 is
-decode throughput, in tokens per second, from `llama-bench`.
+the server and dfc29b6 on the laptop, a day apart at the start of September 2026. The model is Qwen3.5-4B in
+GGUF form at several weight sizes, from 3.0 GB at 4-bit to 8.7 GB at 16-bit. Prefill and
+decode throughput are measured separately by `llama-bench`, in tokens per second.
 
 ## The decode gap follows memory bandwidth
 
@@ -122,7 +122,8 @@ time_per_token = weight_bytes / bandwidth + fixed_overhead
 The slope of each line is one over the bandwidth, and reading the bandwidth off gives
 **209 GB/s for the CPU and 205 GB/s for the GPU**, 88% and 86% of the measured 238 GB/s
 ceiling. The study's audit refit the lines against every choice of which measurement
-round supplied each point, 81 combinations, and the bandwidth moved by under 1%. Two
+round supplied each point, 81 combinations, and the median bandwidth stayed within 1% of
+these figures on both engines. Two
 engines with 2.7x different math rates decode on the same line, and that line's
 steepness is the machine's memory bandwidth. The whole difference between them is the
 intercept, the fixed cost per token that has nothing to do with streaming weights: about
@@ -135,7 +136,7 @@ around 10 ms, so the fixed cost is a rounding error and effective bandwidth come
 constant across weight sizes: 34, 32, and 30 GB/s for bf16, Q8, and Q4, all at the
 33 GB/s wall. On the laptop, streaming the same 3 GB takes about 14 ms, the fixed cost
 did not shrink with it, and effective bandwidth is no longer constant, rising from
-157 GB/s at Q4 to 177 GB/s at F16 on the CPU. The faster the memory, the larger the
+157 GB/s at Q4 to 188 GB/s at F16 on the CPU within the same session. The faster the memory, the larger the
 share of a token the fixed cost takes, and the sooner it becomes the thing worth
 optimizing. The constant-effective-bandwidth check is a slow-machine diagnostic; once
 memory is fast, the two-parameter line is the right model.
@@ -151,13 +152,13 @@ speed on the same machine.
 
 | machine | bf16 decode | F16 decode | F16 / bf16 |
 |---|---|---|---|
-| Server slice CPU | 4.02, 3.99 tok/s | 4.04, 4.03 tok/s | **1.005x** |
+| Server slice CPU | 4.02, 3.99 tok/s | 4.04, 4.03 tok/s | **1.005x, 1.010x** |
 | M4 Pro CPU | 3.92 tok/s | 20.45 tok/s | **5.22x** |
 
 ![Grouped bars of decode speed for the bf16 and F16 files on both machines: on the server slice the two bars are equal at about 4 tokens per second, on the M4 Pro CPU the F16 bar is five times the bf16 bar](../assets/figures/fig9c-bf16-vs-f16.png)
 
-On the server they do. On the laptop they do not, by 5.22x, with the hardware and the
-byte count held constant. The reason is software: llama.cpp has a fast NEON kernel for
+On the server they do. On the laptop they do not, by 5.22x against about 1.01x on the server, with the
+hardware and the byte count held constant. The reason is software: llama.cpp has a fast NEON kernel for
 F16 and only a slow generic path for bf16 on this CPU. On the laptop, decode from the
 bf16 file is bottlenecked on that slow kernel long before it reaches the memory wall, at
 about 34 GB/s effective on a 238 GB/s machine. Swap to the F16 file and the same bytes
@@ -210,7 +211,7 @@ idle and the GPU run about 26 W, of which 21.5 W is the GPU itself and the rest 
 feeding it. For nearly the same tokens per second, the GPU does the work for **about
 1.75x less energy per token**, 1.78x and 1.73x in two independent captures. The CPU run
 pins all ten performance cores at 100% against the chip's power ceiling; the same work on
-the GPU leaves the CPU near idle. So the engine choice on this machine has no
+the GPU leaves the CPU at a fraction of that power. So the engine choice on this machine has no
 bandwidth-based answer and a clear power-based one: for throughput it barely matters, for
 battery and heat it matters a great deal, and decode belongs on the GPU.
 
@@ -218,7 +219,8 @@ One more unified-memory result, because it flips a discrete-GPU habit. On a norm
 box you offload as many layers to the GPU as its memory holds. On the M4 Pro, moving
 layers from the CPU to the GPU a few at a time made decode slower across most of the
 range: any split from 4 to 16 of the 32 layers ran at 0.80 to 0.87x of all-CPU,
-break-even came at about 20 layers, and only full offload was faster, by 1.06 to 1.18x.
+break-even came at about 20 layers, and from 24 layers up
+it was faster, reaching 1.19x at full offload.
 No bytes cross a bus here, so the cost sits in the handoff between two engines sharing
 one memory, measured at about 7 ms per token and not yet explained. The rule on unified
 memory is to pick one engine and commit; partial offload exists to cope with limited GPU
@@ -278,8 +280,8 @@ ahead. Decode on a CPU is viable. Serving a crowd from one is not.
    On the M4 Pro the CPU and GPU lines read 209 and 205 GB/s against a 238 GB/s ceiling.
    The difference between the engines is a fixed per-token cost, which grows in share as
    memory gets faster.
-3. **A low ceiling can confirm a wrong explanation.** Two byte-identical files decode at
-   1.005x apart on the slow machine and 5.22x apart on the fast one. Only the fast one
+3. **A low ceiling can confirm a wrong explanation.** Two byte-identical files decode about
+   1.01x apart on the slow machine and 5.22x apart on the fast one. Only the fast one
    could show that a kernel, not memory, set the speed.
 4. **"Laptop beats GPU" compares different weight sizes.** At matched format the A10G
    leads the M4 Pro CPU by 2.3 to 2.7x. The remarkable part is that a CPU is that close
@@ -293,9 +295,10 @@ ahead. Decode on a CPU is viable. Serving a crowd from one is not.
 
 ---
 
-*Reproduce: both machines ran `llama-bench` and `llama-batched-bench` from llama.cpp,
-build 458681e on the server slice and dfc29b6 on the M4 Pro, on `Qwen/Qwen3.5-4B` GGUFs
-at bf16, F16, Q8_0, Q6_K, and Q4_K_M. The F16 file was produced from the bf16 file with
+*Reproduce: both machines ran `llama-bench` from llama.cpp, build 458681e on the server
+slice and dfc29b6 on the M4 Pro, on `Qwen/Qwen3.5-4B` GGUFs at bf16, F16, Q8_0, and
+Q4_K_M, plus Q6_K on the M4 Pro; the batched runs used `llama-batched-bench` on the
+server slice and the A10G only. The F16 file was produced from the bf16 file with
 `llama-quantize`, which is why the two are byte-identical. CPU runs use `-ngl 0`, Metal
 runs `-ngl 99`, CUDA runs `-ngl 99`. The M4 Pro CPU-versus-GPU ratio interleaves the two
 engines round-robin so each pair shares a thermal state, because absolute speed on the
@@ -303,7 +306,7 @@ laptop drifts by up to 20% over a long session. Power is from
 `powermetrics --samplers cpu_power,gpu_power`. The microbenchmarks, bench drivers, and
 figure renderer are in
 [`experiments/09-cpu-decode/`](https://github.com/mapathak-commits/inference-wall/tree/main/experiments/09-cpu-decode);
-the raw bench tables, JSONL, power summaries, and the study's audit ledger are in
+the raw bench tables, JSONL, power summaries, and the Mac study's audit ledger are in
 [`benchmarks/09-cpu-decode/`](https://github.com/mapathak-commits/inference-wall/tree/main/benchmarks/09-cpu-decode).
 Absolute numbers are specific to a g5.4xlarge slice and one M4 Pro; the predictions and
 their outcomes are not.*
