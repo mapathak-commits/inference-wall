@@ -29,8 +29,26 @@ many users at once.
 
 The claim under test is the one from the [primer]({{ '/articles/primer/' | relative_url }})
 and [Part 1]({{ '/articles/part-1/' | relative_url }}): to produce each token, the
-machine reads the entire model's weights from memory once, so decode speed is close to
-memory bandwidth divided by bytes per token. Three qualifiers apply throughout. This is
+machine reads the entire model's weights from memory once. Written as the time one token
+takes, the claim is a line with two terms:
+
+```
+time per token  =  weight bytes / memory bandwidth  +  fixed cost per token
+```
+
+The first term is the streaming. It is set by how many bytes the model is and how fast
+the memory bus moves them, and it has nothing to do with how fast the chip does math,
+because at one request each weight is read once, used for one multiply-add, and
+discarded; the arithmetic is finished long before the next byte arrives. The second term
+is everything that does not scale with bytes: launching the work for each of the model's
+layers, synchronizing threads, bookkeeping between tokens. On a big model and a slow bus
+the first term is nearly the whole token and the second is a rounding error. Every result
+below is one of three things happening to that line: the first term dominating, so the
+gap between two chips is the gap between their memory buses; a kernel too slow to keep up
+with its bus, so the machine falls off the line entirely; or batching, which shares the
+first term across many tokens until the math, finally, is what binds.
+
+Three qualifiers apply throughout. This is
 one request at a time; [Part 3]({{ '/articles/part-3/' | relative_url }}) showed what
 batching does to it, and the last section measures that on a CPU. Every weight is read
 for every token, which would not hold for a mixture-of-experts model. And the contexts
@@ -102,20 +120,18 @@ CPU's across the weight sizes, against the 2.7x compute ratio. Same machine, sam
 one phase closes to 1x and the other stays at 3x. That is the compute-versus-bandwidth
 split in one pair of columns.
 
-The server tests the claim with a large prediction, 18x, which is hard to fake. The
-laptop tests it with a null prediction, 1x, which many wrong models would also make, so
-the laptop's real evidence is the next section.
+In the equation's terms, both machines are in the regime where the first term is nearly
+the whole token, so the ratio of two chips' decode speeds is the ratio of their memory
+bandwidths and nothing else. The server tests that with a large prediction, 18x, which is
+hard to fake. The laptop tests it with a null prediction, 1x, which many wrong models
+would also make, so the laptop's real evidence is the next section.
 
 ## Decode time is a straight line in bytes
 
-If decode is "read all the bytes," then time per token should be a straight line in
-model size, and the steepness of that line should be set by the memory bandwidth. Four
-weight sizes on the M4 Pro, Q4_K_M at 3.0 GB, Q6_K at 3.6 GB, Q8_0 at 4.6 GB, and F16 at
-8.7 GB, run on both engines and fit to
-
-```
-time_per_token = weight_bytes / bandwidth + fixed_overhead
-```
+The equation says time per token is a straight line in model size, with a steepness set
+by the memory bandwidth and an intercept equal to the fixed cost. That can be fitted
+directly. Four weight sizes on the M4 Pro, Q4_K_M at 3.0 GB, Q6_K at 3.6 GB, Q8_0 at
+4.6 GB, and F16 at 8.7 GB, run on both engines and fit to the two-term line:
 
 ![Milliseconds per token against model size in gigabytes for the M4 Pro, CPU and GPU points on nearly the same straight line, with the fitted bandwidths of 209 and 205 GB/s annotated](../assets/figures/fig9b-roofline-fit.png)
 
@@ -159,11 +175,14 @@ speed on the same machine.
 
 On the server they do. On the laptop they do not, by 5.22x against about 1.01x on the server, with the
 hardware and the byte count held constant. The reason is software: llama.cpp has a fast NEON kernel for
-F16 and only a slow generic path for bf16 on this CPU. On the laptop, decode from the
-bf16 file is bottlenecked on that slow kernel long before it reaches the memory wall, at
-about 34 GB/s effective on a 238 GB/s machine. Swap to the F16 file and the same bytes
-flow through a fast kernel, and decode jumps to 20 tok/s, 177 GB/s effective, back at the
-memory wall.
+F16 and only a slow generic path for bf16 on this CPU. On the laptop, decode from the bf16 file is bottlenecked on that slow kernel long before
+it reaches the memory wall, at about 34 GB/s effective on a 238 GB/s machine. This is the
+one case the equation does not cover: the bytes arrive faster than the kernel can consume
+them, so the machine has fallen off the line and is limited by instruction throughput,
+not memory. Compute matters here only as a threshold. A chip needs enough of it per byte
+to keep up with its own bus, and once it has that, more buys nothing. Swap to the F16
+file and the same bytes flow through a fast kernel, and decode jumps to 20 tok/s, 177
+GB/s effective, back on the line at the memory wall.
 
 Now look at the server row again. The same slow bf16 kernel runs there, and it costs
 nothing, because the memory is slower than the kernel. Streaming 8.7 GB at 33 GB/s caps
@@ -233,9 +252,19 @@ is the GPU's real headline in this series: Part 3 showed one weight read serving
 hundred sequences, lifting the A10G from 49 to 1,091 tok/s, a 22x gain. A CPU can batch
 too. The question is how far.
 
-How far any chip can batch is set by its math rate divided by its memory rate, in
-operations per byte read. Single-stream decode needs about one operation per byte;
-whatever the chip has beyond that is headroom. The A10G has about 50. The M4 Pro CPU has
+Batching changes the equation. With B requests in flight, one weight read serves B
+tokens, so the streaming term is shared and a third term, the math, appears:
+
+```
+time per token  =  weight bytes / (B x bandwidth)  +  math per token / compute rate  +  fixed cost
+```
+
+At B equal to one the math term is negligible on any chip, which is why compute never
+mattered above. As B grows the streaming term shrinks and the math term does not, and at
+some B they cross: decode stops being memory-bound and becomes compute-bound. Where the
+crossover sits is set by the chip's math rate divided by its memory rate, in operations
+per byte read. Single-stream decode needs about one operation per byte, and whatever the
+chip has beyond that is batching headroom. The A10G has about 50. The M4 Pro CPU has
 about 13. The server slice has about 20 at its measured 0.65 TFLOP/s of matrix math. So
 batching should help the server CPU by up to an order of magnitude and then stop, because
 its math ceiling is 43x below the GPU's. The slice's own prefill number already
@@ -273,23 +302,27 @@ ahead. Decode on a CPU is viable. Serving a crowd from one is not.
 
 ## What to take away
 
-1. **The CPU-to-GPU decode gap is the memory bandwidth gap.** 18x predicted and 13.5x
+1. **One line explains the dynamics: time per token is weight bytes over memory
+   bandwidth, plus a fixed cost.** At one request the arithmetic never enters. Compute
+   matters only as a threshold a kernel must clear to keep up with its bus, and as the
+   term that takes over once batching shares the weight read.
+2. **The CPU-to-GPU decode gap is the memory bandwidth gap.** 18x predicted and 13.5x
    measured on a box with a bandwidth cliff; 1.0x predicted and 1.09x measured on a box
    without one. Compute predicts 43x and 2.7x and is wrong on both.
-2. **Decode time is a straight line in weight bytes whose steepness is the bandwidth.**
+3. **Decode time is a straight line in weight bytes whose steepness is the bandwidth.**
    On the M4 Pro the CPU and GPU lines read 209 and 205 GB/s against a 238 GB/s ceiling.
    The difference between the engines is a fixed per-token cost, which grows in share as
    memory gets faster.
-3. **A low ceiling can confirm a wrong explanation.** Two byte-identical files decode about
+4. **A low ceiling can confirm a wrong explanation.** Two byte-identical files decode about
    1.01x apart on the slow machine and 5.22x apart on the fast one. Only the fast one
    could show that a kernel, not memory, set the speed.
-4. **"Laptop beats GPU" compares different weight sizes.** At matched format the A10G
+5. **"Laptop beats GPU" compares different weight sizes.** At matched format the A10G
    leads the M4 Pro CPU by 2.3 to 2.7x. The remarkable part is that a CPU is that close
    at all, and the reason is LPDDR5X.
-5. **On unified memory, throughput does not decide the engine; power does.** The GPU is
+6. **On unified memory, throughput does not decide the engine; power does.** The GPU is
    1.09x faster and 1.75x more energy-efficient at decode. And partial offload is slower
    than either engine alone.
-6. **A CPU is fine for one user with fast memory, and not for a crowd.** Batching lifts
+7. **A CPU is fine for one user with fast memory, and not for a crowd.** Batching lifts
    the server CPU 7.4x and then hits its math ceiling at 26 tok/s, where bf16 and Q4
    converge; the GPU is at 552 and still climbing.
 
