@@ -19,6 +19,7 @@ build `dfc29b6`.
 | `vllm_cpu_smoke.log` | `vllm_cpu_smoke.py` | vLLM 0.18 CPU backend cannot start Qwen3.5-4B (Gated-DeltaNet kernels are GPU only). |
 | `batched_bench.md` | `run_batched.sh` | batched decode on the EPYC slice, 1 to 32 concurrent sequences: bf16 3.53 to 26.28 tok/s, Q4_K_M 9.17 to 26.13. Both weight sizes converge at ~26 tok/s by 32, the CPU's compute ceiling. |
 | `mac/AUDIT.md` | extract of mac/FINDINGS.md Stage 9 | the Mac study's own audit ledger: every reran claim, what changed, and the stated open gaps. |
+| `small_model_bench.md`, `small_model_analysis.md` | `run_small.sh` | small-model follow-up: Qwen2.5-0.5B and 1.5B official GGUFs plus a same-session 4B anchor, CPU and A10G. Gap shrinks from 14.3x at 8.7 GB to 7.4x at 0.5 GB; fits give CPU 32.9 GB/s with ~0 ms fixed cost, A10G 497 GB/s with 0.71 ms fixed cost. Includes the embedding-table caveat on file bytes. |
 | `batched_bench_gpu.md` | `run_batched_gpu.sh` | the same tool on the A10G via CUDA, 1 to 128 sequences: F16 53.6 to 552.5 tok/s, Q4_K_M 117.2 to 885.2. Same-engine batched gap: 15x at one sequence, 21x (F16) and 34x (Q4) at 128 against the CPU's 32-sequence ceiling. |
 
 ## M4 Pro (`mac/`)
