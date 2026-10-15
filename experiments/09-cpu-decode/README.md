@@ -26,6 +26,7 @@ implements it on CPU, CUDA and Metal from one build per machine.
 | `run_infer_bench.sh`, `bench_infer.sh`, `bench_q4.sh` | the quant ladder x thread sweep with `llama-bench` on the EPYC slice. |
 | `opt_sweep.sh` | the CPU tuning sweep on Q4_K_M: core pinning, CCX packing, KV q8_0, flash-attn, poll. |
 | `closeout.sh`, `run_closeout.sh` | the byte-identical bf16 vs F16 A/B on the EPYC slice, and the A10G runs through llama.cpp CUDA. |
+| `run_small.sh` | downloads the official Qwen2.5-0.5B and 1.5B GGUFs and runs `llama-bench` on both engines plus a same-session 4B anchor; the model-size follow-up in `benchmarks/09-cpu-decode/small_model_analysis.md`. The Mac mirror of this run is `mac/PROMPT_small_model.md` in the research directory. |
 | `run_batched.sh`, `run_batched_gpu.sh` | `llama-batched-bench` with 128-token prompts and 128 generated tokens per sequence: on the EPYC slice (cores 0-7 pinned, 1 to 32 concurrent sequences, bf16 and Q4_K_M) and on the A10G via CUDA (1 to 128, F16 and Q4_K_M). Same tool and build on both, so the batched comparison is same-engine. The CPU run needs `-np` set to the largest batch and must not share the prompt across sequences (`-pps` fails on this hybrid model). |
 | `vllm_cpu_smoke.py`, `build_vllm_cpu.sh` | the vLLM CPU-backend attempt that fails on this model. |
 | `render_figs.py` | renders `fig9a-gap-vs-bandwidth.png`, `fig9b-roofline-fit.png`, `fig9c-bf16-vs-f16.png`, and `fig9d-batched-decode.png` from the verified numbers. |
