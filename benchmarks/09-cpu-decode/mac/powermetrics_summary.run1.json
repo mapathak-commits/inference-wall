@@ -1,0 +1,50 @@
+{
+  "cpu_prefill": {
+    "n_samples": 20,
+    "cpu_w": 44.426,
+    "gpu_w": 0.09,
+    "p_res": 100.0,
+    "p_freq": 3641.0,
+    "e_res": 61.71,
+    "e_freq": 1666.0,
+    "gpu_res": 9.445,
+    "gpu_freq": 338.0,
+    "tok_s": null
+  },
+  "cpu_decode": {
+    "n_samples": 20,
+    "cpu_w": 42.694,
+    "gpu_w": 0.0435,
+    "p_res": 100.0,
+    "p_freq": 3882.0,
+    "e_res": 72.535,
+    "e_freq": 1348.0,
+    "gpu_res": 7.375,
+    "gpu_freq": 338.0,
+    "tok_s": null
+  },
+  "metal_decode": {
+    "n_samples": 20,
+    "cpu_w": 4.939,
+    "gpu_w": 21.4145,
+    "p_res": 56.89500000000001,
+    "p_freq": 2180.5,
+    "e_res": 56.71,
+    "e_freq": 1349.0,
+    "gpu_res": 100.0,
+    "gpu_freq": 1578.0,
+    "tok_s": null
+  },
+  "idle_baseline": {
+    "n_samples": 20,
+    "cpu_w": 0.2955,
+    "gpu_w": 0.0535,
+    "p_res": 20.112500000000004,
+    "p_freq": 1433.25,
+    "e_res": 87.765,
+    "e_freq": 1534.0,
+    "gpu_res": 12.73,
+    "gpu_freq": 338.0,
+    "tok_s": null
+  }
+}

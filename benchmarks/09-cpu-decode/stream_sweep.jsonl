@@ -1,0 +1,5 @@
+{"threads": 1, "triad_gbps": 21.78, "array_mib": 768}
+{"threads": 2, "triad_gbps": 32.43, "array_mib": 768}
+{"threads": 4, "triad_gbps": 33.44, "array_mib": 768}
+{"threads": 8, "triad_gbps": 32.68, "array_mib": 768}
+{"threads": 16, "triad_gbps": 32.43, "array_mib": 768}

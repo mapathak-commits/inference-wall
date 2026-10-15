@@ -1,0 +1,46 @@
+====================================================================================
+PER-ROUND DECODE (tok/s) — engines interleaved, so each pair shares a thermal state
+====================================================================================
+quant        GB |  r1: cpu   mtl   ratio  r2: cpu   mtl   ratio  r3: cpu   mtl   ratio
+------------------------------------------------------------------------------------
+Q4_K_M    3.013 |   49.80  56.39  1.132x   52.11  56.37  1.082x   54.24  56.82  1.048x
+Q6_K      3.563 |   46.11  50.52  1.096x   44.36  50.23  1.132x   46.79  50.33  1.076x
+Q8_0      4.622 |   37.75  41.70  1.105x   39.74  42.04  1.058x   32.57  41.58  1.277x
+F16       8.666 |   21.68  21.95  1.013x   23.52  22.79  0.969x   20.00  22.24  1.112x
+
+====================================================================================
+MEDIAN-OF-ROUNDS LEDGER
+====================================================================================
+quant        GB |     CPU  effGB/s |     MTL  effGB/s |  MTL/CPU   spread
+------------------------------------------------------------------------------------
+Q4_K_M    3.013 |   52.11    157.0 |   56.39    169.9 |   1.082x    0.084
+Q6_K      3.563 |   46.11    164.3 |   50.33    179.3 |   1.096x    0.057
+Q8_0      4.622 |   37.75    174.5 |   41.70    192.8 |   1.105x    0.219
+F16       8.666 |   21.68    187.9 |   22.24    192.7 |   1.013x    0.143
+
+All 12 within-round Metal/CPU decode ratios: median 1.089x, min 0.969x, max 1.277x
+
+====================================================================================
+ROOFLINE FIT  ms/token = weight_GB / BW_marginal + t_fixed   (4 points each)
+====================================================================================
+CPU    n=4  BW_marginal =  209.2 GB/s (77% of nominal 273),  t_fixed = 4.63 ms/tok,  R^2 = 0.99981
+         3.013 GB   measured  19.19 ms   fit  19.04 ms   err  -0.8%
+         3.563 GB   measured  21.69 ms   fit  21.67 ms   err  -0.1%
+         4.622 GB   measured  26.49 ms   fit  26.73 ms   err  +0.9%
+         8.666 GB   measured  46.13 ms   fit  46.06 ms   err  -0.1%
+METAL  n=4  BW_marginal =  204.9 GB/s (75% of nominal 273),  t_fixed = 2.40 ms/tok,  R^2 = 0.99693
+         3.013 GB   measured  17.74 ms   fit  17.11 ms   err  -3.6%
+         3.563 GB   measured  19.87 ms   fit  19.79 ms   err  -0.4%
+         4.622 GB   measured  23.98 ms   fit  24.96 ms   err  +4.1%
+         8.666 GB   measured  44.97 ms   fit  44.70 ms   err  -0.6%
+
+====================================================================================
+CONTROLLED A/B — bf16 vs F16 on CPU, byte-identical files
+====================================================================================
+  bf16   8,665,620,192 B  decode ['4.01', '3.92', '3.91']  median   3.92 tok/s  eff   33.9 GB/s
+  F16    8,665,620,192 B  decode ['22.02', '20.38', '20.45']  median  20.45 tok/s  eff  177.2 GB/s
+
+  F16 / bf16 = 5.22x on identical bytes -> the bf16 deficit is a
+  missing/slow NEON kernel, not a memory-bandwidth or hardware limit.
+
+wrote results/stage5_summary.json
