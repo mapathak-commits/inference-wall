@@ -85,7 +85,7 @@ engine that runs the identical code on a CPU, on an Apple GPU through Metal, and
 programming layers. The series' own engine was ruled out first: vLLM's CPU backend
 has no kernel for Qwen3.5's linear-attention layers, so the same server cannot be pointed
 at a CPU at all, a finding in its own right. Two llama.cpp builds were used, 458681e on
-the server and dfc29b6 on the laptop, a day apart at the start of September 2026. The model is Qwen3.5-4B in GGUF form, the file format llama.cpp reads, at several weight
+the server and dfc29b6 on the laptop, a day apart, August 31 and September 1, 2026. The model is Qwen3.5-4B in GGUF form, the file format llama.cpp reads, at several weight
 formats: the weights stored at 16 bits each, called F16 or bf16 depending on the number
 format, or compressed to 8 or 4 bits each, Q8 and Q4 in llama.cpp's naming, so the file
 runs from 8.7 GB down to 3.0 GB. Prefill and
@@ -136,7 +136,7 @@ would also make, so the laptop's real evidence is the next section.
 The equation says time per token is a straight line in model size, with a steepness set
 by the memory bandwidth, and the fixed cost as the intercept, where the line crosses the
 time axis at zero bytes. That can be fitted
-directly. Four weight formats on the M4 Pro, Q4 at 3.0 GB, Q6 at 3.6 GB, Q8 at
+directly. Four weight formats on the M4 Pro, Q4 at 3.0 GB, Q6, a 6-bit format, at 3.6 GB, Q8 at
 4.6 GB, and F16 at 8.7 GB, run on both engines and fit to the two-term line:
 
 ![Milliseconds per token against model size in gigabytes for the M4 Pro, CPU and GPU points on nearly the same straight line, with the fitted bandwidths of 209 and 205 GB/s annotated](../assets/figures/fig9b-roofline-fit.png)
@@ -194,7 +194,7 @@ Part 10 is about what else that instrument shows.
 ## The headline that says a laptop beats a GPU
 
 You may have seen the claim that an Apple laptop matches or beats a datacenter GPU at
-LLM inference. The tables above show where it comes from. The M4 Pro CPU decodes Q4
+LLM inference. The measurements above show where it comes from. The M4 Pro CPU decodes Q4
 weights at about 52 tok/s, the median of the interleaved runs. The A10G decodes F16
 weights at 55. Side by side, the laptop CPU "matches" the GPU.
 
@@ -232,7 +232,7 @@ some B they cross: decode stops being memory-bound and becomes compute-bound. Wh
 crossover sits is set by the chip's math rate divided by its memory rate, in operations
 per byte read. Single-stream decode needs about one operation per byte, and whatever the
 chip has beyond that is batching headroom. The A10G has about 50. The M4 Pro CPU has
-about 13. The server slice has about 20 at its measured 0.65 trillion matrix operations a second. So
+about 13. The server slice has about 20 at its measured 0.65 trillion matrix operations a second at the model's matrix shapes. So
 batching should help the server CPU by up to an order of magnitude and then stop, because
 its math ceiling is 43x below the GPU's. The slice's own prefill number already
 shows the amortization: a 512-token prompt shares one weight read, and bf16 prefill runs
@@ -258,7 +258,8 @@ binds, so the one lever that moved single-stream decode, quantization, stops mov
 That is the compute ceiling the operations-per-byte arithmetic predicted, reached at about a third of the
 slice's measured matrix-multiply peak. The GPU lifts 8x over the same range and keeps climbing to 552
 tok/s at 128 sequences, with Q4 still well ahead of F16 because its bandwidth has not run
-out. At one sequence the same-engine gap is 15x. At 32 it is 17x. Where the CPU has
+out. At one sequence the same-engine gap is 15x; the batched tool's single-sequence cells run a
+little below the plain benchmark's because each carries a 128-token context. At 32 it is 17x. Where the CPU has
 stopped and the GPU has not, it is 21x at F16 and 34x at Q4, and still opening.
 
 So the answer to where a CPU is fine has two halves. For a single user on a machine with
