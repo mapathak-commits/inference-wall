@@ -1,5 +1,5 @@
 ---
-title: "Off the rig: decode on a CPU, and what a faster memory bus reveals"
+title: "Off the rig: decode on a CPU, where the memory bus decides"
 permalink: /articles/part-9/
 image: /assets/figures/fig9a-gap-vs-bandwidth.png
 ---
@@ -49,7 +49,10 @@ that runs one operation on a chip, too slow to keep up with its bus, so the mach
 off the line entirely; or batching, which shares the
 first term across many tokens until the math, finally, is what binds.
 
-Three qualifiers apply throughout. This is
+This part is about the first term and about the regime where it stops being the
+whole story; the second term, and what it does to small models and to unified-memory
+machines, is [Part 10]({{ '/articles/part-10/' | relative_url }}). Three qualifiers
+apply throughout. This is
 one request at a time; [Part 3]({{ '/articles/part-3/' | relative_url }}) showed what
 batching does to it, and the last section measures that on a CPU. Every weight is read
 for every token, which would not hold for a mixture-of-experts model. And the contexts
@@ -143,78 +146,9 @@ The slope of each line is one over the bandwidth, and reading the bandwidth off 
 ceiling. The study's audit refit the lines against every choice of which measurement
 round supplied each point, 81 combinations, and the median bandwidth stayed within 1% of
 these figures on both engines. Two engines with 2.7x different math rates decode on the same line, and that line's
-steepness is the machine's memory bandwidth. The fit's intercepts, 2.4 ms for the GPU
-and about 4.6 ms for the CPU, looked at first like a difference in fixed cost. They are
-not. The follow-up with smaller models below, which holds the weight format fixed, puts
-the fixed cost near 1 ms on both engines. What the ladder fit was most likely absorbing into its intercept is a third thing the
-one-line equation leaves out: a per-format compute cost.
-Four-bit and eight-bit weights must be unpacked before use, and that costs more
-instructions per byte than F16, so the quantized points sit a little above the line that
-the F16 points define. On the ladder, format changed together with size, so the format
-cost looked like a constant.
-
-That is also why the simple one-line claim starts to leak on fast memory. On the server
-slice, streaming 3 GB of Q4 weights takes about 91 ms, so a few milliseconds of fixed and
-format cost are a rounding error and effective bandwidth comes out constant across weight
-sizes: 34, 32, and 30 GB/s for bf16, Q8, and Q4, all at the 33 GB/s wall. On the laptop,
-streaming the same 3 GB takes about 14 ms, the fixed and format costs did not shrink with
-it, and effective bandwidth is no longer constant, rising from 157 GB/s at Q4 to 188 GB/s
-at F16 on the CPU within the same session. The faster the memory, the larger the share of
-a token everything other than streaming takes, and the sooner it becomes the thing worth
-optimizing. The constant-effective-bandwidth check is a slow-machine diagnostic; once
-memory is fast, the line with an intercept is the right model, and the intercept has to
-be measured with the format held fixed.
-
-## Does model size change the gap?
-
-In the equation, model size cancels out of the ratio between two chips as long as the
-first term dominates, so the gap should not depend on size until the fixed cost does.
-Three smaller models, Qwen2.5 at 0.5B and 1.5B in several formats, were run on both
-machines with the same engine and a same-session 4B anchor. Because these files store an
-output head separate from the embedding table, the table is read one row per token rather
-than streamed, so the bytes that matter are the file minus the table; file bytes exceed streamed bytes by
-14 to 29%. The
-4B stores them tied, so its file bytes are honest. Fitting the line on streamed bytes with
-the format held fixed gives each chip's two terms:
-
-| | Memory bandwidth, from the fit | Fixed cost per token |
-|---|---|---|
-| Server slice CPU | 33 GB/s | 3.1 ms |
-| A10G | 503 GB/s | 1.1 ms |
-| M4 Pro CPU | 209 to 222 GB/s | 0.9 to 1.2 ms |
-| M4 Pro GPU | 208 to 232 GB/s | 0.8 to 1.2 ms |
-
-The fixed cost is about a millisecond on three of the four chips and three on the server
-CPU; why the slice's is larger was not measured. The gap at each size follows:
-
-| Model | Streamed GB | Server GPU / CPU | M4 Pro GPU / CPU, two sessions |
-|---|---|---|---|
-| 0.5B Q4 | 0.39 | 7.4x | 0.90x, 0.95x |
-| 0.5B Q8 | 0.53 | 8.4x | 0.86x, 0.90x |
-| 1.5B Q4 | 0.98 | 10.0x | 1.07x, 1.06x |
-| 0.5B F16 | 0.99 | 10.8x | 1.03x, 0.99x |
-| 1.5B F16 | 3.09 | 13.7x | 1.10x, 1.11x |
-| 4B F16 | 8.66 | 14.3x | 0.99x, 1.04x |
-
-![Decode gap against streamed model bytes on both machines: the server's GPU-over-CPU ratio falls from 14x at 8.7 GB toward 7x at 0.4 GB, while the M4 Pro's ratio stays near 1x and dips below it for the smallest quantized files](../assets/figures/fig9e-gap-vs-size.png)
-
-On the server the gap halves as the model shrinks, from 14.3x to 7.4x, even though the
-CPU's fixed cost is the larger one in milliseconds. The equation says why: what matters is
-each chip's fixed cost as a share of its own streaming time. At 0.4 GB the A10G streams
-the weights in under a millisecond and then spends a millisecond on fixed work, so its
-token is more than half overhead, while the CPU's 3 ms is a fifth of its 12 ms stream. As the model shrinks further the gap tends toward the ratio of the two fixed costs, under
-3x, and the GPU's bandwidth advantage stops counting. On the M4 Pro the two fixed costs
-are equal, so the gap stays near 1x at every size for F16, and the two engines tie at the
-4B anchor, 0.99x and 1.04x across sessions. The small quantized files are the one
-departure: there the CPU wins, 0.86 to 0.95x, because Metal's four-bit and eight-bit
-kernels fall further below their own line than the CPU's do on a model whose internal
-vectors are only 896 numbers wide. The
-likely reason is that the work is too small to fill the GPU, but that was not measured.
-
-So the answer is that model size changes the gap only through the second term, and on
-both machines the second term favors the CPU at small sizes. The 13.5x and 1.09x of the
-earlier sections are the large-model numbers, where the first term is nearly the whole
-token.
+steepness is the machine's memory bandwidth. The lines also have intercepts, the fixed
+cost per token, and on the fast machine they are large enough to matter and tricky
+enough to measure that they get a post of their own.
 
 ## Two byte-identical files
 
@@ -254,8 +188,8 @@ machine, and the F16 control is what separated them. The first version of the se
 study cited that bf16 row as one of its three proofs. It was a right conclusion that
 could not be checked until the control was run on both machines. When a measurement
 lands exactly on a hardware ceiling, that agreement is evidence only if the ceiling is
-high enough that a coincidence is unlikely, which makes fast hardware a better measuring
-instrument as well as faster hardware.
+high enough that a coincidence is unlikely, which makes fast hardware a better measuring instrument as well as faster hardware.
+Part 10 is about what else that instrument shows.
 
 ## The headline that says a laptop beats a GPU
 
@@ -275,36 +209,8 @@ The result worth keeping is the one underneath: a laptop CPU gets within 2.5x of
 datacenter GPU on single-user decode at all, which no CPU could do a generation ago. That
 closeness is the memory bus. The M4 Pro CPU pulls 177 GB/s of effective decode
 bandwidth against 34 on the server slice, and the 5x gap between the two CPUs is the
-memory gap, short of the full 7x by the fixed per-token cost from the section above.
-
-## What unified memory changes: energy, and a rule that flips
-
-On the laptop the GPU is 1.09x faster at decode than the CPU across the 4B ladder, and
-at F16 the two tie. That invites the conclusion that the GPU is pointless for decode on
-a unified-memory machine. It is wrong at the 4B size, for a reason no throughput table
-shows, and the reason weakens as the model shrinks.
-
-Measured with Apple's `powermetrics` while decoding, the CPU run draws about 42 W above
-idle and the GPU run about 26 W, of which 21.5 W is the GPU itself and the rest the CPU
-feeding it. For nearly the same tokens per second, the GPU does the work for **about
-1.75x less energy per token**, 1.78x and 1.73x in two independent captures. The CPU run
-pins all ten performance cores at 100% against the chip's power ceiling; the same work on
-the GPU leaves the CPU at a fraction of that power. At 0.5B Q4 the advantage shrinks to 1.18x, 112 against 132 millijoules per token, because at about 260 tokens a second the CPU spends 13.6 W just encoding and submitting
-the GPU's commands. So
-the engine choice on this machine has no bandwidth-based answer and a power-based one
-that depends on size: for a 4B model, decode belongs on the GPU for battery and heat; for
-a tiny one, it barely matters where it runs.
-
-One more unified-memory result, because it flips a discrete-GPU habit. On a normal GPU
-box you offload as many layers to the GPU as its memory holds. On the M4 Pro, moving
-layers from the CPU to the GPU a few at a time made decode slower across most of the
-range: any split from 4 to 16 of the 32 layers ran at 0.80 to 0.87x of all-CPU,
-break-even came at about 20 layers, and from 24 layers up
-it was faster, reaching 1.19x at full offload.
-No bytes cross a bus here, so the cost sits in the handoff between two engines sharing
-one memory, measured at about 7 ms per token and not yet explained. The rule on unified
-memory is to pick one engine and commit; partial offload exists to cope with limited GPU
-memory, and this machine has no such limit.
+memory gap, short of the full 7x by costs that do not scale with bytes, which Part 10
+takes up.
 
 ## Many users at once
 
@@ -371,25 +277,15 @@ ahead. Decode on a CPU is viable. Serving a crowd from one is not.
    measured on a box with a bandwidth cliff; 1.0x predicted and 1.09x measured on a box
    without one. Compute predicts 43x and 2.7x and is wrong on both.
 3. **Decode time is a straight line in weight bytes whose steepness is the bandwidth.** On
-   the M4 Pro the CPU and GPU lines read 209 and 205 GB/s against a 238 GB/s ceiling. With
-   the format held fixed, the fixed cost per token is about a millisecond on the A10G and
-   on both M4 Pro engines, and three on the server CPU. Quantized formats add a compute
-   cost per byte that only shows on fast memory.
-4. **Model size moves the gap only through the fixed cost, and toward the CPU.** On the
-   server the gap halves from 14x to 7x between 8.7 GB and 0.4 GB because the GPU's
-   millisecond is more than half of its tiny token. On the M4 Pro the gap stays near 1x at every size for F16 and the CPU wins on the
-   smallest quantized files.
-5. **A low ceiling can confirm a wrong explanation.** Two byte-identical files decode about
+   the M4 Pro the CPU and GPU lines read 209 and 205 GB/s against a 238 GB/s ceiling, with
+   2.7x different math rates.
+4. **A low ceiling can confirm a wrong explanation.** Two byte-identical files decode about
    1.01x apart on the slow machine and 5.22x apart on the fast one. Only the fast one
    could show that a kernel, not memory, set the speed.
-6. **"Laptop beats GPU" compares different weight sizes.** At matched format the A10G
+5. **"Laptop beats GPU" compares different weight sizes.** At matched format the A10G
    leads the M4 Pro CPU by 2.3 to 2.7x. The remarkable part is that a CPU is that close
    at all, and the reason is the memory bus Apple put under it.
-7. **On unified memory, throughput does not decide the engine; power does, and less so
-   for small models.** At 4B the GPU is 1.09x faster and 1.75x more energy-efficient at
-   decode; at 0.5B the energy edge is 1.18x. Partial offload is slower than either engine
-   alone.
-8. **A CPU is fine for one user with fast memory, and not for a crowd.** Batching lifts
+6. **A CPU is fine for one user with fast memory, and not for a crowd.** Batching lifts
    the server CPU 7.4x and then hits its math ceiling at 26 tok/s, where bf16 and Q4
    converge; the GPU is at 552 and still climbing.
 
@@ -397,25 +293,22 @@ ahead. Decode on a CPU is viable. Serving a crowd from one is not.
 
 *Reproduce: both machines ran `llama-bench` from llama.cpp, build 458681e on the server
 slice and dfc29b6 on the M4 Pro, on `Qwen/Qwen3.5-4B` GGUFs at bf16, F16, Q8_0, and
-Q4_K_M, plus Q6_K on the M4 Pro; the batched runs used `llama-batched-bench` on the server slice and the A10G only. The
-small-model follow-up ran the official `Qwen/Qwen2.5-0.5B-Instruct-GGUF` and
-`Qwen/Qwen2.5-1.5B-Instruct-GGUF` files, byte-identical on both machines, with a
-same-session 4B anchor; streamed bytes exclude the untied embedding table. The F16 file was produced from the bf16 file with
+Q4_K_M, plus Q6_K on the M4 Pro; the batched runs used `llama-batched-bench` on the
+server slice and the A10G only. The F16 file was produced from the bf16 file with
 `llama-quantize`, which is why the two are byte-identical. CPU runs use `-ngl 0`, Metal
 runs `-ngl 99`, CUDA runs `-ngl 99`. The M4 Pro CPU-versus-GPU ratio interleaves the two
-engines round-robin so each pair shares a thermal state, because absolute speed on the
-laptop drifts by up to 20% over a long session. Power is from
-`powermetrics --samplers cpu_power,gpu_power`. The microbenchmarks, bench drivers, and
-figure renderer are in
+engines round-robin so each pair runs at the same chip temperature, because absolute
+speed on the laptop drifts by up to 20% over a long session. The microbenchmarks, bench
+drivers, and figure renderer are in
 [`experiments/09-cpu-decode/`](https://github.com/mapathak-commits/inference-wall/tree/main/experiments/09-cpu-decode);
-the raw bench tables, JSONL, power summaries, and the Mac study's audit ledger are in
+the raw bench tables, JSONL, and the Mac study's audit ledger are in
 [`benchmarks/09-cpu-decode/`](https://github.com/mapathak-commits/inference-wall/tree/main/benchmarks/09-cpu-decode).
-Absolute numbers are specific to a g5.4xlarge slice and one M4 Pro; the predictions and
-their outcomes are not.*
+Both folders also hold Part 10's data. Absolute numbers are specific to a g5.4xlarge
+slice and one M4 Pro; the predictions and their outcomes are not.*
 
 ---
 
-**Previous:** [Part 8: FlashAttention]({{ '/articles/part-8/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
+**Previous:** [Part 8: FlashAttention]({{ '/articles/part-8/' | relative_url }}) · **Next:** Part 10, coming next Friday · [All posts]({{ '/articles/' | relative_url }})
 
 ---
 

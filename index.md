@@ -142,9 +142,17 @@ the full arc:
    into the attention kernel itself, and is the first part to run a dense model alongside the
    rig.
 
-9. **Off the rig: decode on a CPU** *(coming)*. What the same model looks like when the GPU is
-   gone entirely, and what that teaches about which of the series' walls are about the GPU
-   specifically and which are about the arithmetic.
+9. **Off the rig: decode on a CPU, where the memory bus decides** *(coming)*. The same
+   model and engine on a cloud server slice and an Apple laptop, each with its own GPU.
+   The CPU-to-GPU decode gap follows the memory bandwidth ratio on both, 13.5x and 1.09x,
+   and two byte-identical weight files show that only a fast machine can tell a memory
+   wall from a slow kernel. Batching lifts a CPU 7x and then its math caps it.
+
+10. **Off the rig, part two: what a faster memory bus reveals** *(coming)*. The second
+   term of the equation: a fixed cost per token of about a millisecond, a per-format
+   compute cost that an earlier fit mistook for it, a gap that bends toward the CPU on
+   small models on both machines, and why on unified memory the engine choice is about
+   power rather than speed.
 
 Every post is backed by measurements on this exact rig. Parts 3 and 5 were the "earn-it"
 slots, strong ideas held back until re-measured on the 4B rather than back-filled from the

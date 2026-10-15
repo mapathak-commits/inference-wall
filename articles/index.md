@@ -18,7 +18,8 @@ the number, and read the trace that explains why. New parts publish weekly.*
 | **Part 6** | [Quantization to make a model fit]({{ '/articles/part-6/' | relative_url }}) | a 9B that fp16 can't serve on this GPU is quantized to 4-bit and serves at ~75% of a 4B's speed, because decode moves bytes, not parameters |
 | **Part 7** | [Speculative decoding]({{ '/articles/part-7/' | relative_url }}) | a flag that runs single-stream generation 1.8x faster cuts a flooded server's throughput from 1,096 to 473 tok/s and triples time-to-first-token, because speculation multiplies the per-request work batching can't share and eats concurrency on a hybrid model |
 | Part 8 | FlashAttention at the scale where it matters | *coming soon* |
-| Part 9 | Off the rig: decode on a CPU | *coming soon* |
+| Part 9 | Off the rig: decode on a CPU, where the memory bus decides | *coming soon* |
+| Part 10 | Off the rig, part two: what a faster memory bus reveals | *coming soon* |
 
 Every post ends with a reproduce section; the scripts, raw logs, and profiler traces
 live in the [companion repo](https://github.com/mapathak-commits/inference-wall)
