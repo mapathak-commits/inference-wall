@@ -44,8 +44,9 @@ is everything that does not scale with bytes: launching the work for each of the
 layers, synchronizing threads, bookkeeping between tokens. On a big model and a slow bus
 the first term is nearly the whole token and the second is a rounding error. Every result
 below is one of three things happening to that line: the first term dominating, so the
-gap between two chips is the gap between their memory buses; a kernel too slow to keep up
-with its bus, so the machine falls off the line entirely; or batching, which shares the
+gap between two chips is the gap between their memory buses; a kernel, the small program
+that runs one operation on a chip, too slow to keep up with its bus, so the machine falls
+off the line entirely; or batching, which shares the
 first term across many tokens until the math, finally, is what binds.
 
 Three qualifiers apply throughout. This is
@@ -60,14 +61,14 @@ weights.
 The two CPUs were picked to be as far apart as possible on one axis, memory bandwidth,
 and each sits next to a GPU so the CPU-to-GPU gap can be measured on the same box.
 
-- **A cloud server slice.** An AWS g5.4xlarge: 8 physical cores and 16 threads of an AMD
-  EPYC 7R32, 62 GiB of DDR4, one NUMA node, and the series' NVIDIA A10G. Its measured
+- **A cloud server slice.** An AWS g5.4xlarge: 16 virtual cores on 8 physical cores of an AMD EPYC
+  server chip, 62 GiB of ordinary server memory, and the series' NVIDIA A10G. Its measured
   streaming bandwidth is **33 GB/s**, saturating at two threads. That is a slice of the
-  socket's memory system, not the socket; a full EPYC with eight channels delivers roughly
+  socket's memory system, not the socket; a full EPYC socket with all eight of its memory channels in use delivers roughly
   200 GB/s. The CPU and the GPU sit on separate memory pools with a large cliff between
   them: the A10G's nominal bandwidth is 600 GB/s.
-- **A laptop.** An Apple M4 Pro with 10 performance and 4 efficiency cores, 48 GB of
-  LPDDR5X, and a 20-core GPU. Measured streaming bandwidth is **238 GB/s**, against a
+- **A laptop.** An Apple M4 Pro with 10 performance and 4 efficiency cores, 48 GB of memory on
+  a bus about as wide as a GPU's, and a 20-core GPU. Measured streaming bandwidth is **238 GB/s**, against a
   nominal 273, about seven times the server slice. Its CPU and GPU share the same
   physical memory and the same bandwidth. There is no cliff, by construction.
 
@@ -77,12 +78,14 @@ the CPU-to-GPU gap should be large on the first machine and close to 1x on the s
 and the laptop's CPU should beat the server's CPU by about the bandwidth ratio.
 
 The engine is [llama.cpp](https://github.com/ggml-org/llama.cpp), because it is the one
-engine that runs the identical code on a CPU, on an Apple GPU through Metal, and on an
-NVIDIA GPU through CUDA. The series' own engine was ruled out first: vLLM's CPU backend
+engine that runs the identical code on a CPU, on an Apple GPU through Metal, and on an NVIDIA GPU through CUDA, the two vendors' GPU
+programming layers. The series' own engine was ruled out first: vLLM's CPU backend
 has no kernel for Qwen3.5's linear-attention layers, so the same server cannot be pointed
 at a CPU at all, a finding in its own right. Two llama.cpp builds were used, 458681e on
-the server and dfc29b6 on the laptop, a day apart at the start of September 2026. The model is Qwen3.5-4B in
-GGUF form at several weight sizes, from 3.0 GB at 4-bit to 8.7 GB at 16-bit. Prefill and
+the server and dfc29b6 on the laptop, a day apart at the start of September 2026. The model is Qwen3.5-4B in GGUF form, the file format llama.cpp reads, at several weight
+formats: the weights stored at 16 bits each, called F16 or bf16 depending on the number
+format, or compressed to 8 or 4 bits each, Q8 and Q4 in llama.cpp's naming, so the file
+runs from 8.7 GB down to 3.0 GB. Prefill and
 decode throughput are measured separately by `llama-bench`, in tokens per second.
 
 ## The decode gap follows memory bandwidth
@@ -102,14 +105,13 @@ The two predictions differ enough to tell apart.
 On the server slice, bandwidth predicts 18x and the measurement is 13.5x, with the GPU
 reaching about 79% of its nominal bandwidth in decode, which is in line with
 [Part 1]({{ '/articles/part-1/' | relative_url }}). Compute predicts 43x, and that is
-the generous reading: 43x compares the A10G's non-tensor rate of 31.2 TFLOP/s to the
-CPU's 0.72; with tensor cores the A10G's dense fp16 rate is 125 TFLOP/s and the compute
-prediction becomes 174x. Either way compute is off by a factor of three or more and
+the generous reading: 43x compares the A10G's ordinary math rate, 31.2 trillion operations
+a second, to the CPU's 0.72 trillion; the GPU's specialized matrix units run four times
+faster still, which would make the compute prediction 174x. Either way compute is off by a factor of three or more and
 bandwidth is the right frame.
 
 On the laptop the two engines share one memory bus, so bandwidth predicts no gap at all.
-Measured carefully, with the CPU and GPU runs interleaved so each pair shares a thermal
-state, the GPU decodes **1.089x** faster, the median of twelve paired runs ranging from
+Measured carefully, with the CPU and GPU runs interleaved so each pair runs at the same chip temperature, the GPU decodes **1.089x** faster, the median of twelve paired runs ranging from
 0.969x to 1.277x. In one round the CPU won. Compute predicts 2.7x. Two engines whose
 math rates differ by 2.7x decode at the same speed when they share a memory bus, which
 is only possible if decode never depended on the math.
@@ -129,8 +131,9 @@ would also make, so the laptop's real evidence is the next section.
 ## Decode time is a straight line in bytes
 
 The equation says time per token is a straight line in model size, with a steepness set
-by the memory bandwidth and an intercept equal to the fixed cost. That can be fitted
-directly. Four weight sizes on the M4 Pro, Q4_K_M at 3.0 GB, Q6_K at 3.6 GB, Q8_0 at
+by the memory bandwidth, and the fixed cost as the intercept, where the line crosses the
+time axis at zero bytes. That can be fitted
+directly. Four weight formats on the M4 Pro, Q4 at 3.0 GB, Q6 at 3.6 GB, Q8 at
 4.6 GB, and F16 at 8.7 GB, run on both engines and fit to the two-term line:
 
 ![Milliseconds per token against model size in gigabytes for the M4 Pro, CPU and GPU points on nearly the same straight line, with the fitted bandwidths of 209 and 205 GB/s annotated](../assets/figures/fig9b-roofline-fit.png)
@@ -204,7 +207,8 @@ token is more than half overhead, while the CPU's 3 ms is a fifth of its 12 ms s
 are equal, so the gap stays near 1x at every size for F16, and the two engines tie at the
 4B anchor, 0.99x and 1.04x across sessions. The small quantized files are the one
 departure: there the CPU wins, 0.86 to 0.95x, because Metal's four-bit and eight-bit
-kernels fall further below their own line at a hidden size of 896 than the CPU's do. The
+kernels fall further below their own line than the CPU's do on a model whose internal
+vectors are only 896 numbers wide. The
 likely reason is that the work is too small to fill the GPU, but that was not measured.
 
 So the answer is that model size changes the gap only through the second term, and on
@@ -229,8 +233,8 @@ speed on the same machine.
 ![Grouped bars of decode speed for the bf16 and F16 files on both machines: on the server slice the two bars are equal at about 4 tokens per second, on the M4 Pro CPU the F16 bar is five times the bf16 bar](../assets/figures/fig9c-bf16-vs-f16.png)
 
 On the server they do. On the laptop they do not, by 5.22x against about 1.01x on the server, with the
-hardware and the byte count held constant. The reason is software: llama.cpp has a fast NEON kernel for
-F16 and only a slow generic path for bf16 on this CPU. On the laptop, decode from the bf16 file is bottlenecked on that slow kernel long before
+hardware and the byte count held constant. The reason is software: llama.cpp has a fast hand-tuned vector kernel for F16 and only a slow generic path for
+bf16 on this CPU. On the laptop, decode from the bf16 file is bottlenecked on that slow kernel long before
 it reaches the memory wall, at about 34 GB/s effective on a 238 GB/s machine. This is the
 one case the equation does not cover: the bytes arrive faster than the kernel can consume
 them, so the machine has fallen off the line and is limited by instruction throughput,
@@ -285,7 +289,7 @@ idle and the GPU run about 26 W, of which 21.5 W is the GPU itself and the rest 
 feeding it. For nearly the same tokens per second, the GPU does the work for **about
 1.75x less energy per token**, 1.78x and 1.73x in two independent captures. The CPU run
 pins all ten performance cores at 100% against the chip's power ceiling; the same work on
-the GPU leaves the CPU at a fraction of that power. At 0.5B Q4 the advantage shrinks to 1.18x, 112 against 132 mJ per token, because at about 260 tokens a second the CPU spends 13.6 W just encoding and submitting
+the GPU leaves the CPU at a fraction of that power. At 0.5B Q4 the advantage shrinks to 1.18x, 112 against 132 millijoules per token, because at about 260 tokens a second the CPU spends 13.6 W just encoding and submitting
 the GPU's commands. So
 the engine choice on this machine has no bandwidth-based answer and a power-based one
 that depends on size: for a 4B model, decode belongs on the GPU for battery and heat; for
@@ -322,7 +326,7 @@ some B they cross: decode stops being memory-bound and becomes compute-bound. Wh
 crossover sits is set by the chip's math rate divided by its memory rate, in operations
 per byte read. Single-stream decode needs about one operation per byte, and whatever the
 chip has beyond that is batching headroom. The A10G has about 50. The M4 Pro CPU has
-about 13. The server slice has about 20 at its measured 0.65 TFLOP/s of matrix math. So
+about 13. The server slice has about 20 at its measured 0.65 trillion matrix operations a second. So
 batching should help the server CPU by up to an order of magnitude and then stop, because
 its math ceiling is 43x below the GPU's. The slice's own prefill number already
 shows the amortization: a 512-token prompt shares one weight read, and bf16 prefill runs
@@ -345,7 +349,7 @@ Batching lifts the CPU 7.4x and then stops. The detail that shows why is that bf
 Q4, 2.6x apart at one sequence, have converged on the same 26 tok/s by 32. Once the
 weight read is shared across the batch, bytes per token stop mattering and the math rate
 binds, so the one lever that moved single-stream decode, quantization, stops moving it.
-That is the compute ceiling the roofline predicted, reached at about a third of the
+That is the compute ceiling the operations-per-byte arithmetic predicted, reached at about a third of the
 slice's measured matrix-multiply peak. The GPU lifts 8x over the same range and keeps climbing to 552
 tok/s at 128 sequences, with Q4 still well ahead of F16 because its bandwidth has not run
 out. At one sequence the same-engine gap is 15x. At 32 it is 17x. Where the CPU has
