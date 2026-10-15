@@ -1,49 +1,68 @@
 # Small-model follow-up: does the CPU-to-GPU decode gap depend on model size?
 
-Run 2026-10-15 (`run_small.sh`, raw in `small_model_bench.md`). EPYC slice CPU (8 physical
-cores pinned) vs A10G via llama.cpp CUDA, build 458681e, same session, `-p 128 -n 128 -r 3`.
-Official Qwen GGUFs so the Mac run can use byte-identical files.
+Server run 2026-10-15 (`run_small.sh`, raw in `small_model_bench.md`): EPYC slice CPU (8
+physical cores pinned) vs A10G via llama.cpp CUDA, build 458681e, same session, `-p 128 -n 128
+-r 3`. Mac run the same day (`mac/results/small_model_bench.md`, build dfc29b6, `-t 9`, two
+sessions). Official Qwen2.5 GGUFs, byte-identical on both machines (all five files verified).
 
-| file | GB | CPU tg128 | A10G tg128 | gap | CPU ms/tok | A10G ms/tok | CPU eff GB/s | A10G eff GB/s |
-|---|---|---|---|---|---|---|---|---|
-| 0.5B Q4_K_M | 0.491 | 69.33 | 511.28 | **7.4x** | 14.42 | 1.96 | 34.1 | 251 |
-| 0.5B Q8_0 | 0.676 | 56.17 | 471.46 | 8.4x | 17.80 | 2.12 | 38.0 | 319 |
-| 1.5B Q4_K_M | 1.117 | 29.47 | 293.76 | 10.0x | 33.93 | 3.40 | 32.9 | 328 |
-| 0.5B F16 | 1.266 | 31.42 | 339.59 | 10.8x | 31.83 | 2.94 | 39.8 | 430 |
-| 1.5B F16 | 3.560 | 10.23 | 139.73 | 13.7x | 97.75 | 7.16 | 36.4 | 498 |
-| 4B F16 (anchor) | 8.666 | 3.80 | 54.34 | **14.3x** | 263.2 | 18.40 | 32.9 | 471 |
+## The axis: streamed bytes, not file bytes
 
-**Answer: the gap shrinks with model size on the discrete-GPU box, from 14.3x at 8.7 GB to
-7.4x at 0.5 GB, and the reason is the GPU's fixed per-token cost, not the CPU's.**
+The official Qwen2.5 GGUFs store `output.weight` separately from `token_embd.weight`, so the
+embedding table is read one row per token, not streamed. File bytes overstate streamed bytes
+by 25 to 29% for the 0.5B files and 14 to 15% for the 1.5B files. Qwen3.5-4B stores them
+tied, so its file bytes are honest (the earlier note in this file suggesting a 15% correction
+for the 4B was wrong and is withdrawn). Streamed GB per token, from the GGUF headers: 0.5B
+Q4 0.392, Q8 0.525, F16 0.988; 1.5B Q4 0.980, F16 3.088; 4B F16 8.655. On file bytes the
+one-line fit gives negative intercepts on every engine; on streamed bytes it fits with
+residuals under 10% and physical intercepts.
 
-Fit `ms_per_token = GB / BW + t_fixed` over the six points:
+## Server slice CPU vs A10G
 
-| engine | 1/slope | intercept | R2 |
-|---|---|---|---|
-| EPYC slice CPU | 32.9 GB/s | about 0 ms (fit gives -3.7 ms, within the residuals) | 0.998 |
-| A10G | 497 GB/s | **0.71 ms/token** | 0.995 |
+| file | streamed GB | CPU tg128 | A10G tg128 | gap | CPU eff GB/s | A10G eff GB/s |
+|---|---|---|---|---|---|---|
+| 0.5B Q4_K_M | 0.392 | 69.33 | 511.28 | **7.4x** | 27.2 | 200 |
+| 0.5B Q8_0 | 0.525 | 56.17 | 471.46 | 8.4x | 29.5 | 248 |
+| 1.5B Q4_K_M | 0.980 | 29.47 | 293.76 | 10.0x | 28.9 | 288 |
+| 0.5B F16 | 0.988 | 31.42 | 339.59 | 10.8x | 31.0 | 336 |
+| 1.5B F16 | 3.088 | 10.23 | 139.73 | 13.7x | 31.6 | 432 |
+| 4B F16 (anchor) | 8.655 | 3.80 | 54.34 | **14.3x** | 32.9 | 470 |
 
-The CPU stays at its 33 GB/s wall at every size, so its time per token is purely
-bytes / bandwidth and its fixed cost is negligible on this slice (the earlier "~10 ms"
-estimate was an artifact of dividing by 33 instead of the fitted 32.9). The A10G's
-effective bandwidth falls from ~480 GB/s at 3 to 9 GB to 251 GB/s at 0.5 GB because its
-0.7 ms per-token floor (kernel launches, one per layer) is a growing share of a token that
-only takes 2 ms. In the bandwidth regime the ratio is 497 / 32.9 = 15x and model size
-cancels; the fixed cost is what bends it.
+Fits `ms_per_token = GB / BW + t_fixed` on streamed GB, six points:
 
-Prediction for the M4 Pro (to be measured; see `mac/PROMPT_small_model.md`): there the CPU
-has the larger intercept (Stage 5: a few ms vs Metal 2.4 ms), so the Metal/CPU gap should
-move the other way, rising above 1.09x for small models.
+| engine | BW | t_fixed | R2 | max residual |
+|---|---|---|---|---|
+| EPYC slice CPU | 33.2 GB/s | 3.06 ms (F16-only 3.27) | 0.9998 | 6.0% |
+| A10G | 503 GB/s | 1.15 ms (F16-only 0.94) | 0.9993 | 9.0% |
 
-## Caveat on "bytes per token"
+## M4 Pro CPU vs Metal (from the Mac file)
 
-Effective bandwidth here, and throughout the study, is `tok/s x file bytes`. The file
-includes the token-embedding table, which is looked up one row per token, not streamed; only
-the output head is read in full. For the 0.5B F16 file that table is about 272 MB of the
-1.27 GB (21%), which is why the CPU reads as 39.8 GB/s, above its 33 GB/s wall; corrected
-for the table it is about 31 GB/s, at the wall. For the 4B the share is smaller (about 15%)
-and the same correction applies uniformly across formats, so every ratio and every
-"constant across quants" claim is unaffected, but absolute effective-bandwidth figures in
-the study overstate streamed bytes by that share. These are standard dense transformers (24
-and 28 layers) rather than Qwen3.5's hybrid 32, so the fixed cost per token is
-model-specific as well as engine-specific.
+| file | Metal/CPU run 1 | idle repeat |
+|---|---|---|
+| 0.5B Q4_K_M | 0.899x | 0.948x |
+| 0.5B Q8_0 | 0.863x | 0.901x |
+| 0.5B F16 | 1.034x | 0.992x |
+| 1.5B Q4_K_M | 1.066x | 1.062x |
+| 1.5B F16 | 1.098x | 1.111x |
+| 4B F16 anchor | 0.987x | 1.036x |
+
+Session fits on streamed GB: CPU 209.1 / 221.6 GB/s with t_fixed 0.91 / 1.17 ms; Metal 207.7 /
+231.8 GB/s with t_fixed 0.75 / 1.21 ms. Energy at 0.5B Q4: Metal 112 vs CPU 132 mJ/token,
+1.18x (4B: 1.75x), because the CPU draws 13.6 W feeding the GPU at ~300 tok/s.
+
+## Reconciliation
+
+1. **Prediction failed.** The brief predicted the Metal lead would grow at small sizes because
+   Stage 5's CPU intercept (4.6 ms) was larger than Metal's (2.4 ms). With the format held
+   fixed both intercepts are about 1 ms. Stage 5's ladder changed format together with size,
+   so the per-byte dequantization cost of Q4/Q6/Q8 was absorbed into the intercept.
+2. **Fixed cost per token:** A10G ~1 ms, M4 CPU ~1 ms, Metal ~1 ms, EPYC slice CPU ~3 ms.
+3. **Both machines bend toward the CPU at small size.** Server: 14.3x -> 7.4x, because the
+   GPU's 1 ms is over half of a 0.4 GB token while the CPU's 3 ms is a fifth of its 12 ms
+   stream; as size -> 0 the gap tends to the fixed-cost ratio, ~2.7x. Mac: ~1x at every size
+   for F16 (engines tie at the 4B anchor); CPU wins 0.86 to 0.95x on 0.5B Q4/Q8 because
+   Metal's quantized kernels fall further below their own line at hidden size 896
+   (hypothesis: poor GPU fill; not measured).
+4. **Stage 5's 1.089x is format-dependent, not fixed-cost.** At F16 the engines tie; Metal's
+   ~10% lead on the 4B ladder is cheaper quantized kernels at that size.
+5. These are dense 24/28-layer transformers; Qwen3.5-4B is hybrid with 33 GGUF blocks. The
+   fixed cost is model-specific as well as engine-specific.
