@@ -273,7 +273,7 @@ decode is bandwidth-bound.
 
 The result worth keeping is the one underneath: a laptop CPU gets within 2.5x of a
 datacenter GPU on single-user decode at all, which no CPU could do a generation ago. That
-closeness is the LPDDR5X memory. The M4 Pro CPU pulls 177 GB/s of effective decode
+closeness is the memory bus. The M4 Pro CPU pulls 177 GB/s of effective decode
 bandwidth against 34 on the server slice, and the 5x gap between the two CPUs is the
 memory gap, short of the full 7x by the fixed per-token cost from the section above.
 
@@ -384,7 +384,7 @@ ahead. Decode on a CPU is viable. Serving a crowd from one is not.
    could show that a kernel, not memory, set the speed.
 6. **"Laptop beats GPU" compares different weight sizes.** At matched format the A10G
    leads the M4 Pro CPU by 2.3 to 2.7x. The remarkable part is that a CPU is that close
-   at all, and the reason is LPDDR5X.
+   at all, and the reason is the memory bus Apple put under it.
 7. **On unified memory, throughput does not decide the engine; power does, and less so
    for small models.** At 4B the GPU is 1.09x faster and 1.75x more energy-efficient at
    decode; at 0.5B the energy edge is 1.18x. Partial offload is slower than either engine
