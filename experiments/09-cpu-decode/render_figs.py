@@ -162,3 +162,39 @@ ax.text(1.0, 1200, "batching lifts the CPU 7.4x and then stops; the GPU keeps cl
 fig.tight_layout()
 fig.savefig(f"{OUT}/fig9d-batched-decode.png", facecolor=BG)
 print("wrote fig9d-batched-decode.png")
+
+# ---------------- Figure E: decode gap vs model size, both machines ----------------
+# Sources: benchmarks/09-cpu-decode/small_model_bench.md (server, same session) and
+# benchmarks/09-cpu-decode/mac/small_model_bench.md (M4 Pro, run 1 and idle repeat).
+# x = streamed GB (file bytes minus the untied embedding table), from the Mac file's table.
+strm = [0.392, 0.525, 0.980, 0.988, 3.088, 8.655]
+labels_e = ["0.5B Q4", "0.5B Q8", "1.5B Q4", "0.5B F16", "1.5B F16", "4B F16"]
+srv_gap = [511.28/69.33, 471.46/56.17, 293.76/29.47, 339.59/31.42, 139.73/10.23, 54.34/3.80]
+mac_r1  = [0.899, 0.863, 1.066, 1.034, 1.098, 0.987]
+mac_r2  = [0.948, 0.901, 1.062, 0.992, 1.111, 1.036]
+mac_gap = [(a+b)/2 for a,b in zip(mac_r1, mac_r2)]
+
+fig, ax = plt.subplots(figsize=(8.2, 4.2), dpi=200)
+fig.patch.set_facecolor(BG)
+style_ax(ax)
+ax.axhline(503/33.2, color=BLUE, lw=1, ls=":", zorder=1)
+ax.axhline(1.0, color=GREEN, lw=1, ls=":", zorder=1)
+ax.plot(strm, srv_gap, "-o", color=BLUE, lw=2.0, ms=5, label="server slice: A10G over CPU", zorder=3)
+ax.plot(strm, mac_gap, "-s", color=GREEN, lw=2.0, ms=5, label="M4 Pro: GPU over CPU", zorder=3)
+ax.set_xscale("log"); ax.set_yscale("log")
+ax.set_xticks([0.4, 1, 3, 9]); ax.set_xticklabels(["0.4", "1", "3", "9"])
+ax.set_yticks([0.5, 1, 2, 5, 10, 20]); ax.set_yticklabels(["0.5x", "1x", "2x", "5x", "10x", "20x"])
+ax.set_xlim(0.3, 12); ax.set_ylim(0.6, 25)
+ax.set_xlabel("weight bytes streamed per token (GB)", fontsize=12, fontweight="bold")
+ax.set_ylabel("GPU decode speed / CPU decode speed", fontsize=12, fontweight="bold")
+ax.text(0.31, 503/33.2*1.12, "bandwidth ratio 15x", fontsize=9.5, style="italic", color=BLUE)
+ax.text(0.31, 1.0*1.1, "bandwidth ratio 1x", fontsize=9.5, style="italic", color=GREEN)
+ax.annotate("GPU's 1 ms fixed cost is over half\nof a 0.4 GB token: gap halves", xy=(0.392, srv_gap[0]),
+            xytext=(0.9, 3.2), fontsize=9.5, style="italic", color=SOFT,
+            arrowprops=dict(arrowstyle="->", color=MUTED, lw=0.8))
+ax.annotate("CPU wins on tiny quantized files", xy=(0.525, mac_gap[1]), xytext=(1.3, 0.68),
+            fontsize=9.5, style="italic", color=SOFT, arrowprops=dict(arrowstyle="->", color=MUTED, lw=0.8))
+ax.legend(loc="center right", frameon=False, fontsize=10)
+fig.tight_layout()
+fig.savefig(f"{OUT}/fig9e-gap-vs-size.png", facecolor=BG)
+print("wrote fig9e-gap-vs-size.png")
