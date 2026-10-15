@@ -143,8 +143,8 @@ these figures on both engines. Two engines with 2.7x different math rates decode
 steepness is the machine's memory bandwidth. The fit's intercepts, 2.4 ms for the GPU
 and about 4.6 ms for the CPU, looked at first like a difference in fixed cost. They are
 not. The follow-up with smaller models below, which holds the weight format fixed, puts
-the fixed cost near 1 ms on both engines. What the ladder fit was absorbing into its
-intercept is a third thing the one-line equation leaves out: a per-format compute cost.
+the fixed cost near 1 ms on both engines. What the ladder fit was most likely absorbing into its intercept is a third thing the
+one-line equation leaves out: a per-format compute cost.
 Four-bit and eight-bit weights must be unpacked before use, and that costs more
 instructions per byte than F16, so the quantized points sit a little above the line that
 the F16 points define. On the ladder, format changed together with size, so the format
@@ -169,7 +169,8 @@ first term dominates, so the gap should not depend on size until the fixed cost 
 Three smaller models, Qwen2.5 at 0.5B and 1.5B in several formats, were run on both
 machines with the same engine and a same-session 4B anchor. Because these files store an
 output head separate from the embedding table, the table is read one row per token rather
-than streamed, so the bytes that matter are the file minus the table, 14 to 29% less. The
+than streamed, so the bytes that matter are the file minus the table; file bytes exceed streamed bytes by
+14 to 29%. The
 4B stores them tied, so its file bytes are honest. Fitting the line on streamed bytes with
 the format held fixed gives each chip's two terms:
 
@@ -181,7 +182,7 @@ the format held fixed gives each chip's two terms:
 | M4 Pro GPU | 208 to 232 GB/s | 0.8 to 1.2 ms |
 
 The fixed cost is about a millisecond on three of the four chips and three on the server
-CPU, where eight threads synchronize over a slow bus. The gap at each size follows:
+CPU; why the slice's is larger was not measured. The gap at each size follows:
 
 | Model | Streamed GB | Server GPU / CPU | M4 Pro GPU / CPU, two sessions |
 |---|---|---|---|
@@ -198,8 +199,7 @@ On the server the gap halves as the model shrinks, from 14.3x to 7.4x, even thou
 CPU's fixed cost is the larger one in milliseconds. The equation says why: what matters is
 each chip's fixed cost as a share of its own streaming time. At 0.4 GB the A10G streams
 the weights in under a millisecond and then spends a millisecond on fixed work, so its
-token is more than half overhead, while the CPU's 3 ms is a fifth of its 12 ms stream. As
-the model shrinks further the gap tends toward the ratio of the two fixed costs, about
+token is more than half overhead, while the CPU's 3 ms is a fifth of its 12 ms stream. As the model shrinks further the gap tends toward the ratio of the two fixed costs, under
 3x, and the GPU's bandwidth advantage stops counting. On the M4 Pro the two fixed costs
 are equal, so the gap stays near 1x at every size for F16, and the two engines tie at the
 4B anchor, 0.99x and 1.04x across sessions. The small quantized files are the one
@@ -285,8 +285,8 @@ idle and the GPU run about 26 W, of which 21.5 W is the GPU itself and the rest 
 feeding it. For nearly the same tokens per second, the GPU does the work for **about
 1.75x less energy per token**, 1.78x and 1.73x in two independent captures. The CPU run
 pins all ten performance cores at 100% against the chip's power ceiling; the same work on
-the GPU leaves the CPU at a fraction of that power. At 0.5B Q4 the advantage shrinks to 1.18x, 112 against 132 mJ per token, because at 300
-tokens a second the CPU spends 13.6 W just encoding and submitting the GPU's commands. So
+the GPU leaves the CPU at a fraction of that power. At 0.5B Q4 the advantage shrinks to 1.18x, 112 against 132 mJ per token, because at about 260 tokens a second the CPU spends 13.6 W just encoding and submitting
+the GPU's commands. So
 the engine choice on this machine has no bandwidth-based answer and a power-based one
 that depends on size: for a 4B model, decode belongs on the GPU for battery and heat; for
 a tiny one, it barely matters where it runs.
@@ -373,8 +373,8 @@ ahead. Decode on a CPU is viable. Serving a crowd from one is not.
    cost per byte that only shows on fast memory.
 4. **Model size moves the gap only through the fixed cost, and toward the CPU.** On the
    server the gap halves from 14x to 7x between 8.7 GB and 0.4 GB because the GPU's
-   millisecond is more than half of its tiny token. On the M4 Pro the engines tie at every
-   size for F16 and the CPU wins on the smallest quantized files.
+   millisecond is more than half of its tiny token. On the M4 Pro the gap stays near 1x at every size for F16 and the CPU wins on the
+   smallest quantized files.
 5. **A low ceiling can confirm a wrong explanation.** Two byte-identical files decode about
    1.01x apart on the slow machine and 5.22x apart on the fast one. Only the fast one
    could show that a kernel, not memory, set the speed.

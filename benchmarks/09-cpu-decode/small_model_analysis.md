@@ -47,7 +47,7 @@ Fits `ms_per_token = GB / BW + t_fixed` on streamed GB, six points:
 
 Session fits on streamed GB: CPU 209.1 / 221.6 GB/s with t_fixed 0.91 / 1.17 ms; Metal 207.7 /
 231.8 GB/s with t_fixed 0.75 / 1.21 ms. Energy at 0.5B Q4: Metal 112 vs CPU 132 mJ/token,
-1.18x (4B: 1.75x), because the CPU draws 13.6 W feeding the GPU at ~300 tok/s.
+1.18x (4B: 1.75x), because the CPU draws 13.6 W feeding the GPU at ~256 tok/s.
 
 ## Reconciliation
 
@@ -63,6 +63,7 @@ Session fits on streamed GB: CPU 209.1 / 221.6 GB/s with t_fixed 0.91 / 1.17 ms;
    Metal's quantized kernels fall further below their own line at hidden size 896
    (hypothesis: poor GPU fill; not measured).
 4. **Stage 5's 1.089x is format-dependent, not fixed-cost.** At F16 the engines tie; Metal's
-   ~10% lead on the 4B ladder is cheaper quantized kernels at that size.
+   ~10% lead on the quantized 4B rows is consistent with cheaper quantized kernels at that
+   size, which is an inference from the format-cost explanation, not a measurement.
 5. These are dense 24/28-layer transformers; Qwen3.5-4B is hybrid with 33 GGUF blocks. The
    fixed cost is model-specific as well as engine-specific.
