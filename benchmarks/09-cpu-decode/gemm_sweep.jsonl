@@ -1,0 +1,5 @@
+{"threads_env": "1", "dtype": "fp32", "gflops": {"prefill_ffn_up_M512": 95.9, "prefill_attn_qkv_M512": 95.6, "prefill_ffn_up_M128": 90.2, "decode_ffn_up_M1": 14.3, "decode_attn_qkv_M1": 15.4, "square_4096": 98.3}}
+{"threads_env": "2", "dtype": "fp32", "gflops": {"prefill_ffn_up_M512": 184.9, "prefill_attn_qkv_M512": 181.0, "prefill_ffn_up_M128": 168.0, "decode_ffn_up_M1": 17.1, "decode_attn_qkv_M1": 17.2, "square_4096": 189.0}}
+{"threads_env": "4", "dtype": "fp32", "gflops": {"prefill_ffn_up_M512": 361.4, "prefill_attn_qkv_M512": 363.3, "prefill_ffn_up_M128": 318.2, "decode_ffn_up_M1": 16.1, "decode_attn_qkv_M1": 15.4, "square_4096": 370.5}}
+{"threads_env": "8", "dtype": "fp32", "gflops": {"prefill_ffn_up_M512": 653.2, "prefill_attn_qkv_M512": 640.5, "prefill_ffn_up_M128": 512.1, "decode_ffn_up_M1": 14.9, "decode_attn_qkv_M1": 14.2, "square_4096": 699.9}}
+{"threads_env": "16", "dtype": "fp32", "gflops": {"prefill_ffn_up_M512": 654.9, "prefill_attn_qkv_M512": 669.7, "prefill_ffn_up_M128": 532.1, "decode_ffn_up_M1": 13.3, "decode_attn_qkv_M1": 14.6, "square_4096": 680.6}}

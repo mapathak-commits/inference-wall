@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""Render Part 9 figures from the verified study numbers (see benchmarks/09-cpu-decode).
+
+  fig9a  CPU-to-GPU decode gap on both machines: bandwidth prediction, compute
+         prediction, measured (log scale)
+  fig9b  M4 Pro roofline fit: ms/token vs weight GB, CPU and Metal, Stage 5 medians
+  fig9c  byte-identical bf16 vs F16 decode on the EPYC slice and the M4 Pro CPU
+"""
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+
+OUT = "/home/mpathak/code/inference-wall/assets/figures"
+BG, GRID, AXIS = "#fcfcfb", "#e6e5e2", "#b8b7b3"
+TXT, SOFT, MUTED = "#0b0b0b", "#52514e", "#8a8984"
+BLUE, GREEN, RED = "#2a78d6", "#1baf7a", "#e34948"
+
+plt.rcParams.update({
+    "font.family": "sans-serif", "font.size": 11,
+    "axes.edgecolor": AXIS, "axes.linewidth": 1.0,
+    "xtick.color": MUTED, "ytick.color": MUTED,
+    "text.color": TXT, "axes.labelcolor": SOFT,
+})
+
+def style_ax(ax):
+    ax.set_facecolor(BG)
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+    ax.grid(axis="y", color=GRID, linewidth=1)
+    ax.set_axisbelow(True)
+
+# ---------------- fig9a: gap vs bandwidth ----------------
+groups = ["EPYC slice vs A10G\n(separate memory)", "M4 Pro CPU vs Metal\n(unified memory)"]
+bw_pred   = [18.0, 1.0]
+comp_pred = [43.0, 2.7]
+measured  = [13.5, 1.09]
+x = np.arange(len(groups))
+w = 0.26
+
+fig, ax = plt.subplots(figsize=(8.2, 4.2), dpi=200)
+fig.patch.set_facecolor(BG)
+style_ax(ax)
+ax.grid(axis="y", color=GRID, linewidth=1, which="both")
+b1 = ax.bar(x - w, bw_pred,   w, color=BLUE,  label="memory bandwidth predicts", zorder=3)
+b2 = ax.bar(x,     comp_pred, w, color=MUTED, label="compute predicts", zorder=3)
+b3 = ax.bar(x + w, measured,  w, color=GREEN, label="measured", zorder=3)
+ax.set_yscale("log")
+ax.set_ylim(0.6, 90)
+ax.set_yticks([1, 2, 5, 10, 20, 50])
+ax.set_yticklabels(["1x", "2x", "5x", "10x", "20x", "50x"])
+ax.set_xticks(x, groups)
+ax.set_ylabel("GPU decode speed / CPU decode speed", fontsize=12, fontweight="bold")
+for bars, vals in ((b1, bw_pred), (b2, comp_pred), (b3, measured)):
+    for b, v in zip(bars, vals):
+        ax.text(b.get_x() + b.get_width() / 2, v * 1.12, f"{v:g}x", ha="center",
+                va="bottom", fontsize=10.5, fontweight=700, color=b.get_facecolor())
+ax.legend(loc="upper right", frameon=False, fontsize=10)
+ax.set_title("The CPU-to-GPU decode gap follows memory bandwidth, not compute",
+             fontsize=12, fontweight=700, loc="left", color=TXT)
+fig.tight_layout()
+fig.savefig(f"{OUT}/fig9a-gap-vs-bandwidth.png", facecolor=BG)
+print("wrote fig9a")
+
+# ---------------- fig9b: M4 Pro roofline fit ----------------
+gb = np.array([3.013, 3.563, 4.622, 8.666])
+cpu_ms = np.array([19.19, 21.69, 26.49, 46.13])
+mtl_ms = np.array([17.74, 19.87, 23.98, 44.97])
+cpu_bw, cpu_t0 = 209.2, 4.63
+mtl_bw, mtl_t0 = 204.9, 2.40
+xx = np.linspace(0, 9.0, 50)
+
+fig, ax = plt.subplots(figsize=(8.2, 4.4), dpi=200)
+fig.patch.set_facecolor(BG)
+style_ax(ax)
+ax.plot(xx, xx / cpu_bw * 1000 + cpu_t0, "-", color=BLUE, lw=1.6, zorder=2)
+ax.plot(xx, xx / mtl_bw * 1000 + mtl_t0, "-", color=GREEN, lw=1.6, zorder=2)
+ax.plot(gb, cpu_ms, "o", color=BLUE, ms=7, zorder=3, label="CPU (10 P-cores)")
+ax.plot(gb, mtl_ms, "s", color=GREEN, ms=6.5, zorder=3, label="GPU (Metal)")
+for g, m, lbl in zip(gb[:3], cpu_ms[:3], ["Q4_K_M", "Q6_K", "Q8_0"]):
+    ax.text(g, m + 2.6, lbl, ha="center", fontsize=9.5, color=SOFT, style="italic")
+ax.text(8.666 - 0.35, 45.5, "F16", ha="right", fontsize=9.5, color=SOFT, style="italic")
+ax.text(9.2, 50.0, "1/slope = 209 GB/s", color=BLUE, fontsize=10.5,
+        fontweight=700, ha="left", va="center")
+ax.text(9.2, 43.6, "1/slope = 205 GB/s", color=GREEN, fontsize=10.5,
+        fontweight=700, ha="left", va="center")
+ax.text(0.15, 44, "same slope on both engines,\nthe intercepts differ by about 2 ms",
+        fontsize=10.5, style="italic", color=SOFT)
+ax.set_xlim(0, 11.6)
+ax.set_ylim(0, 55)
+ax.set_xlabel("weight bytes streamed per token (GB)", fontsize=12, fontweight="bold")
+ax.set_ylabel("ms per token", fontsize=12, fontweight="bold")
+ax.legend(loc="lower right", frameon=False, fontsize=10)
+ax.set_title("On unified memory both engines decode on the same line",
+             fontsize=12, fontweight=700, loc="left", color=TXT)
+fig.tight_layout()
+fig.savefig(f"{OUT}/fig9b-roofline-fit.png", facecolor=BG)
+print("wrote fig9b")
+
+# ---------------- fig9c: bf16 vs F16, byte-identical ----------------
+machines = ["EPYC slice CPU\n(DDR4, 33 GB/s)", "M4 Pro CPU\n(LPDDR5X, 238 GB/s)"]
+bf16 = [4.005, 3.92]
+f16  = [4.035, 20.45]
+x = np.arange(2)
+w = 0.32
+
+fig, ax = plt.subplots(figsize=(8.2, 4.2), dpi=200)
+fig.patch.set_facecolor(BG)
+style_ax(ax)
+bb = ax.bar(x - w / 2, bf16, w, color=MUTED, label="bf16 file", zorder=3)
+bf = ax.bar(x + w / 2, f16,  w, color=BLUE,  label="F16 file", zorder=3)
+for b, v in zip(bb, bf16):
+    ax.text(b.get_x() + b.get_width() / 2, v + 0.5, f"{v:.2f}", ha="center",
+            fontsize=10.5, fontweight=700, color=MUTED)
+for b, v in zip(bf, f16):
+    ax.text(b.get_x() + b.get_width() / 2, v + 0.5, f"{v:.2f}", ha="center",
+            fontsize=10.5, fontweight=700, color=BLUE)
+ax.text(0, 8.6, "1.005x", ha="center", fontsize=12, fontweight=700, color=TXT)
+ax.text(1, 23.4, "5.22x", ha="center", fontsize=12, fontweight=700, color=TXT)
+ax.text(0.5, 14.0, "same model, both files exactly 8,665,620,192 bytes",
+        ha="center", fontsize=10.5, style="italic", color=SOFT)
+ax.set_xticks(x, machines)
+ax.set_ylim(0, 27)
+ax.set_ylabel("decode tok/s", fontsize=12, fontweight="bold")
+ax.legend(loc="upper left", frameon=False, fontsize=10)
+ax.set_title("Byte-identical files: a slow kernel only shows on fast memory",
+             fontsize=12, fontweight=700, loc="left", color=TXT)
+fig.tight_layout()
+fig.savefig(f"{OUT}/fig9c-bf16-vs-f16.png", facecolor=BG)
+print("wrote fig9c")
+
+# ---------------- Figure D: batched decode, same engine on both machines ----------------
+# llama-batched-bench, npp=128, ntg=128, aggregate generation tok/s (S_TG) per cell.
+# Sources: benchmarks/09-cpu-decode/batched_bench.md (EPYC slice, cores 0-7 pinned) and
+# batched_bench_gpu.md (A10G via CUDA).
+batch_cpu = [1, 2, 4, 8, 16, 32]
+cpu_bf16  = [3.53, 6.70, 12.79, 20.06, 24.77, 26.28]
+cpu_q4    = [9.17, 14.98, 19.93, 21.55, 25.24, 26.13]
+batch_gpu = [1, 2, 4, 8, 16, 32, 64, 128]
+gpu_f16   = [53.64, 93.19, 158.16, 251.89, 359.76, 442.60, 513.59, 552.46]
+gpu_q4    = [117.21, 209.11, 302.78, 390.45, 622.24, 780.82, 856.06, 885.23]
+
+fig, ax = plt.subplots(figsize=(8.2, 4.4), dpi=200)
+fig.patch.set_facecolor(BG)
+style_ax(ax)
+ax.plot(batch_gpu, gpu_q4,  "-o", color=GREEN, lw=2.0, ms=4.5, label="A10G, Q4")
+ax.plot(batch_gpu, gpu_f16, "-o", color=BLUE,  lw=2.0, ms=4.5, label="A10G, F16")
+ax.plot(batch_cpu, cpu_q4,  "--s", color=GREEN, lw=1.8, ms=4.5, label="server CPU, Q4")
+ax.plot(batch_cpu, cpu_bf16, "--s", color=BLUE, lw=1.8, ms=4.5, label="server CPU, bf16")
+ax.set_xscale("log", base=2); ax.set_yscale("log")
+ax.set_xticks(batch_gpu); ax.set_xticklabels([str(b) for b in batch_gpu])
+ax.set_yticks([3, 10, 30, 100, 300, 1000]); ax.set_yticklabels(["3", "10", "30", "100", "300", "1,000"])
+ax.set_xlim(0.8, 170); ax.set_ylim(2.5, 1400)
+ax.set_xlabel("concurrent sequences", fontsize=12, fontweight="bold")
+ax.set_ylabel("aggregate decode tok/s", fontsize=12, fontweight="bold")
+ax.legend(loc="upper left", frameon=False, fontsize=10)
+ax.annotate("both weight sizes meet at ~26 tok/s:\nthe CPU's math ceiling", xy=(32, 26.2),
+            xytext=(44, 9), fontsize=10, style="italic", color=SOFT,
+            arrowprops=dict(arrowstyle="->", color=MUTED, lw=0.8))
+ax.text(1.0, 1200, "batching lifts the CPU 7.4x and then stops; the GPU keeps climbing",
+        fontsize=10.5, style="italic", color=SOFT)
+fig.tight_layout()
+fig.savefig(f"{OUT}/fig9d-batched-decode.png", facecolor=BG)
+print("wrote fig9d-batched-decode.png")
