@@ -76,13 +76,13 @@ Although the name suggests speed, the mechanism is about memory. The naive way t
 attention is to build the full table of scores: for a prompt of length *N*, an *N* by *N*
 grid where entry *i*, *j* is how much token *i* attends to token *j*. At 30,000 tokens that
 grid is 900 million numbers **per attention head**, across many heads and many layers.
-Writing it out to the GPU's main memory, the HBM, and reading it back for the softmax is a
+Writing it out to the GPU's main memory and reading it back for the softmax is a
 large amount of memory traffic, and on modern GPUs memory traffic is the binding
 constraint long before arithmetic is.
 
 FlashAttention, from [Dao et al. 2022](https://arxiv.org/abs/2205.14135), never holds the
-whole grid at once. It walks the prompt in tiles that fit in the GPU's small on-chip SRAM,
-which is far faster than HBM, computes each tile's scores there, folds them into a running
+whole grid at once. It walks the prompt in tiles that fit in the GPU's small on-chip memory, which is
+far faster than main memory, computes each tile's scores there, folds them into a running
 softmax, and discards them before the next tile. The *N* by *N* grid is never written to
 main memory, so the arithmetic stays the same while the memory traffic drops from
 quadratic to linear. That is why the kernel is called IO-aware: it is optimized around the
@@ -210,7 +210,7 @@ everything else is held fixed.*
 
 ---
 
-**Previous:** [Part 7: Speculative decoding]({{ '/articles/part-7/' | relative_url }}) · **Next:** Part 9, coming next Friday · [All posts]({{ '/articles/' | relative_url }})
+**Previous:** [Part 7: Speculative decoding]({{ '/articles/part-7/' | relative_url }}) · **Next:** Part 9, coming soon · [All posts]({{ '/articles/' | relative_url }})
 
 ---
 

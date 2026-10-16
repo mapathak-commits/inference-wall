@@ -1,4 +1,4 @@
-# Experiments 08 — FlashAttention at the scale where it matters
+# Experiments 08: FlashAttention at the scale where it matters
 
 Scripts behind [Part 8](../../articles/part-8.md). Everything ran on a single NVIDIA A10G
 (23 GB) serving Qwen2.5-7B-Instruct in bf16 through vLLM 0.11.0, single stream. The attention

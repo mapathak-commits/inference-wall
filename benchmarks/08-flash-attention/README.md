@@ -1,4 +1,4 @@
-# Benchmarks 08 — FlashAttention at the scale where it matters
+# Benchmarks 08: FlashAttention at the scale where it matters
 
 Raw measurement logs and profiler traces behind [Part 8](../../articles/part-8.md).
 Nothing here is post-processed; the numbers in the post are transcribed from these files.
