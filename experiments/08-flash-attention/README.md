@@ -14,6 +14,7 @@ backend is selected at server start with the `VLLM_ATTENTION_BACKEND` environmen
 | `tp_census.py` | buckets every GPU kernel in a trace into attention / matmul / other by kernel name and prints family shares plus the top kernels. FlexAttention lowers to a compiled Triton template kernel, `triton_tem_fused_0`, which the script counts as attention. Args: `TRACE ...`. |
 | `render_figs.py` | renders `fig8a-prefill-divergence.png`, `fig8b-kernel-family-split.png`, and `fig8c-decode-itl.png` from the S1 numbers and the S3 census. |
 | `run_s0.sh`, `run_s1.sh`, `run_s3.sh` | drivers that start a server per arm, wait for readiness, run the probe or captures, then tear the server down. |
+| `probe_v018.sh` | spot check on vLLM 0.18.0, 2026-10-16: starts each backend on Qwen2.5-7B at 32k context and times a 16k-token prefill twice. Confirms both backends run on 0.18.0; the first FlexAttention request includes compilation and the second request of each pair hits 0.18.0's default prefix cache, so only the first FlashAttention timing is comparable. |
 | `run_census.sh` | runs `tp_census.py` over the captured engine-process traces for both arms in capture order. |
 
 ## Backend note

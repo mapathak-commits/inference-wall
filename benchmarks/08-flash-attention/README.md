@@ -8,6 +8,7 @@ Single A10G, Qwen2.5-7B-Instruct, bf16, single stream, vLLM 0.11.0.
 |---|---|---|
 | `s1.log` | `s1_probe.py` (both arms) | the prefill TTFT table (256..30720) and the decode ITL table. Quad coefficients: FLASH 3,689 vs FLEX 10,099 ps/n². Decode ITL +11% (FLASH) vs +159% (FLEX). |
 | `s0.log` | `s0_prefill_sweep.py` | S0 de-risk: superlinear prefill bend confirmed on the A10G. |
+| `probe_v018.log` | `probe_v018.sh` | the vLLM 0.18.0 spot check: FlashAttention 16k-token prefill 4.62 s against 4.59 s on 0.11.0. Second requests are prefix-cache hits; FlexAttention's first request includes compilation. |
 | `s3.log` | `run_s3.sh` | S3 capture driver log: which window was profiled at each length. |
 | `server_s1_7b_flash.log`, `server_s1_7b_flex.log` | `start_server.sh` | the two server configs, each logging its selected backend ("Using Flash Attention backend" / "Using FlexAttention backend on V1 engine"). |
 | `traces/{flash,flex}_prefill_{2k,8k,28k}.json.gz` | `s3_capture.py` | prefill profiler windows. Matmul time is byte-identical between backends; attention grows to 34% (FLASH) vs 58% (FLEX) of the window at 28k. |

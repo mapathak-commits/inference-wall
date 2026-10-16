@@ -29,8 +29,9 @@ Two departures from the series rig need stating. The model is Qwen2.5-7B-Instruc
 than Qwen3.5-4B. Qwen3.5 is hybrid: 24 of its 32 layers never run the attention kernel,
 as [Part 7]({{ '/articles/part-7/' | relative_url }}) showed, so a comparison of attention
 kernels on it would only exercise the other 8. In Qwen2.5-7B every layer runs attention,
-so every difference between the two runs comes from the kernel under test. The engine also
-differs: these runs used vLLM 0.11.0, not the 0.18.0 the rest of the series uses.
+so every difference between the two runs comes from the kernel under test. The engine also differs: these runs used vLLM 0.11.0, not the 0.18.0 the rest of the series
+uses. A later spot check on 0.18.0 ran both kernels on the same model, and FlashAttention's
+prefill at 16k tokens landed within 1% of the 0.11.0 figure.
 
 The payoff grows with the prompt rather than sitting at a fixed percentage. At 256 tokens
 the two kernels finish within three milliseconds of each other, and at 30,720 they are six

@@ -1,0 +1,16 @@
+===== vLLM 0.18, FLEX_ATTENTION =====
+(APIServer pid=2582845) INFO 10-16 15:40:36 [utils.py:297]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 0.18.0
+(EngineCore pid=2585770) INFO 10-16 15:40:55 [cuda.py:257] Using AttentionBackendEnum.FLEX_ATTENTION backend.
+(EngineCore pid=2585770) WARNING 10-16 15:43:24 [gpu_model_runner.py:6039] CUDAGraphMode.FULL_AND_PIECEWISE is not supported with FlexAttentionBackend backend (support: AttentionCGSupport.NEVER); setting cudagraph_mode=P
+{"id":"cmpl-bd6d6468ee922658","object":"text_completion","created":1792165420,"model":"Qwen/Qwen2.5-7B-Instruct","choice
+16k-token prefill, run 1: 11.62 s
+{"id":"cmpl-8df92d56f2ce6566","object":"text_completion","created":1792165432,"model":"Qwen/Qwen2.5-7B-Instruct","choice
+16k-token prefill, run 2: 1.07 s
+===== vLLM 0.18, FLASH_ATTN =====
+(APIServer pid=2596849) INFO 10-16 15:44:13 [utils.py:297]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 0.18.0
+(EngineCore pid=2597307) INFO 10-16 15:44:22 [cuda.py:257] Using AttentionBackendEnum.FLASH_ATTN backend.
+{"id":"cmpl-9046ba5ddc8dec4d","object":"text_completion","created":1792165496,"model":"Qwen/Qwen2.5-7B-Instruct","choice
+16k-token prefill, run 1: 4.62 s
+{"id":"cmpl-b4de46963a86a38b","object":"text_completion","created":1792165500,"model":"Qwen/Qwen2.5-7B-Instruct","choice
+16k-token prefill, run 2: 0.1 s
+PROBE_DONE
