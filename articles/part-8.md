@@ -26,11 +26,11 @@ nothing else, and a profiler trace then confirms kernel by kernel that the wall-
 sits where the arithmetic says it should.
 
 Two departures from the series rig need stating. The model is Qwen2.5-7B-Instruct rather
-than Qwen3.5-4B, because Qwen3.5 is hybrid: 24 of its 32 layers never run the attention
-kernel, as [Part 7]({{ '/articles/part-7/' | relative_url }}) showed, so comparing
-attention kernels on it would measure a quarter of the model. A dense model makes
-attention the whole story. The engine is also older than the rest of the series, since
-this study was run on vLLM 0.11.0 before the move to 0.18.0.
+than Qwen3.5-4B. Qwen3.5 is hybrid: 24 of its 32 layers never run the attention kernel,
+as [Part 7]({{ '/articles/part-7/' | relative_url }}) showed, so a comparison of attention
+kernels on it would only exercise the other 8. In Qwen2.5-7B every layer runs attention,
+so every difference between the two runs comes from the kernel under test. The engine also
+differs: these runs used vLLM 0.11.0, not the 0.18.0 the rest of the series uses.
 
 The payoff grows with the prompt rather than sitting at a fixed percentage. At 256 tokens
 the two kernels finish within three milliseconds of each other, and at 30,720 they are six
