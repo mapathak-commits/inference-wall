@@ -59,7 +59,7 @@ weights.
 
 ## Two machines, chosen for their memory
 
-![Two workshops side by side, each with a small worker and a big worker turning ledgers from the shelves into finished pages: on the left the small worker waits with arms folded beside a sparse belt and a short stack while the big worker's crowded belt keeps a tall stack growing; on the right both workers have equally crowded belts and their stacks are about the same height](../assets/diagrams/d11.jpg)
+![Two workshops side by side, each with a small worker and a big worker turning ledgers from the shelves into finished pages: on the left the small worker waits with arms folded beside a sparse belt and a short stack while the big worker's crowded belt keeps a tall stack growing; on the right a single crowded belt forks in two to feed both workers, and their stacks are about the same height](../assets/diagrams/d11.jpg)
 
 The two CPUs were picked to be as far apart as possible on one axis, memory bandwidth,
 and each sits next to a GPU so the CPU-to-GPU gap can be measured on the same box.
