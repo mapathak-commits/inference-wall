@@ -13,17 +13,17 @@ for comparison. Draft.*
 [The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 9**
 
 When I started learning about LLMs, I took it as given that inference meant a GPU, and
-that a CPU was where you ran a model only if you had no choice. That assumption deserves a
-test. CPUs are everywhere: every laptop, every phone, every server already has one, often
+that a CPU was where you ran a model only if you had no choice. That assumption is worth
+testing, because CPUs are everywhere: every laptop, every phone, every server already has one, often
 sitting idle, and none of them is thought of as an AI platform. If the claim this series
 is built on is right, that decode is limited by how fast memory can be read rather than by
-how fast the chip can do math, then whether a CPU can run a model well turns on its memory
-system, not on its being a CPU. This post takes the same model and the same engine to two
+how fast the chip can do math, then whether a CPU can run a model well turns on its memory system rather than on the
+fact that it is a CPU. This post takes the same model and the same engine to two
 CPUs with very different memory, a cloud server slice and a laptop, each with its own GPU
 alongside, and works out where a CPU is fine and where it is not.
 
-The short answer: it depends on the memory, not the chip. On a laptop with fast memory,
-the CPU runs the model within about 2.5x of a datacenter GPU for one user. On a cloud
+The short answer: it depends on the memory, not the chip. On a laptop with fast memory, the CPU runs the model within about 2.5x of a mid-range
+datacenter GPU for one user. On a cloud
 server slice with slow memory, the CPU is 13x behind. Where a CPU falls down is serving
 many users at once.
 
@@ -51,9 +51,7 @@ first term across many tokens until the math, finally, is what binds.
 
 This part is about the first term and about the regime where it stops being the
 whole story; the second term, and what it does to small models and to unified-memory
-machines, is [Part 10]({{ '/articles/part-10/' | relative_url }}). Three qualifiers
-apply throughout. This is
-one request at a time; [Part 3]({{ '/articles/part-3/' | relative_url }}) showed what
+machines, is Part 10. Three qualifiers apply throughout. This is one request at a time; [Part 3]({{ '/articles/part-3/' | relative_url }}) showed what
 batching does to it, and the last section measures that on a CPU. Every weight is read
 for every token, which would not hold for a mixture-of-experts model. And the contexts
 are short, so the per-token read of the conversation so far is small next to the
@@ -115,12 +113,12 @@ bandwidth is the right frame.
 
 On the laptop the two engines share one memory bus, so bandwidth predicts no gap at all.
 Measured carefully, with the CPU and GPU runs interleaved so each pair runs at the same chip temperature, the GPU decodes **1.089x** faster, the median of twelve paired runs ranging from
-0.969x to 1.277x. In one round the CPU won. Compute predicts 2.7x. Two engines whose
-math rates differ by 2.7x decode at the same speed when they share a memory bus, which
+0.969x to 1.277x. In one round the CPU won outright. Compute predicts 2.7x, so two engines whose math rates
+differ by 2.7x decode at nearly the same speed when they share a memory bus, which
 is only possible if decode never depended on the math.
 
-Prefill is the control. It is compute-bound, so the GPU should keep its advantage on the
-laptop even though the memory is shared, and it does: Metal prefill is 2.9 to 3.5x the
+Prefill serves as the control. Because it is compute-bound, the GPU should keep its
+advantage on the laptop even though the memory is shared, and it does: Metal prefill is 2.9 to 3.5x the
 CPU's across the weight sizes, against the 2.7x compute ratio. Same machine, same memory,
 one phase closes to 1x and the other stays at 3x. That is the compute-versus-bandwidth
 split in one pair of columns.
@@ -152,8 +150,8 @@ enough to measure that they get a post of their own.
 
 ## Two byte-identical files
 
-The cleanest measurement in the study. The model was saved in two 16-bit formats, bf16
-and F16. The two files are the same size to the byte, 8,665,620,192 bytes, so the number
+This is the cleanest measurement in the study. The model was saved in two 16-bit formats,
+bf16 and F16. The two files are the same size to the byte, 8,665,620,192 bytes, so the number
 of bytes read per token is identical. The formats are not the same information, bf16
 spends more bits on exponent and F16 on mantissa, but for a bandwidth argument only the
 byte count matters: if decode is "read all the bytes," both files must decode at the same
@@ -166,22 +164,22 @@ speed on the same machine.
 
 ![Grouped bars of decode speed for the bf16 and F16 files on both machines: on the server slice the two bars are equal at about 4 tokens per second, on the M4 Pro CPU the F16 bar is five times the bf16 bar](../assets/figures/fig9c-bf16-vs-f16.png)
 
-On the server they do. On the laptop they do not, by 5.22x against about 1.01x on the server, with the
+On the server they do, to within about 1%. On the laptop they do not: F16 decodes 5.22x
+faster, with the
 hardware and the byte count held constant. The reason is software: llama.cpp has a fast hand-tuned vector kernel for F16 and only a slow generic path for
 bf16 on this CPU. On the laptop, decode from the bf16 file is bottlenecked on that slow kernel long before
 it reaches the memory wall, at about 34 GB/s effective on a 238 GB/s machine. This is the
 one case the equation does not cover: the bytes arrive faster than the kernel can consume
-them, so the machine has fallen off the line and is limited by instruction throughput,
-not memory. Compute matters here only as a threshold. A chip needs enough of it per byte
+them, so the machine has fallen off the line and is limited by how fast it can execute
+instructions rather than by memory. Compute matters here only as a threshold. A chip needs enough of it per byte
 to keep up with its own bus, and once it has that, more buys nothing. Swap to the F16
 file and the same bytes flow through a fast kernel, and decode jumps to 20 tok/s, 177
 GB/s effective, back on the line at the memory wall.
 
 Now look at the server row again. The same slow bf16 kernel runs there, and it costs
 nothing, because the memory is slower than the kernel. Streaming 8.7 GB at 33 GB/s caps
-decode at about 4 tok/s whatever the kernel does, so fixing the kernel buys nothing. The
-bf16 row on the server also runs at 34 GB/s effective, and it reads as a clean
-confirmation that decode is at the memory wall. It is. But a slow machine cannot tell the
+decode at about 4 tok/s whatever the kernel does, so fixing the kernel buys nothing. The bf16 row on the server also runs at 34 GB/s effective, and it reads as a clean
+confirmation that decode is at the memory wall, which it is. But a slow machine cannot tell the
 difference between "at the memory wall" and "held back by a kernel that happens to run at
 the same speed as the memory wall." The two explanations only separate on the fast
 machine, and the F16 control is what separated them. The first version of the server
@@ -194,8 +192,8 @@ Part 10 is about what else that instrument shows.
 ## The headline that says a laptop beats a GPU
 
 You may have seen the claim that an Apple laptop matches or beats a datacenter GPU at
-LLM inference. The measurements above show where it comes from. The M4 Pro CPU decodes Q4
-weights at about 52 tok/s, the median of the interleaved runs. The A10G decodes F16
+LLM inference. The study's own numbers show where it comes from. The M4 Pro CPU decodes Q4 weights at
+about 52 tok/s, the median of the interleaved runs. The A10G decodes F16
 weights at 55. Side by side, the laptop CPU "matches" the GPU.
 
 Those are different weight sizes. Q4 streams a quarter of the bytes per token that F16
@@ -216,10 +214,9 @@ takes up.
 
 Everything above is one request at a time, and that is where a CPU looks best. Batching
 is the GPU's real headline in this series: Part 3 showed one weight read serving over a
-hundred sequences, lifting the A10G from 49 to 1,091 tok/s, a 22x gain. A CPU can batch
-too. The question is how far.
+hundred sequences, lifting the A10G from 49 to 1,091 tok/s, a 22x gain. A CPU can batch too, and the question is how far.
 
-Batching changes the equation. With B requests in flight, one weight read serves B
+Batching adds a term to the equation. With B requests in flight, one weight read serves B
 tokens, so the streaming term is shared and a third term, the math, appears:
 
 ```
@@ -251,8 +248,8 @@ number of concurrent sequences grows:
 
 ![Aggregate decode throughput against concurrent sequences on log axes: the two server CPU curves rise and flatten together at about 26 tokens per second by 32 sequences, while the two A10G curves keep rising to 552 and 885 at 128](../assets/figures/fig9d-batched-decode.png)
 
-Batching lifts the CPU 7.4x and then stops. The detail that shows why is that bf16 and
-Q4, 2.6x apart at one sequence, have converged on the same 26 tok/s by 32. Once the
+Batching lifts the CPU's bf16 run 7.4x and its Q4 run 2.8x, and then both stop. The detail
+that shows why is that bf16 and Q4, 2.6x apart at one sequence, have converged on the same 26 tok/s by 32. Once the
 weight read is shared across the batch, bytes per token stop mattering and the math rate
 binds, so the one lever that moved single-stream decode, quantization, stops moving it.
 That is the compute ceiling the operations-per-byte arithmetic predicted, reached at about a third of the
@@ -262,11 +259,11 @@ out. At one sequence the same-engine gap is 15x; the batched tool's single-seque
 little below the plain benchmark's because each carries a 128-token context. At 32 it is 17x. Where the CPU has
 stopped and the GPU has not, it is 21x at F16 and 34x at Q4, and still opening.
 
-So the answer to where a CPU is fine has two halves. For a single user on a machine with
-fast memory, a CPU decodes within a factor of two or three of a mid-range GPU, and the
+So the answer to where a CPU is fine has two halves. For a single user on a machine with fast memory, a CPU decodes within a factor of two or
+three of a mid-range datacenter GPU, and the
 gap is the bandwidth gap. For many users, the gap reopens to the compute gap, because
 once reads are shared it is math that binds, and that is the one place the GPU is far
-ahead. Decode on a CPU is viable. Serving a crowd from one is not.
+ahead. Decode on a CPU is viable, and serving a crowd from one is not.
 
 ## What to take away
 
@@ -281,13 +278,12 @@ ahead. Decode on a CPU is viable. Serving a crowd from one is not.
    the M4 Pro the CPU and GPU lines read 209 and 205 GB/s against a 238 GB/s ceiling, with
    2.7x different math rates.
 4. **A low ceiling can confirm a wrong explanation.** Two byte-identical files decode about
-   1.01x apart on the slow machine and 5.22x apart on the fast one. Only the fast one
-   could show that a kernel, not memory, set the speed.
+   1.01x apart on the slow machine and 5.22x apart on the fast one. Only the fast one could show that a kernel rather than memory set the speed.
 5. **"Laptop beats GPU" compares different weight sizes.** At matched format the A10G
    leads the M4 Pro CPU by 2.3 to 2.7x. The remarkable part is that a CPU is that close
    at all, and the reason is the memory bus Apple put under it.
 6. **A CPU is fine for one user with fast memory, and not for a crowd.** Batching lifts
-   the server CPU 7.4x and then hits its math ceiling at 26 tok/s, where bf16 and Q4
+   the server CPU 2.8 to 7.4x depending on format and then hits its math ceiling at 26 tok/s, where bf16 and Q4
    converge; the GPU is at 552 and still climbing.
 
 ---
@@ -309,7 +305,7 @@ slice and one M4 Pro; the predictions and their outcomes are not.*
 
 ---
 
-**Previous:** [Part 8: FlashAttention]({{ '/articles/part-8/' | relative_url }}) · **Next:** Part 10, coming next Friday · [All posts]({{ '/articles/' | relative_url }})
+**Previous:** [Part 8: FlashAttention]({{ '/articles/part-8/' | relative_url }}) · **Next:** Part 10, coming soon · [All posts]({{ '/articles/' | relative_url }})
 
 ---
 
