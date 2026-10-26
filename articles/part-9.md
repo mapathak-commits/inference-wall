@@ -205,12 +205,11 @@ plain: at Q4 the A10G does 121 tok/s to the laptop's 52, 2.3x ahead; at F16 it d
 to 20, 2.7x ahead. The GPU wins at every format because it has more memory bandwidth and
 decode is bandwidth-bound.
 
-The result worth keeping is the one underneath: a laptop CPU gets within 2.5x of a
-datacenter GPU on single-user decode at all, which no CPU could do a generation ago. That
-closeness is the memory bus. The M4 Pro CPU pulls 177 GB/s of effective decode
-bandwidth against 34 on the server slice, and the 5x gap between the two CPUs is the
-memory gap, short of the full 7x by costs that do not scale with bytes, which Part 10
-takes up.
+The result worth keeping is the one underneath: a laptop CPU gets within 2.5x of a mid-range datacenter GPU on single-user decode at all, which no CPU could do a generation ago. That
+closeness is the memory bus. On the F16 file the M4 Pro CPU pulls 177 GB/s of effective decode bandwidth against 35 on
+the server slice. That is a 5x gap rather than the full 7x, because the slice runs decode
+at its memory ceiling while the laptop reaches about three quarters of its own. Part 10
+looks at what else changes once memory is that fast.
 
 ## Many users at once
 

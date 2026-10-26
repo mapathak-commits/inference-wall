@@ -1,8 +1,9 @@
 # Experiments 09: decode on a CPU
 
-Scripts behind [Part 9](../../articles/part-9.md). Two machines, one model
-(`Qwen/Qwen3.5-4B` as GGUF in bf16, F16, Q8_0, Q4_K_M), one engine (`llama.cpp`,
-driven by `llama-bench`):
+Scripts behind [Part 9](../../articles/part-9.md) and [Part 10](../../articles/part-10.md).
+Two machines, one engine (`llama.cpp`, driven by `llama-bench`), and three models:
+`Qwen/Qwen3.5-4B` as GGUF in bf16, F16, Q8_0, and Q4_K_M for Part 9, plus the official
+Qwen2.5-0.5B and 1.5B GGUFs for Part 10's model-size runs:
 
 | machine | what it is | llama.cpp build |
 |---|---|---|

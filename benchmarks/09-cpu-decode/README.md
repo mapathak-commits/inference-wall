@@ -1,6 +1,7 @@
 # Benchmarks 09: decode on a CPU
 
-Raw measurement outputs behind [Part 9](../../articles/part-9.md). Nothing here is
+Raw measurement outputs behind [Part 9](../../articles/part-9.md) and
+[Part 10](../../articles/part-10.md). Nothing here is
 post-processed; the numbers in the post are transcribed from these files. EPYC slice
 (`g5.4xlarge`) files at top level, llama.cpp build `458681e`; M4 Pro files under `mac/`,
 build `dfc29b6`.
