@@ -32,8 +32,8 @@ discrete-GPU habits. Along the way it answers the question Part 9 answered in on
 
 Part 9 fitted that line to the M4 Pro's four weight formats, the weights stored at 4, 6,
 8, or 16 bits each, called Q4, Q6, Q8, and F16, and read the bandwidth off the slope. The same fit produced intercepts, 2.4 ms for the GPU and about 4.6 ms for the
-CPU, which looked like a difference in fixed cost. They are not. The follow-up with
-smaller models below, which holds the weight format fixed, puts the fixed cost near 1 ms
+CPU, which looked like a difference in fixed cost but turned out not to be one. The follow-up
+with smaller models below, which holds the weight format fixed, puts the fixed cost near 1 ms
 on both engines. What the ladder fit was most likely absorbing into its intercept is a third thing the
 one-line equation leaves out: a per-format compute cost.
 Four-bit and eight-bit weights must be unpacked before use, and that costs more
@@ -72,8 +72,8 @@ the format held fixed gives each chip's two terms:
 | M4 Pro CPU | 209 to 222 GB/s | 0.9 to 1.2 ms |
 | M4 Pro GPU | 208 to 232 GB/s | 0.8 to 1.2 ms |
 
-The fixed cost is about a millisecond on three of the four chips and three on the server
-CPU; why the slice's is larger was not measured. The gap at each size follows:
+The fixed cost is about a millisecond on three of the four chips and about three
+milliseconds on the server CPU; why the slice's is larger was not measured. The gap at each size follows:
 
 | Model | Streamed GB | Server GPU / CPU | M4 Pro GPU / CPU, two sessions |
 |---|---|---|---|
@@ -115,10 +115,11 @@ with the same slope while differing 2.7x in math rate; if math set the speed the
 would differ. M4 Pro decode saturates at 4 or 5 of the 10 performance cores while prefill
 scales to 9 or 10; adding cores adds math and does nothing for decode. And the bf16 file
 shows what happens when math is the limit: the M4 Pro CPU is stuck at 4 tok/s, the same
-as the server, until a kernel that can keep up with the bus is swapped in. So the Mac is
-not a fast CPU for AI. Apple put a memory bus as wide as a GPU's under a CPU. The
-shortfall from 7.2x to 5x is the fixed cost from the previous section, which the fast
-machine no longer hides.
+as the server, until a kernel that can keep up with the bus is swapped in. So the Mac's lead does not come from its faster cores. It comes from Apple putting a
+memory bus as wide as a GPU's under a CPU. The shortfall from 7.2x to 5x is not the fixed
+cost, which at about a millisecond is only a few percent of a 4B token. It is that the
+slice decodes at its memory ceiling, 35 GB/s effective against 33 measured, while the
+laptop's CPU reaches about three quarters of its own, 177 against 238.
 
 The server slice is not a slow CPU either. It is a narrow slice of one socket's memory
 system. A full EPYC socket with all eight memory channels in use delivers roughly 200
@@ -166,14 +167,17 @@ memory, and this machine has no such limit.
    server the gap halves from 14x to 7x between 8.7 GB and 0.4 GB because the GPU's
    millisecond is more than half of its tiny token. On the M4 Pro the gap stays near 1x at
    every size for F16 and the CPU wins on the smallest quantized files.
-3. **The Mac's lead over the cloud CPU is its memory bus, not its cores.** Same slope as
-   its own GPU, decode saturating at half the cores, and a kernel-bound case that erases
-   the lead entirely. A full server socket would close most of the gap.
+3. **The Mac's lead over the cloud CPU comes from its memory bus rather than its cores.**
+   Same slope as its own GPU, decode saturating at half the cores, and a kernel-bound case
+   that erases the lead entirely. By the channel arithmetic, a full server socket would
+   close most of the gap, though that was not measured.
 4. **On unified memory, throughput does not decide the engine; power does, and less so
    for small models.** At 4B the GPU is 1.09x faster and 1.75x more energy-efficient at
    decode; at 0.5B the energy edge is 1.18x.
-5. **Partial offload is slower than either engine alone on unified memory.** Any split
-   from 4 to 16 layers runs at 0.80 to 0.87x of all-CPU; pick one engine and commit.
+5. **On unified memory, splitting the model across engines never beat putting all of it
+   on the better one.** Splits from 4 to 16 layers run at 0.80 to 0.87x of all-CPU, and
+   even the deeper splits that beat the CPU stay below full GPU offload; pick one engine
+   and commit.
 
 ---
 
@@ -194,7 +198,7 @@ shared with Part 9.*
 
 ---
 
-**Previous:** [Part 9: Off the rig, decode on a CPU]({{ '/articles/part-9/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
+**Previous:** [Part 9: Off the rig, decode on a CPU, where the memory bus decides]({{ '/articles/part-9/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
 
 ---
 
