@@ -12,17 +12,18 @@ for comparison. Draft.*
 
 [The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 9**
 
-When I started learning about LLMs, I took it as given that inference meant a GPU, and
-that a CPU was where you ran a model only if you had no choice. That assumption is worth
-testing, because CPUs are everywhere: every laptop, every phone, every server already has one, often
-sitting idle, and none of them is thought of as an AI platform. If the claim this series
-is built on is right, that decode is limited by how fast memory can be read rather than by
-how fast the chip can do math, then whether a CPU can run a model well turns on its memory system rather than on the
-fact that it is a CPU. This post takes the same model and the same engine to two
+When I started learning about LLMs, I assumed that running one meant running it on a GPU,
+and that CPUs would always lag far behind. Yet CPUs are everywhere, in every laptop, phone,
+and server, often sitting idle, and almost none of them is thought of as an AI platform,
+so it would be useful to know when one is good enough. If the claim this series is built
+on is right, that decode is limited by how fast memory can be read rather than by how fast
+the chip can do math, then whether a CPU can run a model well should depend mostly on how fast
+it can read memory. This post takes the same model and the same engine to two
 CPUs with very different memory, a cloud server slice and a laptop, each with its own GPU
 alongside, and works out where a CPU is fine and where it is not.
 
-The short answer: it depends on the memory, not the chip. On a laptop with fast memory, the CPU runs the model within about 2.5x of a mid-range
+The short answer is that it comes down to memory bandwidth rather than compute capacity.
+On a laptop with fast memory, the CPU runs the model within about 2.5x of a mid-range
 datacenter GPU for one user. On a cloud
 server slice with slow memory, the CPU is 13x behind. Where a CPU falls down is serving
 many users at once.
@@ -36,8 +37,9 @@ takes, the claim is a line with two terms:
 time per token  =  weight bytes / memory bandwidth  +  fixed cost per token
 ```
 
-The first term is the streaming. It is set by how many bytes the model is and how fast
-the memory bus moves them, and it has nothing to do with how fast the chip does math,
+The first term is the time it takes to stream the weights out of memory, set by how many
+bytes the model is and how fast the memory bus moves them. It has nothing to do with how
+fast the chip does math,
 because at one request each weight is read once, used for one multiply-add, and
 discarded; the arithmetic is finished long before the next byte arrives. The second term
 is everything that does not scale with bytes: launching the work for each of the model's
