@@ -54,8 +54,8 @@ first term across many tokens until the math, finally, is what binds.
 This part is about the first term and about the regime where it stops being the
 whole story; the second term, and what it does to small models and to unified-memory
 machines, is Part 10. Three qualifiers apply throughout: the
-measurements are one request at a time, since [Part 3]({{ '/articles/part-3/' | relative_url }}) showed what batching
-does and the last section measures it on a CPU; every weight is read for every token,
+measurements are one request at a time, with batching left to [Part 3]({{ '/articles/part-3/' | relative_url }}) on the GPU
+and to the last section here on a CPU; every weight is read for every token,
 which would not hold for a mixture-of-experts model; and the contexts are short, so the
 per-token read of the conversation so far is small next to the weights.
 
