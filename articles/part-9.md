@@ -88,8 +88,7 @@ The engine is [llama.cpp](https://github.com/ggml-org/llama.cpp), because it is 
 engine that runs the identical code on a CPU, on an Apple GPU through Metal, and on an NVIDIA GPU through CUDA, the two vendors' GPU
 programming layers. The series' own engine was ruled out first: vLLM's CPU backend
 has no kernel for Qwen3.5's linear-attention layers, so the same server cannot be pointed
-at a CPU at all, a finding in its own right. Two llama.cpp builds were used, 458681e on
-the server and dfc29b6 on the laptop, a day apart, August 31 and September 1, 2026. The model is Qwen3.5-4B in GGUF form, the file format llama.cpp reads, at several weight
+at a CPU at all, a finding in its own right. The model is Qwen3.5-4B in GGUF form, the file format llama.cpp reads, at several weight
 formats: the weights stored at 16 bits each, called F16 or bf16 depending on the number
 format, or compressed to 8 or 4 bits each, Q8 and Q4 in llama.cpp's naming, so the file
 runs from 8.7 GB down to 3.0 GB. Prefill and
