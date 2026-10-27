@@ -12,13 +12,15 @@ for comparison. Draft.*
 
 [The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 9**
 
-When I started learning about LLMs, I assumed that running one meant running it on a GPU,
-and that CPUs would always lag far behind. Yet CPUs are everywhere, in every laptop, phone,
-and server, often sitting idle, and almost none of them is thought of as an AI platform,
-so it would be useful to know when one is good enough. If the claim this series is built
-on is right, that decode is limited by how fast memory can be read rather than by how fast
-the chip can do math, then whether a CPU can run a model well should depend mostly on how fast
-it can read memory. This post takes the same model and the same engine to two
+When I started learning about LLMs, I assumed that running one meant running it on a GPU.
+Most of the tech coverage I read was about GPUs and about serving many requests on them in
+parallel, and I took it for granted that a CPU was simply too slow for the matrix
+arithmetic an LLM needs. The story turns out to be more nuanced than that, and it matters,
+because CPUs are everywhere, in every laptop, phone, and server, often sitting idle and
+rarely thought of as an AI platform. If the claim this series is built on is right, that
+decode is limited by how fast memory can be read rather than by how fast the chip can do
+math, then whether a CPU can run a model well should depend mostly on how fast it can read
+memory. This post takes the same model and the same engine to two
 CPUs with very different memory, a cloud server slice and a laptop, each with its own GPU
 alongside, and works out where a CPU is fine and where it is not.
 
