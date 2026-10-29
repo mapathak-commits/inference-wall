@@ -147,10 +147,10 @@ the full arc:
    is in attention.
 
 9. **Off the rig: decode on a CPU, where the memory bus decides** *(coming)*. The same
-   model and engine on a cloud server slice and an Apple laptop, each with its own GPU.
+   model and engine on a cloud server slice and a MacBook, each with its own GPU.
    The CPU-to-GPU decode gap follows the memory bandwidth ratio on both, 13.5x and 1.09x,
    and two byte-identical weight files show that only a fast machine can tell a memory
-   wall from a slow kernel. Batching lifts a CPU 7x and then its math caps it.
+   wall from a slow kernel. Batching lifts a CPU up to 7x and then its math caps it.
 
 10. **Off the rig, part two: what a faster memory bus reveals** *(coming)*. The second
    term of the equation: a fixed cost per token of about a millisecond, a per-format
