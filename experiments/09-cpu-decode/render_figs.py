@@ -149,7 +149,7 @@ ax.set_xscale("log", base=2); ax.set_yscale("log")
 ax.set_xticks(batch_gpu); ax.set_xticklabels([str(b) for b in batch_gpu])
 ax.set_yticks([3, 10, 30, 100, 300, 1000]); ax.set_yticklabels(["3", "10", "30", "100", "300", "1,000"])
 ax.set_xlim(0.8, 170); ax.set_ylim(2.5, 1400)
-ax.set_xlabel("concurrent sequences", fontsize=12, fontweight="bold")
+ax.set_xlabel("concurrent requests", fontsize=12, fontweight="bold")
 ax.set_ylabel("aggregate decode tok/s", fontsize=12, fontweight="bold")
 ax.legend(loc="upper left", frameon=False, fontsize=10)
 ax.annotate("both weight sizes meet at ~26 tok/s:\nthe CPU's math ceiling", xy=(32, 26.2),

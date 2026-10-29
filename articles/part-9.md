@@ -34,7 +34,8 @@ The claim under test is the one from the [primer]({{ '/articles/primer/' | relat
 and [Part 1]({{ '/articles/part-1/' | relative_url }}): to produce each token, the
 machine reads the entire model's weights from memory once. Part 1 measured what that costs
 on the A10G: a decode token took about 20 ms, nearly all of it the 19 ms needed to stream
-the weights, while the arithmetic for that token takes about 0.13 ms. Prefill is the
+the weights, while the arithmetic for that token would take
+about 0.13 ms. Prefill is the
 opposite case, because the whole prompt goes through in one pass and every weight read is
 shared by all the prompt's tokens, so prefill time is set by the arithmetic. Written as
 the time one decode token takes, the claim is a line with two terms:
@@ -77,8 +78,8 @@ and each sits next to a GPU so the CPU-to-GPU gap can be measured on the same bo
   slice of the socket's memory system, not the whole socket; a full EPYC socket with all eight of its memory channels in use delivers roughly
   200 GB/s. The CPU and the GPU sit on separate memory pools with a large cliff between
   them: the A10G's nominal bandwidth is 600 GB/s.
-- **A MacBook.** An Apple MacBook with an M4 Pro chip, with its memory on a bus about as wide as a GPU's and its
-  own GPU on the same chip. Measured streaming bandwidth is **238 GB/s**, about seven times
+- **A MacBook.** An Apple MacBook with an M4 Pro chip, whose memory sits on a bus about as
+  wide as a GPU's and whose GPU is on the same chip. Measured streaming bandwidth is **238 GB/s**, about seven times
   the server slice. Its CPU and GPU share the same
   physical memory and the same bandwidth. There is no cliff, by construction.
 
@@ -125,9 +126,8 @@ differ by 2.7x decode at nearly the same speed when they share a memory bus, whi
 is only possible if decode never depended on the math.
 
 Prefill serves as the control. Because it is compute-bound, the GPU should keep its
-advantage on the MacBook even though the memory is shared, and it does: GPU prefill is 2.9 to 3.5x the CPU's across the weight sizes, against the 2.7x compute ratio. Same machine, same memory,
-one phase closes to 1x and the other stays at 3x. That is the compute-versus-bandwidth
-split in one pair of columns.
+advantage on the MacBook even though the memory is shared, and it does: GPU prefill is 2.9 to 3.5x the CPU's across the weight sizes, against the 2.7x compute ratio. Same machine, same memory, one phase closes to 1x and the other stays at 3x, which is
+the compute-versus-bandwidth split seen on a single machine.
 
 In the equation's terms, both machines are in the regime where the first term is nearly
 the whole token, so the ratio of two chips' decode speeds is the ratio of their memory
@@ -157,7 +157,7 @@ enough to measure that they get a post of their own.
 
 This is the cleanest measurement in the study. The model was saved in two 16-bit formats,
 bf16 and F16. The two files are the same size to the byte, so the number of bytes read per token is
-identical. The two formats split their 16 bits differently, trading precision for range, as
+identical. The two formats split their 16 bits differently, with bf16 giving up precision for range, as
 [this comparison of bf16 and fp16](https://www.beam.cloud/blog/bf16-vs-fp16) explains, but
 for a bandwidth argument only the byte count matters: if decode is "read all the bytes," both files must decode at the same
 speed on the same machine.
@@ -169,7 +169,8 @@ speed on the same machine.
 
 ![Grouped bars of decode speed for the bf16 and F16 files on both machines: on the server slice the two bars are equal at about 4 tokens per second, on the M4 Pro CPU the F16 bar is five times the bf16 bar](../assets/figures/fig9c-bf16-vs-f16.png)
 
-On the server they do, to within about 1%. On the MacBook they do not: F16 decodes 5.2x faster, with the
+On the server the two files do decode at the same speed, to within about 1%. On the
+MacBook they do not: F16 decodes 5.2x faster, with the
 hardware and the byte count held constant. The reason is software: llama.cpp has a fast hand-tuned vector kernel for F16 and only a slow generic path for
 bf16 on this CPU. On the MacBook, decode from the bf16 file is bottlenecked on that slow kernel long before
 it reaches the memory wall, at about 34 GB/s effective on a 238 GB/s machine. This is the
@@ -187,9 +188,9 @@ confirmation that decode is at the memory wall, which it is. But a slow machine 
 difference between "at the memory wall" and "held back by a kernel that happens to run at
 the same speed as the memory wall." The two explanations only separate on the fast
 machine, and the F16 control is what separated them. An earlier version of this study cited that row as proof, and the conclusion was right,
-but it could not be checked until the control ran on both machines. When a measurement
-lands exactly on a hardware ceiling, that agreement is evidence only if the ceiling is
-high enough that a coincidence is unlikely, which makes fast hardware a better measuring instrument as well as faster hardware.
+but it could not be checked until the control ran on both machines. When a measurement lands exactly on a hardware ceiling, that agreement is evidence only
+if the ceiling is high enough that a coincidence is unlikely, which is why fast hardware
+is also the better measuring instrument.
 Part 10 is about what else that instrument shows.
 
 ## The headline that says a MacBook beats a GPU
@@ -201,14 +202,14 @@ LLM inference. The study's own numbers show where it comes from. The M4 Pro CPU 
 Those are different weight sizes. Q4 streams a quarter of the bytes per token that F16
 does, so the comparison handed the MacBook a model that reads a quarter of the bytes and
 the GPU one that reads four times as many. Hold the format fixed and the picture is
-plain: at Q4 the A10G does 121 tok/s to the MacBook's 52, 2.3x ahead; at F16 it does 55
-to 20, 2.7x ahead. The GPU wins at every format because it has more memory bandwidth and
+plain: at Q4 the A10G does 121 tok/s to the MacBook's 52, 2.3x ahead; at F16 it does 55 to 22, 2.5x ahead. The GPU wins at every format because it has more memory bandwidth and
 decode is bandwidth-bound.
 
-The result worth keeping is the one underneath: a MacBook CPU gets within 2.5x of a mid-range datacenter GPU on single-user decode at all, which no CPU could do a generation ago. That
-closeness is the memory bus. On the F16 file the M4 Pro CPU pulls 177 GB/s of effective decode bandwidth against 35 on
-the server slice. That is a 5x gap rather than the full 7x, because the slice runs decode
-at its memory ceiling while the MacBook reaches about three quarters of its own. Part 10
+The result worth keeping is the one underneath: a MacBook CPU gets within 2.5x of a
+mid-range datacenter GPU on single-user decode at all, and that closeness is the memory
+bus. On the F16 file the M4 Pro CPU pulls 188 GB/s of effective decode bandwidth against
+35 on the server slice. That is a 5.4x gap rather than the full 7.2x, because the slice
+runs decode at its memory ceiling while the MacBook reaches about four fifths of its own. Part 10
 looks at what else changes once memory is that fast.
 
 ## Many users at once
@@ -244,14 +245,14 @@ Here is the measurement, taken the same way on the server slice's CPU and its A1
 short prompt and 128 generated tokens per request, counting total tokens per second across
 all requests:
 
-| Concurrent sequences | 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 |
+| Concurrent requests | 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 |
 |---|---|---|---|---|---|---|---|---|
 | Server slice CPU, bf16 | 3.5 | 6.7 | 12.8 | 20.1 | 24.8 | 26.3 | | |
 | Server slice CPU, Q4 | 9.2 | 15.0 | 19.9 | 21.6 | 25.2 | 26.1 | | |
 | A10G, F16 | 54 | 93 | 158 | 252 | 360 | 443 | 514 | 552 |
 | A10G, Q4 | 117 | 209 | 303 | 390 | 622 | 781 | 856 | 885 |
 
-![Aggregate decode throughput against concurrent sequences on log axes: the two server CPU curves rise and flatten together at about 26 tokens per second by 32 sequences, while the two A10G curves keep rising to 552 and 885 at 128](../assets/figures/fig9d-batched-decode.png)
+![Aggregate decode throughput against concurrent requests on log axes: the two server CPU curves rise and flatten together at about 26 tokens per second by 32 requests, while the two A10G curves keep rising to 552 and 885 at 128](../assets/figures/fig9d-batched-decode.png)
 
 The CPU's gains run out quickly. The bf16 run speeds up 7.4x and the Q4 run 2.8x, and by
 32 requests both have stalled at the same 26 tok/s. That convergence is the tell. For one
@@ -283,7 +284,7 @@ GPU is far ahead. A CPU can run a model well for one person, and it cannot serve
 4. **A low ceiling can confirm a wrong explanation.** Two byte-identical files decode about 1.01x apart on the slow machine and 5.2x apart on
    the fast one. Only the fast one could show that a kernel rather than memory set the speed.
 5. **"MacBook beats GPU" compares different weight sizes.** At matched format the A10G
-   leads the M4 Pro CPU by 2.3 to 2.7x. The remarkable part is that a CPU is that close
+   leads the M4 Pro CPU by 2.3 to 2.5x. The remarkable part is that a CPU is that close
    at all, and the reason is the memory bus Apple put under it.
 6. **A CPU is fine for one user with fast memory, and not for a crowd.** Batching lifts
    the server CPU 2.8 to 7.4x depending on format and then hits its math ceiling at 26 tok/s, where bf16 and Q4
