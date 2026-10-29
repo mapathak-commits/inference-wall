@@ -105,7 +105,7 @@ the whole token.
 
 ## Is the Mac fast, or is its memory?
 
-Part 9 found the laptop's CPU decoding the F16 4B about 5x faster than the server
+Part 9 found the MacBook's CPU decoding the F16 4B about 5.4x faster than the server
 slice's CPU. Two ratios could explain that. Their memory bandwidths differ by 7.2x, 238
 against 33 GB/s. Their matrix math rates differ by about 4.8x, 3.1 against 0.65 trillion
 operations a second. On that number alone you cannot tell which one is doing the work.
@@ -116,10 +116,10 @@ would differ. M4 Pro decode saturates at 4 or 5 of the 10 performance cores whil
 scales to 9 or 10; adding cores adds math and does nothing for decode. And the bf16 file
 shows what happens when math is the limit: the M4 Pro CPU is stuck at 4 tok/s, the same
 as the server, until a kernel that can keep up with the bus is swapped in. So the Mac's lead does not come from its faster cores. It comes from Apple putting a
-memory bus as wide as a GPU's under a CPU. The shortfall from 7.2x to 5x is not the fixed
+memory bus as wide as a GPU's under a CPU. The shortfall from 7.2x to 5.4x is not the fixed
 cost, which at about a millisecond is only a few percent of a 4B token. It is that the
 slice decodes at its memory ceiling, 35 GB/s effective against 33 measured, while the
-laptop's CPU reaches about three quarters of its own, 177 against 238.
+MacBook's CPU reaches about four fifths of its own, 188 against 238.
 
 The server slice is not a slow CPU either. It is a narrow slice of one socket's memory
 system. A full EPYC socket with all eight memory channels in use delivers roughly 200
