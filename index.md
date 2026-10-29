@@ -146,7 +146,7 @@ the full arc:
    trace shows why: matmul time is identical between the two, and every second of the gap
    is in attention.
 
-9. **Off the rig: decode on a CPU, where the memory bus decides** *(coming)*. The same
+9. **[Off the rig: decode on a CPU, where the memory bus decides]({{ '/articles/part-9/' | relative_url }})** *(published)*. The same
    model and engine on a cloud server slice and a MacBook, each with its own GPU.
    The CPU-to-GPU decode gap follows the memory bandwidth ratio on both, 13.5x and 1.09x,
    and two byte-identical weight files show that only a fast machine can tell a memory

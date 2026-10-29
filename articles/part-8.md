@@ -210,7 +210,7 @@ everything else is held fixed.*
 
 ---
 
-**Previous:** [Part 7: Speculative decoding]({{ '/articles/part-7/' | relative_url }}) · **Next:** Part 9, coming soon · [All posts]({{ '/articles/' | relative_url }})
+**Previous:** [Part 7: Speculative decoding]({{ '/articles/part-7/' | relative_url }}) · **Next:** [Part 9: Off the rig, decode on a CPU]({{ '/articles/part-9/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
 
 ---
 

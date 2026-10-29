@@ -6,9 +6,9 @@ image: /assets/diagrams/d11.jpg
 
 *Part 9 of "The Inference Wall", run off the series' usual rig: Qwen3.5-4B on two very
 different CPUs, a cloud server slice and a MacBook, with each machine's own GPU alongside
-for comparison. Draft.*
+for comparison.*
 
-*Manas Pathak · draft, October 2026*
+*Manas Pathak · October 30, 2026*
 
 [The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 9**
 
