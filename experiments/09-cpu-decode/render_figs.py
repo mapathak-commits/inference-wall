@@ -155,7 +155,7 @@ ax.legend(loc="upper left", frameon=False, fontsize=10)
 ax.annotate("both weight sizes meet at ~26 tok/s:\nthe CPU's math ceiling", xy=(32, 26.2),
             xytext=(44, 9), fontsize=10, style="italic", color=SOFT,
             arrowprops=dict(arrowstyle="->", color=MUTED, lw=0.8))
-ax.text(1.0, 1200, "batching lifts the CPU 7.4x and then stops; the GPU keeps climbing",
+ax.text(1.0, 1200, "batching lifts the CPU 2.8 to 7.4x and then it stops; the GPU keeps climbing",
         fontsize=10.5, style="italic", color=SOFT)
 fig.tight_layout()
 fig.savefig(f"{OUT}/fig9d-batched-decode.png", facecolor=BG)
