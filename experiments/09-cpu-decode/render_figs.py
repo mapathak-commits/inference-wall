@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Render Part 9 figures from the verified study numbers (see benchmarks/09-cpu-decode).
 
-  fig9a  CPU-to-GPU decode gap on both machines: bandwidth prediction, compute
-         prediction, measured (log scale)
+  fig9a  measured F16 decode speed, CPU and GPU, on both machines, with the ratio overlaid
   fig9b  M4 Pro roofline fit: ms/token vs weight GB, CPU and Metal, Stage 5 medians
   fig9c  byte-identical bf16 vs F16 decode on the EPYC slice and the M4 Pro CPU
 """
@@ -30,33 +29,32 @@ def style_ax(ax):
     ax.grid(axis="y", color=GRID, linewidth=1)
     ax.set_axisbelow(True)
 
-# ---------------- fig9a: gap vs bandwidth ----------------
-groups = ["EPYC slice vs A10G\n(separate memory)", "M4 Pro CPU vs Metal\n(unified memory)"]
-bw_pred   = [18.0, 1.0]
-comp_pred = [43.0, 2.7]
-measured  = [13.5, 1.09]
+# ---------------- fig9a: measured decode speed, F16, both machines ----------------
+# F16 decode tok/s, same engine and weights. Server slice: closeout_ab.md (CPU mean of two
+# rounds, A10G via CUDA). M4 Pro: stage5_summary.txt median of three interleaved rounds.
+groups = ["Server slice\n(CPU and GPU on separate memory)", "MacBook M4 Pro\n(CPU and GPU share one memory)"]
+cpu_tok = [4.035, 21.68]
+gpu_tok = [54.58, 22.24]
+ratios  = ["13.5x", "1.01x"]
 x = np.arange(len(groups))
-w = 0.26
+w = 0.32
 
 fig, ax = plt.subplots(figsize=(8.2, 4.2), dpi=200)
 fig.patch.set_facecolor(BG)
 style_ax(ax)
-ax.grid(axis="y", color=GRID, linewidth=1, which="both")
-b1 = ax.bar(x - w, bw_pred,   w, color=BLUE,  label="memory bandwidth predicts", zorder=3)
-b2 = ax.bar(x,     comp_pred, w, color=MUTED, label="compute predicts", zorder=3)
-b3 = ax.bar(x + w, measured,  w, color=GREEN, label="measured", zorder=3)
-ax.set_yscale("log")
-ax.set_ylim(0.6, 90)
-ax.set_yticks([1, 2, 5, 10, 20, 50])
-ax.set_yticklabels(["1x", "2x", "5x", "10x", "20x", "50x"])
-ax.set_xticks(x, groups)
-ax.set_ylabel("GPU decode speed / CPU decode speed", fontsize=12, fontweight="bold")
-for bars, vals in ((b1, bw_pred), (b2, comp_pred), (b3, measured)):
+bc = ax.bar(x - w / 2, cpu_tok, w, color=MUTED, label="CPU", zorder=3)
+bg = ax.bar(x + w / 2, gpu_tok, w, color=BLUE,  label="GPU", zorder=3)
+for bars, vals, col in ((bc, cpu_tok, MUTED), (bg, gpu_tok, BLUE)):
     for b, v in zip(bars, vals):
-        ax.text(b.get_x() + b.get_width() / 2, v * 1.12, f"{v:g}x", ha="center",
-                va="bottom", fontsize=10.5, fontweight=700, color=b.get_facecolor())
+        ax.text(b.get_x() + b.get_width() / 2, v + 1.0, f"{v:.1f}", ha="center",
+                fontsize=10.5, fontweight=700, color=col)
+ax.text(0, 61, "GPU 13.5x faster", ha="center", fontsize=12, fontweight=700, color=TXT)
+ax.text(1, 29, "GPU 1.01x faster", ha="center", fontsize=12, fontweight=700, color=TXT)
+ax.set_xticks(x, groups)
+ax.set_ylim(0, 68)
+ax.set_ylabel("decode tok/s, F16 weights", fontsize=12, fontweight="bold")
 ax.legend(loc="upper right", frameon=False, fontsize=10)
-ax.set_title("The CPU-to-GPU decode gap follows memory bandwidth, not compute",
+ax.set_title("Same model, same engine: the gap tracks the memory, not the math",
              fontsize=12, fontweight=700, loc="left", color=TXT)
 fig.tight_layout()
 fig.savefig(f"{OUT}/fig9a-gap-vs-bandwidth.png", facecolor=BG)
@@ -98,7 +96,7 @@ fig.savefig(f"{OUT}/fig9b-roofline-fit.png", facecolor=BG)
 print("wrote fig9b")
 
 # ---------------- fig9c: bf16 vs F16, byte-identical ----------------
-machines = ["EPYC slice CPU\n(DDR4, 33 GB/s)", "M4 Pro CPU\n(LPDDR5X, 238 GB/s)"]
+machines = ["Server slice CPU\n(33 GB/s memory)", "MacBook M4 Pro CPU\n(238 GB/s memory)"]
 bf16 = [4.005, 3.92]
 f16  = [4.035, 20.45]
 x = np.arange(2)
@@ -116,8 +114,8 @@ for b, v in zip(bf, f16):
     ax.text(b.get_x() + b.get_width() / 2, v + 0.5, f"{v:.2f}", ha="center",
             fontsize=10.5, fontweight=700, color=BLUE)
 ax.text(0, 8.6, "1.01x", ha="center", fontsize=12, fontweight=700, color=TXT)
-ax.text(1, 23.4, "5.22x", ha="center", fontsize=12, fontweight=700, color=TXT)
-ax.text(0.5, 14.0, "same model, both files exactly 8,665,620,192 bytes",
+ax.text(1, 23.4, "5.2x", ha="center", fontsize=12, fontweight=700, color=TXT)
+ax.text(0.5, 14.0, "same model, both files exactly the same size",
         ha="center", fontsize=10.5, style="italic", color=SOFT)
 ax.set_xticks(x, machines)
 ax.set_ylim(0, 27)
