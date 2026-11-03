@@ -309,7 +309,7 @@ slice and one M4 Pro; the predictions and their outcomes are not.*
 
 ---
 
-**Previous:** [Part 8: FlashAttention]({{ '/articles/part-8/' | relative_url }}) · **Next:** Part 10, coming soon · [All posts]({{ '/articles/' | relative_url }})
+**Previous:** [Part 8: FlashAttention]({{ '/articles/part-8/' | relative_url }}) · **Next:** [Part 10: Off the rig, part two]({{ '/articles/part-10/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }})
 
 ---
 

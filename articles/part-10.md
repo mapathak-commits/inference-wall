@@ -6,9 +6,9 @@ image: /assets/figures/fig9e-gap-vs-size.png
 
 *Part 10 of "The Inference Wall", the second half of the CPU study: Qwen3.5-4B and two
 smaller models on a cloud server slice and a MacBook with an M4 Pro chip, each with its
-own GPU alongside. Draft.*
+own GPU alongside.*
 
-*Manas Pathak · draft, October 2026*
+*Manas Pathak · November 6, 2026*
 
 [The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 10**
 

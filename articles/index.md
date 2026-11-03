@@ -19,7 +19,7 @@ the number, and read the trace that explains why. New parts publish weekly.*
 | **Part 7** | [Speculative decoding]({{ '/articles/part-7/' | relative_url }}) | a flag that runs single-stream generation 1.8x faster cuts a flooded server's throughput from 1,096 to 473 tok/s and triples time-to-first-token, because speculation multiplies the per-request work batching can't share and eats concurrency on a hybrid model |
 | **Part 8** | [FlashAttention]({{ '/articles/part-8/' | relative_url }}) | the same attention kernel is 3 ms faster at 256 tokens and 6 s faster at 30,000, because it cuts quadratic memory traffic to linear and splits the long decode read across the GPU; the payoff scales with prompt length, not a fixed percentage |
 | **Part 9** | [Off the rig: decode on a CPU]({{ '/articles/part-9/' | relative_url }}) | the same model and engine on a cloud server CPU and a MacBook: the CPU-to-GPU decode gap is 13.5x on one and about 1x on the other because it follows memory bandwidth rather than compute, and batching lifts a CPU only until its arithmetic runs out |
-| Part 10 | Off the rig, part two: what a faster memory bus reveals | *coming soon* |
+| **Part 10** | [Off the rig, part two]({{ '/articles/part-10/' | relative_url }}) | once memory is fast, the small costs it used to hide come into view: a fixed cost of about a millisecond per token, a CPU-to-GPU gap that shrinks toward the CPU on small models, and on a MacBook an engine choice that is about power rather than speed |
 
 Every post ends with a reproduce section; the scripts, raw logs, and profiler traces
 live in the [companion repo](https://github.com/mapathak-commits/inference-wall)

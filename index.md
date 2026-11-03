@@ -152,7 +152,7 @@ the full arc:
    and two byte-identical weight files show that only a fast machine can tell a memory
    wall from a slow kernel. Batching lifts a CPU up to 7x and then its math caps it.
 
-10. **Off the rig, part two: what a faster memory bus reveals** *(coming)*. The second
+10. **[Off the rig, part two: what a faster memory bus reveals]({{ '/articles/part-10/' | relative_url }})** *(published)*. The second
    term of the equation: a fixed cost per token of about a millisecond, a per-format
    compute cost that an earlier fit mistook for it, a gap that bends toward the CPU on
    small models on both machines, and why on unified memory the engine choice is about
