@@ -22,13 +22,13 @@ one Part 9 set aside.
 time per token  =  weight bytes / memory bandwidth  +  fixed cost per token
 ```
 
-On the server slice, streaming the weights takes a quarter of a second and anything that
+On the server slice, streaming the 4B model's weights takes a quarter of a second and anything that
 does not scale with bytes is invisible beside it. On the MacBook the same stream
 takes seven times less, and the things it used to hide come into view: a fixed cost that is a tenth or more of a small model's token, a per-format compute cost that the earlier fit
 mistook for that fixed cost, a gap between CPU and GPU that bends as models get small,
 and two practical rules for unified-memory machines that run the opposite way from
-discrete-GPU habits. Along the way it backs up an answer Part 9 gave in a single sentence, to
-the question of whether the MacBook is fast because of its CPU or because of its memory.
+discrete-GPU habits. Along the way it lays out the evidence behind an
+answer Part 9 stated, that the MacBook is fast because of its memory rather than its CPU.
 
 ## What the fast machine makes visible
 
@@ -37,8 +37,8 @@ stored at 4, 6, 8, or 16 bits each, called Q4, Q6, Q8, and F16, and read the ban
 off the slope. The same fit produced intercepts, 2.4 ms for the GPU and about 4.6 ms for the
 CPU, which looked like a difference in fixed cost but turned out not to be one. The follow-up
 with smaller models below, which holds the weight format fixed, puts the fixed cost near 1 ms
-on both engines. What the ladder fit was most likely absorbing into its intercept is a third thing the
-one-line equation leaves out: a per-format compute cost.
+on both engines. What the ladder fit was most likely absorbing into its intercept is a third
+thing the two-term equation leaves out: a per-format compute cost.
 Four-bit and eight-bit weights must be unpacked before use, and that costs more
 instructions per byte than F16, so the quantized points sit a little above the line that
 the F16 points define. On the ladder, format changed together with size, so the format
@@ -60,7 +60,7 @@ be measured with the format held fixed.
 
 In the equation, model size cancels out of the ratio between two chips as long as the
 first term dominates, so the gap should not depend on size until the fixed cost does.
-Two smaller models, Qwen2.5 at 0.5B and 1.5B, in five files across several formats, were run on both machines with
+Two smaller models, Qwen2.5 at 0.5B and 1.5B, in five files across several formats, were run on both machines using
 the same engine, with the 4B model rerun in the same session for reference. These smaller models keep separate tables for the tokens they
 read in and the tokens they write out, and the input table is
 looked up one row per token rather than streamed, so their files overstate the bytes read
@@ -86,7 +86,7 @@ milliseconds on the server CPU; why the slice's is larger was not measured. The 
 | 1.5B F16 | 3.09 | 13.7x | 1.10x, 1.11x |
 | 4B F16 | 8.66 | 14.3x | 0.99x, 1.04x |
 
-![Decode gap against streamed model bytes on both machines: the server's GPU-over-CPU ratio falls from 14x at 8.7 GB toward 7x at 0.4 GB, while the MacBook's ratio stays near 1x and dips below it for the smallest quantized files](../assets/figures/fig9e-gap-vs-size.png)
+![Decode gap against streamed model bytes on both machines: the server's GPU-over-CPU ratio falls from 14x at 8.7 GB toward 7x at 0.4 GB, while the MacBook's ratio stays within about 10% of 1x and dips below it for the smallest quantized files](../assets/figures/fig9e-gap-vs-size.png)
 
 On the server the gap halves as the model shrinks, from 14.3x to 7.4x, even though the
 CPU's fixed cost is the larger one in milliseconds. The equation says why: what matters is
@@ -94,8 +94,7 @@ each chip's fixed cost as a share of its own streaming time. At 0.4 GB the A10G 
 the weights in under a millisecond and then spends a millisecond on fixed work, so its token is more than half overhead, while the CPU's 3 ms is about a fifth of its
 15 ms token. As the model shrinks further the gap tends toward the ratio of the two fixed costs, under
 3x, and the GPU's bandwidth advantage stops counting. On the MacBook the two fixed costs are equal, so the gap stays within about 10% of 1x at
-every size for F16, and the two engines tie at the
-4B anchor, 0.99x and 1.04x across sessions. The small quantized files are the one
+every size for F16, and the two engines tie on the 4B model, 0.99x and 1.04x across sessions. The small quantized files are the one
 departure: there the CPU wins, 0.86 to 0.95x, because the GPU's four-bit and eight-bit kernels, the programs that run one operation
 each, fall further below their own line than the CPU's do on a model this small. The likely
 reason is that the work is too small to fill the GPU, but that was not measured.
