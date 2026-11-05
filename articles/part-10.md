@@ -67,10 +67,10 @@ faster one chip is than another, since both chips read the same bytes. Size can 
 matter once the fixed cost becomes a large share of each token, which happens with small
 models. To test that, two smaller models, Qwen2.5 at 0.5B and 1.5B, were run on both
 machines in several formats, along with the 4B model in the same session for reference.
-One detail matters for the arithmetic: these smaller models keep separate tables for the
-tokens they read in and the tokens they write out, and only one row of the input table is
-read per token, so their files overstate the bytes read per token by 14 to 29%. The 4B
-model uses one table for both, so its file size is accurate. Fitting the line to the bytes
+One detail matters for the arithmetic: the files for these smaller models store their
+token table twice, one copy for reading tokens in and one for writing them out, and only
+one row of the input copy is read per token, so the files overstate the bytes read per
+token by 14 to 29%. The 4B file stores the table once, so its size is accurate. Fitting the line to the bytes
 actually read, with the format held fixed, gives each chip's two terms:
 
 | | Memory bandwidth, from the fit | Fixed cost per token |
@@ -131,8 +131,9 @@ math really is the limit: with its slow bf16 code the MacBook CPU drops to 4 tok
 same as the server, and recovers only when a faster kernel is swapped in. So the MacBook's lead comes from the memory bus Apple put next to its CPU, one
 as wide as a GPU's, and its faster cores do not explain it.
 
-The gap falls short of the full 7.2x because the server slice reads memory at essentially
-its full speed, 35 GB/s against a measured 33, while the MacBook's CPU reaches about four
+The gap falls short of the full 7.2x because the server slice reads memory at essentially its
+full speed, 35 GB/s, a little above the 33 GB/s its memory benchmark measured, likely
+because that benchmark also writes while decode only reads, while the MacBook's CPU reaches about four
 fifths of its own, 188 against 238. The fixed cost plays almost no part here, since it is
 only a few percent of a 4B token.
 
@@ -163,7 +164,9 @@ One more result reverses a habit from machines with a separate GPU. There, you p
 of the model's layers on the GPU as its memory can hold and run the rest on the CPU. Moving layers to the GPU a few at a time made the
 MacBook's decode slower over most of the range. Putting anywhere from 4 to 16 of the 32 layers on the GPU ran at 0.80 to 0.87x the
 speed of running everything on the CPU. The split broke even at about 20 layers, and it
-was faster only from 24 layers up, reaching 1.18x with every layer on the GPU. No data has
+was faster only from 24 layers up, reaching 1.18x with every layer on the GPU. That 1.18x is
+measured against a six-thread CPU run; against the CPU's best thread count, full offload
+is about 1.06 to 1.09x, in line with the 1.09x above. No data has
 to cross between separate memories here, so the cost must come from handing work back and
 forth between the two engines; it measures about 7 ms per token, and its cause is not yet
 known. The rule for a shared-memory machine is to pick one engine and put the whole model
@@ -187,7 +190,7 @@ does not have that problem.
 4. **On a shared-memory machine, power decides the engine more than speed does, and less
    so for small models.** At 4B the GPU is 1.09x faster and 1.75x more energy-efficient at
    decode; at 0.5B the energy edge is 1.18x.
-5. **On a shared-memory machine, splitting the model across engines never beat putting
+5. **On a shared-memory machine, splitting the model across engines never beats putting
    all of it on the better one.** Splits from 4 to 16 layers run at 0.80 to 0.87x of all-CPU, and
    even the deeper splits that beat the CPU stay below full GPU offload; pick one engine
    and commit.
