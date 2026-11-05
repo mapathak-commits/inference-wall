@@ -36,40 +36,41 @@ answer Part 9 stated, that the MacBook is fast because of its memory rather than
 
 ![Two workshops side by side, each with a worker turning ledgers from a belt into finished pages and a clerk who stamps every page before it leaves: on the left the belt is slow and the clerk leans back with tea between pages; on the right the belt is fast and a pile of unstamped pages waits at the clerk's desk while the clerk stamps as fast as possible](../assets/diagrams/d12.jpg)
 
-Part 9 measured the MacBook on a ladder of four weight formats, the weights stored at 4,
-6, 8, or 16 bits each, called Q4, Q6, Q8, and F16, then drew the equation's straight line
-through the results and read the memory bandwidth off its slope. The same fit produced intercepts, 2.4 ms for the GPU and about 4.6 ms for the
-CPU, which looked like a difference in fixed cost but turned out not to be one. The follow-up
-with smaller models below, which holds the weight format fixed, puts the fixed cost near 1 ms
-on both engines. What the ladder fit was most likely absorbing into its intercept is a third
-thing the two-term equation leaves out: a per-format compute cost.
-Four-bit and eight-bit weights must be unpacked before use, and that costs more
-instructions per byte than F16, so the quantized points sit a little above the line that
-the F16 points define. On the ladder, format changed together with size, so the format
-cost looked like a constant.
+Part 9 measured the MacBook with the same model stored four ways, at 4, 6, 8, and 16 bits
+per weight, called Q4, Q6, Q8, and F16. It drew a straight line through the results and
+read the memory bandwidth off its slope. Where that line meets zero bytes is the fixed
+cost per token, and the fit put it at about 4.6 ms for the CPU and 2.4 ms for the GPU,
+which made the GPU look cheaper per token, but that turned out to be wrong. The smaller
+models below, measured with the format held fixed, put the fixed cost at about 1 ms on
+both. The likely reason for the difference is a cost the two-term equation leaves out.
+Compressed weights have to be unpacked before they can be used, which takes extra work for
+every byte, so the Q4 and Q8 points run a little slower than the line through the F16
+points. In Part 9's measurements the format and the file size changed together, so that
+unpacking cost was counted as fixed cost.
 
-That is also why the simple bytes-over-bandwidth rule starts to leak on fast memory. On the server
-slice, streaming 3 GB of Q4 weights takes about 91 ms, so a few milliseconds of fixed and
-format cost are a rounding error and effective bandwidth comes out constant across weight
-sizes: 34, 32, and 30 GB/s for bf16, Q8, and Q4, all at the 33 GB/s wall. On the MacBook,
-streaming the same 3 GB takes about 14 ms, the fixed and format costs did not shrink with
-it, and effective bandwidth is no longer constant, rising from 157 GB/s at Q4 to 188 GB/s
-at F16 on the CPU within the same session. The faster the memory, the larger the share of
-a token everything other than streaming takes, and the sooner it becomes the thing worth
-optimizing. So a check that works on a slow machine, that speed times bytes comes out the same for
-every format, stops working on a fast one. There the straight line with its intercept is
-the right model, and the intercept has to be measured with the weight format held fixed.
+The same small costs explain a pattern from Part 9. On the server slice, reading 3 GB of
+Q4 weights takes about 91 ms per token, so a few extra milliseconds of fixed cost and
+unpacking barely register. Speed times bytes, the effective bandwidth, therefore comes out
+nearly the same for every format: 34, 32, and 30 GB/s for bf16, Q8, and Q4, all close to
+the 33 GB/s the memory can deliver. On the MacBook the same 3 GB takes about 14 ms, while
+the extra milliseconds stay the same size, so they become a noticeable share of each
+token. Effective bandwidth then varies with the format, from 157 GB/s for Q4 to 188 GB/s
+for F16 on the CPU. The faster the memory, the more these small costs matter and the more
+they are worth optimizing, and measuring them means comparing models in the same weight
+format, since changing format and size together hides one cost inside the other.
 
 ## Does model size change the gap?
 
-In the equation, model size cancels out of the ratio between two chips as long as the
-first term dominates, so the gap should not depend on size until the fixed cost does.
-Two smaller models, Qwen2.5 at 0.5B and 1.5B, in five files across several formats, were run on both machines using
-the same engine, with the 4B model rerun in the same session for reference. These smaller models keep separate tables for the tokens they
-read in and the tokens they write out, and the input table is
-looked up one row per token rather than streamed, so their files overstate the bytes read
-per token by 14 to 29%. The 4B shares one table for both, so its file size is accurate. Fitting the line on streamed bytes with
-the format held fixed gives each chip's two terms:
+If reading the weights is nearly the whole token, model size should not change how much
+faster one chip is than another, since both chips read the same bytes. Size can only
+matter once the fixed cost becomes a large share of each token, which happens with small
+models. To test that, two smaller models, Qwen2.5 at 0.5B and 1.5B, were run on both
+machines in several formats, along with the 4B model in the same session for reference.
+One detail matters for the arithmetic: these smaller models keep separate tables for the
+tokens they read in and the tokens they write out, and only one row of the input table is
+read per token, so their files overstate the bytes read per token by 14 to 29%. The 4B
+model uses one table for both, so its file size is accurate. Fitting the line to the bytes
+actually read, with the format held fixed, gives each chip's two terms:
 
 | | Memory bandwidth, from the fit | Fixed cost per token |
 |---|---|---|
@@ -79,7 +80,8 @@ the format held fixed gives each chip's two terms:
 | MacBook GPU | 208 to 232 GB/s | 0.8 to 1.2 ms |
 
 The fixed cost is about a millisecond on three of the four chips and about three
-milliseconds on the server CPU; why the slice's is larger was not measured. The gap at each size follows:
+milliseconds on the server CPU, for reasons this study did not measure. Here is how the
+gap between GPU and CPU changes with model size:
 
 | Model | Streamed GB | Server GPU / CPU | MacBook GPU / CPU, two sessions |
 |---|---|---|---|
@@ -92,94 +94,104 @@ milliseconds on the server CPU; why the slice's is larger was not measured. The 
 
 ![Decode gap against streamed model bytes on both machines: the server's GPU-over-CPU ratio falls from 14x at 8.7 GB toward 7x at 0.4 GB, while the MacBook's ratio stays within about 10% of 1x and dips below it for the smallest quantized files](../assets/figures/fig9e-gap-vs-size.png)
 
-On the server the gap halves as the model shrinks, from 14.3x to 7.4x, even though the
-CPU's fixed cost is the larger one in milliseconds. The equation says why: what matters is
-each chip's fixed cost as a share of its own streaming time. At 0.4 GB the A10G streams
-the weights in under a millisecond and then spends a millisecond on fixed work, so its token is more than half overhead, while the CPU's 3 ms is about a fifth of its
-15 ms token. As the model shrinks further the gap tends toward the ratio of the two fixed costs, under
-3x, and the GPU's bandwidth advantage stops counting. On the MacBook the two fixed costs are equal, so the gap stays within about 10% of 1x at
-every size for F16, and the two engines tie on the 4B model, 0.99x and 1.04x across sessions. The small quantized files are the one
-departure: there the CPU wins, 0.86 to 0.95x, because the GPU's four-bit and eight-bit kernels, the programs that run one operation
-each, fall further below their own line than the CPU's do on a model this small. The likely
-reason is that the work is too small to fill the GPU, but that was not measured.
+On the server, the GPU's lead halves as the model shrinks, from 14.3x to 7.4x. That may
+seem odd, since the server CPU's fixed cost is three times the GPU's, but what matters is
+how each fixed cost compares with the time that chip spends reading. For the smallest
+model, the A10G reads the weights in under a millisecond and then spends about a
+millisecond on fixed work, so more than half of its token is overhead, while the CPU's
+3 ms fixed cost is only about a fifth of its 15 ms token. As models get smaller still,
+the GPU's faster memory stops helping, and its lead heads toward the ratio of the two
+fixed costs, under 3x.
 
-So the answer is that model size changes the gap only through the second term, and on
-both machines the second term favors the CPU at small sizes. Part 9's 13.5x and 1.09x are the large-model numbers, where the first term is nearly
-the whole token.
+On the MacBook the two fixed costs are about equal, so with F16 weights the gap stays
+within about 10% of 1x at every size, and the two engines tie on the 4B model. The
+exception is the smallest compressed files, where the CPU is faster, at 0.86 to 0.95x.
+On a model this small, the GPU's code for unpacking 4-bit and 8-bit weights loses more
+speed than the CPU's does. The likely reason is that there is too little work to keep the
+whole GPU busy, but that was not measured.
+
+So model size changes the gap only through the fixed cost, and on both machines that
+pushes toward the CPU for small models. Part 9's 13.5x and 1.09x are the numbers for a
+larger model, where reading the weights is nearly the whole token.
 
 ## Is the MacBook fast, or is its memory?
 
-Part 9 found the MacBook's CPU decoding the F16 4B about 5.4x faster than the server
-slice's CPU, and two ratios could explain that. Their memory bandwidths differ by 7.2x, 238
-against 33 GB/s. Their matrix math rates differ by about 4.8x, 3.1 against 0.65 trillion
-operations a second. On that number alone you cannot tell which one is doing the work.
+Part 9 found the MacBook's CPU running the 4B model with F16 weights about 5.4x faster
+than the server slice's CPU, and two differences between the chips could explain that.
+The MacBook's memory is 7.2x faster, 238 against 33 GB/s, and its matrix math is about
+4.8x faster, 3.1 against 0.65 trillion operations a second, so the 5.4x alone cannot say
+which one matters.
 
-Three measurements settle which one it is, starting with the fit: on the MacBook the CPU
-and the GPU decode on the same line
-with the same slope while differing 2.7x in math rate; if math set the speed the lines
-would differ. The MacBook's decode stops speeding up after 4 or 5 of its 10 performance cores while
-prefill keeps scaling to 9 or 10; adding cores adds math and does nothing for decode. And the bf16 file
-shows what happens when math is the limit: the MacBook CPU is stuck at 4 tok/s, the same
-as the server, until a kernel that can keep up with the bus is swapped in. So the MacBook's lead does not come from its faster cores. It comes from Apple putting a
-memory bus as wide as a GPU's under a CPU. The shortfall from 7.2x to 5.4x is not the fixed
-cost, which at about a millisecond is only a few percent of a 4B token. It is that the
-slice decodes at its memory ceiling, 35 GB/s effective against 33 measured, while the
-MacBook's CPU reaches about four fifths of its own, 188 against 238.
+Three measurements point to the memory rather than the math. First, the MacBook's CPU and GPU fall on the same
+straight line with the same slope, even though the GPU does 2.7x more math; if math set
+the speed, the lines would differ. Second, decode stops getting faster after 4 or 5 of the
+MacBook's 10 performance cores, while prefill keeps speeding up to 9 or 10, so extra cores
+add math that decode cannot use. Third, the bf16 file from Part 9 shows what happens when
+math really is the limit: with its slow bf16 code the MacBook CPU drops to 4 tok/s, the
+same as the server, and recovers only when a faster kernel is swapped in. So the MacBook's
+lead comes from Apple putting a memory bus as wide as a GPU's next to a CPU, rather than
+from faster cores.
 
-The server slice is not a slow CPU either, but a narrow slice of one socket's memory
-system. A full EPYC socket with all eight memory channels in use delivers roughly 200
-GB/s and would land near the MacBook; a newer twelve-channel server socket at roughly 460 GB/s
-would beat it and approach the A10G. Neither was measured here, but
-the point stands as arithmetic: the thing to ask about a CPU is how wide its memory bus is, and "server" or
-"laptop" does not answer it.
+The gap is 5.4x rather than the full 7.2x, and the fixed cost is not the reason, since it
+is only a few percent of a 4B token. The reason is that the server slice reads memory at
+essentially its full speed, 35 GB/s against a measured 33, while the MacBook's CPU reaches
+about four fifths of its own, 188 against 238.
 
-## What unified memory changes: energy, and a rule that flips
+The server slice's CPU is not slow either; it gets only a narrow share of one server
+chip's memory. A full EPYC socket using all eight of its memory channels delivers roughly
+200 GB/s and would land near the MacBook, and a newer twelve-channel server chip at
+roughly 460 GB/s would beat it and approach the A10G. Neither was measured here, but the
+arithmetic makes the point: what to ask about a CPU is how fast it can read memory, and
+whether it sits in a server or a laptop does not answer that.
 
-On the MacBook the GPU is 1.09x faster at decode than the CPU across the 4B ladder, and
-at F16 the two tie. That invites the conclusion that the GPU is pointless for decode on
-a unified-memory machine. It is wrong at the 4B size, for a reason no throughput table
-shows, and the reason weakens as the model shrinks.
+## What shared memory changes: energy, and a rule that flips
 
-Measured with Apple's power-monitoring tool while decoding, the CPU run draws about 42 W above
-idle and the GPU run about 26 W, of which 21.5 W is the GPU itself and the rest the CPU
-feeding it. For nearly the same tokens per second, the GPU does the work for **about
-1.75x less energy per token**, 1.78x and 1.73x in two independent captures. The CPU run
-pins all ten performance cores at 100% against the chip's power ceiling; the same work on
-the GPU leaves the CPU at a fraction of that power. At 0.5B Q4 the advantage shrinks to 1.18x, 112 against 132 millijoules per token, because at about 260 tokens a second the CPU spends 13.6 W just encoding and submitting
-the GPU's commands. So
-the engine choice on this machine has no bandwidth-based answer and a power-based one
-that depends on size: for a 4B model, decode belongs on the GPU for battery and heat; for
-a tiny one, it barely matters where it runs.
+On the MacBook the GPU decodes the 4B model only 1.09x faster than the CPU, and with F16
+weights the two tie. That makes the GPU look pointless for decode on a machine where both
+share one memory, but for the 4B model that conclusion is wrong, for a reason a speed table
+does not show.
 
-One more unified-memory result, because it flips a discrete-GPU habit. On a normal GPU
-box you offload as many layers to the GPU as its memory holds. On the MacBook, moving layers from the CPU to the GPU a few at a time made decode slower across most of the
-range: any split from 4 to 16 of the 32 layers ran at 0.80 to 0.87x of all-CPU,
-break-even came at about 20 layers, and from 24 layers up
-it was faster, reaching 1.18x at full offload.
-No bytes cross a bus here, so the cost must be somewhere in the handoff between two engines sharing one memory; it
-measures about 7 ms per token and is not yet explained. The rule on unified
-memory is to pick one engine and commit; partial offload exists to cope with limited GPU
-memory, and this machine has no such limit.
+Apple's power-monitoring tool shows the difference: running on the CPU, decode draws
+about 42 W above idle, with all ten performance cores at 100% against the chip's power
+limit. Running on the GPU, it draws about 26 W, 21.5 W for the GPU itself and the rest for
+the CPU feeding it work. For nearly the same speed, the GPU uses **about 1.75x less energy
+per token**, measured twice at 1.78x and 1.73x. On the smallest model the advantage
+shrinks to 1.18x, 112 against 132 millijoules per token, because the GPU is now producing
+about 260 tokens a second and the CPU spends 13.6 W just sending it instructions. So on
+this machine the choice of engine comes down to power rather than speed: for a 4B model,
+run decode on the GPU to save battery and heat, and for a tiny model it barely matters.
+
+One more result reverses a habit from machines with a separate GPU. There, you put as many
+of the model's layers on the GPU as its memory can hold and run the rest on the CPU. On the
+MacBook, moving layers to the GPU a few at a time made decode slower over most of the
+range. Putting anywhere from 4 to 16 of the 32 layers on the GPU ran at 0.80 to 0.87x the
+speed of running everything on the CPU. The split broke even at about 20 layers, and it
+was faster only from 24 layers up, reaching 1.18x with every layer on the GPU. No data has
+to cross between separate memories here, so the cost must come from handing work back and
+forth between the two engines; it measures about 7 ms per token, and its cause is not yet
+known. The rule for a shared-memory machine is to pick one engine and put the whole model
+on it. Splitting exists to cope with a GPU that has too little memory, and this machine
+does not have that problem.
 
 ## What to take away
 
 1. **The fixed cost per token is about a millisecond on the A10G and on both MacBook
    engines, and about three milliseconds on the server CPU.** It has to be measured with the weight format
-   held fixed; a ladder that changes format with size reads a per-format compute cost as a
-   constant, which is how an earlier fit got 4.6 ms.
+   held fixed, because comparing formats of different sizes mixes the cost of unpacking
+   compressed weights into the fixed cost, which is how an earlier fit got 4.6 ms.
 2. **Model size moves the gap only through the fixed cost, and toward the CPU.** On the
    server the gap halves from 14x to 7x between 8.7 GB and 0.4 GB because the GPU's
    millisecond is more than half of its tiny token. On the MacBook the gap stays within about 10% of 1x at
    every size for F16, and the CPU wins on the smallest quantized files.
 3. **The MacBook's lead over the cloud CPU comes from its memory bus rather than its cores.**
-   Same slope as its own GPU, decode saturating at half the cores, and a kernel-bound case
-   that erases the lead entirely. By the channel arithmetic, a full server socket would
+   Its CPU and GPU share the same slope, decode stops speeding up at half its cores, and a
+   slow kernel erases the lead entirely. By the channel arithmetic, a full server socket would
    close most of the gap, though that was not measured.
-4. **On unified memory, throughput does not decide the engine; power does, and less so
-   for small models.** At 4B the GPU is 1.09x faster and 1.75x more energy-efficient at
+4. **On a shared-memory machine, power decides the engine more than speed does, and less
+   so for small models.** At 4B the GPU is 1.09x faster and 1.75x more energy-efficient at
    decode; at 0.5B the energy edge is 1.18x.
-5. **On unified memory, splitting the model across engines never beat putting all of it
-   on the better one.** Splits from 4 to 16 layers run at 0.80 to 0.87x of all-CPU, and
+5. **On a shared-memory machine, splitting the model across engines never beat putting
+   all of it on the better one.** Splits from 4 to 16 layers run at 0.80 to 0.87x of all-CPU, and
    even the deeper splits that beat the CPU stay below full GPU offload; pick one engine
    and commit.
 
