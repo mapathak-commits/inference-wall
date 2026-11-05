@@ -1,7 +1,7 @@
 ---
 title: "Off the rig, part two: what a faster memory bus reveals"
 permalink: /articles/part-10/
-image: /assets/figures/fig9e-gap-vs-size.png
+image: /assets/diagrams/d12.jpg
 ---
 
 *Part 10 of "The Inference Wall", the second half of the CPU study: Qwen3.5-4B and two
@@ -31,6 +31,8 @@ discrete-GPU habits. Along the way it lays out the evidence behind an
 answer Part 9 stated, that the MacBook is fast because of its memory rather than its CPU.
 
 ## What the fast machine makes visible
+
+![Two workshops side by side, each with a worker turning ledgers from a belt into finished pages and a clerk who stamps every page before it leaves: on the left the belt is slow and the clerk leans back with tea between pages; on the right the belt is fast and a pile of unstamped pages waits at the clerk's desk while the clerk stamps as fast as possible](../assets/diagrams/d12.jpg)
 
 Part 9 fitted that line to a ladder of four weight formats on the MacBook, the weights
 stored at 4, 6, 8, or 16 bits each, called Q4, Q6, Q8, and F16, and read the bandwidth
