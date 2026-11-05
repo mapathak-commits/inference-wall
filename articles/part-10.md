@@ -8,7 +8,7 @@ image: /assets/diagrams/d12.jpg
 smaller models on a cloud server slice and a MacBook with an M4 Pro chip, each with its
 own GPU alongside.*
 
-*Manas Pathak · November 6, 2026*
+*Manas Pathak · November 5, 2026*
 
 [The Inference Wall]({{ '/' | relative_url }}) · [All posts]({{ '/articles/' | relative_url }}) · **Part 10**
 
