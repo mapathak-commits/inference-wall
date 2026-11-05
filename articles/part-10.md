@@ -22,21 +22,23 @@ one Part 9 set aside.
 time per token  =  weight bytes / memory bandwidth  +  fixed cost per token
 ```
 
-On the server slice, streaming the 4B model's weights takes a quarter of a second and anything that
-does not scale with bytes is invisible beside it. On the MacBook the same stream
-takes seven times less, and the things it used to hide come into view: a fixed cost that is a tenth or more of a small model's token, a per-format compute cost that the earlier fit
-mistook for that fixed cost, a gap between CPU and GPU that bends as models get small,
-and two practical rules for unified-memory machines that run the opposite way from
-discrete-GPU habits. Along the way it lays out the evidence behind an
+On the server slice, reading the 4B model's weights takes about a quarter of a second for
+every token, so any cost that does not depend on the model's size is too small to notice.
+On the MacBook the same read is about seven times faster, and the things it used to hide
+start to show. Every token carries a fixed cost of about a millisecond, which matters once
+a model is small. Compressed weight formats need extra arithmetic to unpack, and an earlier
+measurement mistook that for the fixed cost. The gap between CPU and GPU shrinks as models
+get smaller. And on a machine whose CPU and GPU share one memory, two common rules of thumb for using the GPU turn out to work the opposite way from a
+machine with a separate GPU. Along the way the post lays out the evidence behind an
 answer Part 9 stated, that the MacBook is fast because of its memory rather than its CPU.
 
 ## What the fast machine makes visible
 
 ![Two workshops side by side, each with a worker turning ledgers from a belt into finished pages and a clerk who stamps every page before it leaves: on the left the belt is slow and the clerk leans back with tea between pages; on the right the belt is fast and a pile of unstamped pages waits at the clerk's desk while the clerk stamps as fast as possible](../assets/diagrams/d12.jpg)
 
-Part 9 fitted that line to a ladder of four weight formats on the MacBook, the weights
-stored at 4, 6, 8, or 16 bits each, called Q4, Q6, Q8, and F16, and read the bandwidth
-off the slope. The same fit produced intercepts, 2.4 ms for the GPU and about 4.6 ms for the
+Part 9 measured the MacBook on a ladder of four weight formats, the weights stored at 4,
+6, 8, or 16 bits each, called Q4, Q6, Q8, and F16, then drew the equation's straight line
+through the results and read the memory bandwidth off its slope. The same fit produced intercepts, 2.4 ms for the GPU and about 4.6 ms for the
 CPU, which looked like a difference in fixed cost but turned out not to be one. The follow-up
 with smaller models below, which holds the weight format fixed, puts the fixed cost near 1 ms
 on both engines. What the ladder fit was most likely absorbing into its intercept is a third
@@ -54,9 +56,9 @@ streaming the same 3 GB takes about 14 ms, the fixed and format costs did not sh
 it, and effective bandwidth is no longer constant, rising from 157 GB/s at Q4 to 188 GB/s
 at F16 on the CPU within the same session. The faster the memory, the larger the share of
 a token everything other than streaming takes, and the sooner it becomes the thing worth
-optimizing. The constant-effective-bandwidth check is a slow-machine diagnostic; once
-memory is fast, the line with an intercept is the right model, and the intercept has to
-be measured with the format held fixed.
+optimizing. So a check that works on a slow machine, that speed times bytes comes out the same for
+every format, stops working on a fast one. There the straight line with its intercept is
+the right model, and the intercept has to be measured with the weight format held fixed.
 
 ## Does model size change the gap?
 
