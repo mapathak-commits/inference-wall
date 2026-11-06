@@ -21,8 +21,9 @@ and the millisecond Part 10 measured is the part that remains.
 
 The short answer: with CUDA graphs turned off, the 4B model takes 1.5x as long per token for
 one user, and a 0.5B model takes 4.4x as long, because the GPU sits idle waiting for its next
-instruction. Under heavy load the difference shrinks to almost nothing, because the GPU then
-has enough work of its own that the waiting stops mattering.
+instruction. Under heavy load the 4B's difference shrinks to almost nothing, because the GPU then has
+enough work of its own that the waiting stops mattering; the smaller models still lose
+ground at 64 requests.
 
 ## How a token gets onto the GPU
 
@@ -34,8 +35,8 @@ in the GPU's queue. For the 4B model, one token is about 530 kernels.
 
 The CPU and the GPU work side by side. While the GPU runs one kernel, the CPU can be
 preparing and launching the next, so as long as the CPU stays ahead, the queue never runs
-dry and the GPU never waits. Launching is not free, though. Each kernel costs the CPU time to
-prepare its inputs and make the call, and in vLLM that work also runs through Python. If the
+dry and the GPU never waits. Launching is not free, though. Each kernel costs the CPU time to prepare its inputs and make
+the call, and in vLLM much of the code that decides what to launch is Python. If the
 CPU takes longer to launch a kernel than the GPU takes to run it, the GPU finishes and waits.
 
 That gives the time per token a different shape from the one in earlier posts:
@@ -46,22 +47,21 @@ time per token  =  the longer of:   GPU work for the token
 ```
 
 The GPU work is the weight reading and arithmetic the series has measured all along. The
-CPU launch time is the number of kernels times the CPU cost of launching each one, and it
-does not depend on how many requests share the step, because a batch of 64 requests runs the
-same 530 kernels as a single request, each one simply doing more work.
+CPU launch time is the number of kernels times the CPU cost of launching each one, and it barely depends on how many requests share the step, because a batch of 64 requests
+runs about the same number of kernels as a single request, each one simply doing more work.
 
 A **CUDA graph** removes most of the second line. When the server starts, it runs the
 model's kernels once while recording them, and keeps the recording. To produce a token it
-then replays the whole recording with a single launch, and the GPU runs the 530 kernels back
-to back with no CPU work between them.
+then replays the whole recording with a single launch, and the GPU runs most of the 530 kernels back to back with no CPU work between
+them.
 
 ## What turning graphs off costs
 
 The measurement runs each model twice on the A10G, with CUDA graphs on, the vLLM default,
 and with only the graphs turned off. Everything else is held fixed, including the
 compilation step that vLLM runs alongside graphs. Each run sends requests with a 128-token
-prompt and 256 generated tokens, at 1, 4, 16, and 64 requests in flight at once, and reports
-the median time between output tokens. Three models give three sizes of GPU work per token:
+prompt and 256 generated tokens, at 1, 4, 16, and 64 requests in flight at once, and reports the median time per output
+token. Three models give three sizes of GPU work per token:
 Qwen2.5-0.5B, Qwen2.5-3B, and the series' Qwen3.5-4B.
 
 | Model | Graphs on, 1 request | Graphs off, 1 request | Slowdown | Graphs on, 64 requests | Graphs off, 64 requests |
@@ -104,16 +104,18 @@ a tenth of a microsecond, and without them the slowest tenth of gaps run past 14
 microseconds on both models. The profiler itself slows the CPU's launching, so the traces
 exaggerate the gaps, and the shares above come from the timings measured without it.
 
-Without graphs the CPU spends about 50 to 60 microseconds per kernel, counting the Python
-code around each launch: 14.2 ms for the 0.5B's 287 kernels and 29.6 ms for the 4B's 514.
+Without graphs the CPU's work for each token, divided by the kernels it launches, comes to
+about 50 to 60 microseconds per kernel: 14.2 ms for the 0.5B's 287 kernels and 29.6 ms for
+the 4B's 514. That figure folds in the CPU's other per-token work, such as scheduling the
+step, alongside the launches themselves.
 That cost per kernel is close on both models, so what decides how much a model loses is how
 much GPU work it has to hide the launches behind. The 0.5B's 3 ms of GPU work hides almost
 none of its 14 ms of launching. The 4B's 20 ms hides about two thirds of its 30.
 
 ## Back to Part 10's millisecond
 
-Part 10 measured its A10G fixed cost with llama.cpp, whose CUDA build also replays CUDA
-graphs, so that millisecond was already the cost left over after graphs. The same holds in vLLM. With
+Part 10 measured its A10G fixed cost with llama.cpp, whose CUDA build was compiled with CUDA
+graphs enabled, so that millisecond was most likely already the cost left over after graphs. The same holds in vLLM. With
 graphs on, a token takes 3.3 ms on the 0.5B and 20.0 ms on the 4B, against 3.0 and 19.6 ms of
 GPU work, leaving 0.2 to 0.4 ms of fixed cost per token. With graphs off, the leftover is
 about 10 to 11 ms on both. CUDA graphs are what turn roughly ten milliseconds of per-token
@@ -125,24 +127,27 @@ its token.
 ## What graphs cost
 
 Recording the graphs takes time at startup and memory on the GPU. Capture took 3 to 6 seconds and about 0.4 to 0.6 GB of GPU memory, depending on the
-model. vLLM also compiles the model when
-graphs are on, which on a cold start took 17 to 36 seconds and pushed the 4B's first start to
-about five minutes; with the compiled result cached, later starts took 25 to 90 seconds.
+model. vLLM compiles the model as well, with graphs on or off, and the first, cold compile with
+graphs took 17 to 36 seconds and pushed the 4B's first start to about five minutes; with
+the compiled result cached, later starts took 25 to 90 seconds.
 
 A recording also has a fixed shape. It stores the kernels for one batch size, so vLLM records
 a set of them at startup, for 1, 2, 4, and 8 requests, then every 8 up to 256 and every 16
-up to 512, and pads each step up to the nearest recorded size. The padding is wasted work,
-which is part of why the advantage of graphs shrinks as batches grow.
+up to 512, and pads each step up to the nearest recorded size. That padding is wasted work and likely
+contributes a little to the shrinking advantage at larger batches, though the main cause
+measured here is the GPU's own work catching up.
 
-Turning graphs off is mainly useful for debugging, since a replayed recording hides the
-individual kernels from many tools. vLLM's `--enforce-eager` flag does it, but it also turns
+Turning graphs off is mainly useful for debugging the CPU side of a server, where a replayed
+recording collapses hundreds of separate launches into one call. vLLM's `--enforce-eager`
+flag does it, but it also turns
 off compilation, which on the 4B made things worse still: 36.8 ms per token against 29.6 ms
 with compilation kept on. The more targeted setting turns off graphs alone.
 
 ## What to take away
 
-1. **The CPU, not the GPU, decides what runs, and telling the GPU takes time.** Each token is
-   hundreds of kernel launches, at about 50 to 60 microseconds of CPU time each in vLLM.
+1. **The CPU decides what the GPU runs, and telling it takes time.** Each token is hundreds
+   of kernel launches, and without graphs vLLM's CPU work comes to about 50 to 60
+   microseconds per kernel.
 2. **Without CUDA graphs, time per token is the longer of the GPU's work and the CPU's
    launching.** For small models and light load the launching wins: one request on the 0.5B
    ran 4.4x slower, on the 4B 1.5x slower.
