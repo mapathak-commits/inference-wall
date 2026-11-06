@@ -1,0 +1,339 @@
+=== CUDA GRAPH STUDY START 2026-11-06T19:05:18Z ===
+[Qwen2.5-0.5B-Instruct_graph] ready after 70 s
+(EngineCore pid=634565) Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   0%|          | 0/51 [00:00<?, ?it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   8%|▊         | 4/5
+(EngineCore pid=634565) Capturing CUDA graphs (decode, FULL):   0%|          | 0/35 [00:00<?, ?it/s]Capturing CUDA graphs (decode, FULL):  11%|█▏        | 4/35 [00:00<00:01, 30.93it/s]Capturing
+(EngineCore pid=634565) INFO 11-06 19:06:28 [gpu_model_runner.py:5746] Graph capturing finished in 4 secs, took 0.41 GiB
+(EngineCore pid=634565) INFO 11-06 19:06:28 [core.py:281] init engine (profile, create kv cache, warmup model) took 33.82 seconds
+########## [WARMUP_Qwen2.5-0.5B-Instruct_graph] conc=64 prompts=128 in=128 out=128 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         1392.23   
+Peak output token throughput (tok/s):    8223.00   
+Median TTFT (ms):                        5132.56   
+Median TPOT (ms):                        5.72      
+P99 TPOT (ms):                           6.12      
+Median ITL (ms):                         5.38      
+P99 ITL (ms):                            23.46     
+########## [Qwen2.5-0.5B-Instruct_graph] conc=1 prompts=16 in=128 out=256 rate=inf ##########
+Successful requests:                     16        
+Output token throughput (tok/s):         302.71    
+Peak output token throughput (tok/s):    304.00    
+Median TTFT (ms):                        15.62     
+Median TPOT (ms):                        3.25      
+P99 TPOT (ms):                           3.26      
+Median ITL (ms):                         3.25      
+P99 ITL (ms):                            3.68      
+########## [Qwen2.5-0.5B-Instruct_graph] conc=4 prompts=64 in=128 out=256 rate=inf ##########
+Successful requests:                     64        
+Output token throughput (tok/s):         963.65    
+Peak output token throughput (tok/s):    968.00    
+Median TTFT (ms):                        21.12     
+Median TPOT (ms):                        4.08      
+P99 TPOT (ms):                           4.09      
+Median ITL (ms):                         4.08      
+P99 ITL (ms):                            4.78      
+########## [Qwen2.5-0.5B-Instruct_graph] conc=16 prompts=128 in=128 out=256 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         3757.80   
+Peak output token throughput (tok/s):    3783.00   
+Median TTFT (ms):                        37.14     
+Median TPOT (ms):                        4.13      
+P99 TPOT (ms):                           4.17      
+Median ITL (ms):                         4.11      
+P99 ITL (ms):                            5.38      
+########## [Qwen2.5-0.5B-Instruct_graph] conc=64 prompts=256 in=128 out=256 rate=inf ##########
+Successful requests:                     256       
+Output token throughput (tok/s):         10348.67  
+Peak output token throughput (tok/s):    11708.00  
+Median TTFT (ms):                        119.77    
+Median TPOT (ms):                        5.64      
+P99 TPOT (ms):                           5.97      
+Median ITL (ms):                         5.51      
+P99 ITL (ms):                            11.17     
+[Qwen2.5-0.5B-Instruct_eager] ready after 36 s
+(EngineCore pid=650211) INFO 11-06 19:08:49 [core.py:281] init engine (profile, create kv cache, warmup model) took 11.18 seconds
+########## [WARMUP_Qwen2.5-0.5B-Instruct_eager] conc=64 prompts=128 in=128 out=128 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         1089.65   
+Peak output token throughput (tok/s):    3648.00   
+Median TTFT (ms):                        5163.94   
+Median TPOT (ms):                        18.31     
+P99 TPOT (ms):                           18.62     
+Median ITL (ms):                         17.73     
+P99 ITL (ms):                            33.80     
+########## [Qwen2.5-0.5B-Instruct_eager] conc=1 prompts=16 in=128 out=256 rate=inf ##########
+Successful requests:                     16        
+Output token throughput (tok/s):         67.23     
+Peak output token throughput (tok/s):    73.00     
+Median TTFT (ms):                        35.03     
+Median TPOT (ms):                        14.76     
+P99 TPOT (ms):                           15.53     
+Median ITL (ms):                         14.56     
+P99 ITL (ms):                            20.68     
+########## [Qwen2.5-0.5B-Instruct_eager] conc=4 prompts=64 in=128 out=256 rate=inf ##########
+Successful requests:                     64        
+Output token throughput (tok/s):         258.76    
+Peak output token throughput (tok/s):    276.00    
+Median TTFT (ms):                        51.91     
+Median TPOT (ms):                        15.31     
+P99 TPOT (ms):                           16.22     
+Median ITL (ms):                         15.10     
+P99 ITL (ms):                            20.34     
+########## [Qwen2.5-0.5B-Instruct_eager] conc=16 prompts=128 in=128 out=256 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         1024.55   
+Peak output token throughput (tok/s):    1136.00   
+Median TTFT (ms):                        64.52     
+Median TPOT (ms):                        15.37     
+P99 TPOT (ms):                           16.47     
+Median ITL (ms):                         15.11     
+P99 ITL (ms):                            21.59     
+########## [Qwen2.5-0.5B-Instruct_eager] conc=64 prompts=256 in=128 out=256 rate=inf ##########
+Successful requests:                     256       
+Output token throughput (tok/s):         3634.22   
+Peak output token throughput (tok/s):    3968.00   
+Median TTFT (ms):                        122.14    
+Median TPOT (ms):                        17.11     
+P99 TPOT (ms):                           17.71     
+Median ITL (ms):                         16.61     
+P99 ITL (ms):                            25.00     
+[Qwen2.5-3B-Instruct_graph] ready after 101 s
+(EngineCore pid=671478) Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   0%|          | 0/51 [00:00<?, ?it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   4%|▍         | 2/5
+(EngineCore pid=671478) Capturing CUDA graphs (decode, FULL):   0%|          | 0/35 [00:00<?, ?it/s]Capturing CUDA graphs (decode, FULL):   6%|▌         | 2/35 [00:00<00:01, 17.56it/s]Capturing C
+(EngineCore pid=671478) INFO 11-06 19:14:28 [gpu_model_runner.py:5746] Graph capturing finished in 5 secs, took 0.55 GiB
+(EngineCore pid=671478) INFO 11-06 19:14:28 [core.py:281] init engine (profile, create kv cache, warmup model) took 26.31 seconds
+########## [WARMUP_Qwen2.5-3B-Instruct_graph] conc=64 prompts=128 in=128 out=128 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         2185.94   
+Peak output token throughput (tok/s):    2944.00   
+Median TTFT (ms):                        630.81    
+Median TPOT (ms):                        24.81     
+P99 TPOT (ms):                           27.59     
+Median ITL (ms):                         21.96     
+P99 ITL (ms):                            195.39    
+########## [Qwen2.5-3B-Instruct_graph] conc=1 prompts=16 in=128 out=256 rate=inf ##########
+Successful requests:                     16        
+Output token throughput (tok/s):         67.00     
+Peak output token throughput (tok/s):    68.00     
+Median TTFT (ms):                        24.67     
+Median TPOT (ms):                        14.89     
+P99 TPOT (ms):                           14.89     
+Median ITL (ms):                         14.88     
+P99 ITL (ms):                            15.38     
+########## [Qwen2.5-3B-Instruct_graph] conc=4 prompts=64 in=128 out=256 rate=inf ##########
+Successful requests:                     64        
+Output token throughput (tok/s):         242.93    
+Peak output token throughput (tok/s):    248.00    
+Median TTFT (ms):                        48.64     
+Median TPOT (ms):                        16.33     
+P99 TPOT (ms):                           16.35     
+Median ITL (ms):                         16.32     
+P99 ITL (ms):                            17.05     
+########## [Qwen2.5-3B-Instruct_graph] conc=16 prompts=128 in=128 out=256 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         945.02    
+Peak output token throughput (tok/s):    976.00    
+Median TTFT (ms):                        58.93     
+Median TPOT (ms):                        16.72     
+P99 TPOT (ms):                           16.77     
+Median ITL (ms):                         16.67     
+P99 ITL (ms):                            19.07     
+########## [Qwen2.5-3B-Instruct_graph] conc=64 prompts=256 in=128 out=256 rate=inf ##########
+Successful requests:                     256       
+Output token throughput (tok/s):         2626.40   
+Peak output token throughput (tok/s):    2944.00   
+Median TTFT (ms):                        246.34    
+Median TPOT (ms):                        22.62     
+P99 TPOT (ms):                           25.11     
+Median ITL (ms):                         22.22     
+P99 ITL (ms):                            43.18     
+[Qwen2.5-3B-Instruct_eager] ready after 26 s
+(EngineCore pid=704192) INFO 11-06 19:19:01 [core.py:281] init engine (profile, create kv cache, warmup model) took 1.60 seconds
+########## [WARMUP_Qwen2.5-3B-Instruct_eager] conc=64 prompts=128 in=128 out=128 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         1987.12   
+Peak output token throughput (tok/s):    2626.00   
+Median TTFT (ms):                        642.40    
+Median TPOT (ms):                        27.29     
+P99 TPOT (ms):                           30.14     
+Median ITL (ms):                         24.42     
+P99 ITL (ms):                            208.94    
+########## [Qwen2.5-3B-Instruct_eager] conc=1 prompts=16 in=128 out=256 rate=inf ##########
+Successful requests:                     16        
+Output token throughput (tok/s):         46.88     
+Peak output token throughput (tok/s):    49.00     
+Median TTFT (ms):                        46.80     
+Median TPOT (ms):                        21.22     
+P99 TPOT (ms):                           21.94     
+Median ITL (ms):                         20.97     
+P99 ITL (ms):                            27.48     
+########## [Qwen2.5-3B-Instruct_eager] conc=4 prompts=64 in=128 out=256 rate=inf ##########
+Successful requests:                     64        
+Output token throughput (tok/s):         186.94    
+Peak output token throughput (tok/s):    196.00    
+Median TTFT (ms):                        66.96     
+Median TPOT (ms):                        21.06     
+P99 TPOT (ms):                           22.12     
+Median ITL (ms):                         20.92     
+P99 ITL (ms):                            27.40     
+########## [Qwen2.5-3B-Instruct_eager] conc=16 prompts=128 in=128 out=256 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         742.64    
+Peak output token throughput (tok/s):    800.00    
+Median TTFT (ms):                        77.63     
+Median TPOT (ms):                        21.29     
+P99 TPOT (ms):                           21.62     
+Median ITL (ms):                         21.05     
+P99 ITL (ms):                            26.38     
+########## [Qwen2.5-3B-Instruct_eager] conc=64 prompts=256 in=128 out=256 rate=inf ##########
+Successful requests:                     256       
+Output token throughput (tok/s):         2582.06   
+Peak output token throughput (tok/s):    2936.00   
+Median TTFT (ms):                        217.77    
+Median TPOT (ms):                        23.39     
+P99 TPOT (ms):                           25.72     
+Median ITL (ms):                         22.50     
+P99 ITL (ms):                            33.56     
+[Qwen3.5-4B_graph] ready after 297 s
+(EngineCore pid=733593) Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   0%|          | 0/51 [00:00<?, ?it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   4%|▍         | 2/5
+(EngineCore pid=733593) Capturing CUDA graphs (decode, FULL):   0%|          | 0/35 [00:00<?, ?it/s]Capturing CUDA graphs (decode, FULL):   3%|▎         | 1/35 [00:00<00:08,  3.95it/s]Capturing C
+(EngineCore pid=733593) INFO 11-06 19:28:53 [gpu_model_runner.py:5746] Graph capturing finished in 6 secs, took 0.62 GiB
+(EngineCore pid=733593) INFO 11-06 19:28:53 [core.py:281] init engine (profile, create kv cache, warmup model) took 168.82 seconds
+########## [WARMUP_Qwen3.5-4B_graph] conc=64 prompts=128 in=128 out=128 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         184.30    
+Peak output token throughput (tok/s):    1728.00   
+Median TTFT (ms):                        38718.74  
+Median TPOT (ms):                        41.21     
+P99 TPOT (ms):                           48.07     
+Median ITL (ms):                         38.27     
+P99 ITL (ms):                            311.01    
+########## [Qwen3.5-4B_graph] conc=1 prompts=16 in=128 out=256 rate=inf ##########
+Successful requests:                     16        
+Output token throughput (tok/s):         49.74     
+Peak output token throughput (tok/s):    51.00     
+Median TTFT (ms):                        49.57     
+Median TPOT (ms):                        19.98     
+P99 TPOT (ms):                           19.99     
+Median ITL (ms):                         19.98     
+P99 ITL (ms):                            20.51     
+########## [Qwen3.5-4B_graph] conc=4 prompts=64 in=128 out=256 rate=inf ##########
+Successful requests:                     64        
+Output token throughput (tok/s):         188.95    
+Peak output token throughput (tok/s):    192.00    
+Median TTFT (ms):                        104.39    
+Median TPOT (ms):                        20.84     
+P99 TPOT (ms):                           20.85     
+Median ITL (ms):                         20.83     
+P99 ITL (ms):                            21.43     
+########## [Qwen3.5-4B_graph] conc=16 prompts=128 in=128 out=256 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         625.58    
+Peak output token throughput (tok/s):    672.00    
+Median TTFT (ms):                        360.79    
+Median TPOT (ms):                        24.26     
+P99 TPOT (ms):                           25.17     
+Median ITL (ms):                         24.24     
+P99 ITL (ms):                            25.44     
+########## [Qwen3.5-4B_graph] conc=64 prompts=256 in=128 out=256 rate=inf ##########
+Successful requests:                     256       
+Output token throughput (tok/s):         1449.79   
+Peak output token throughput (tok/s):    1701.00   
+Median TTFT (ms):                        838.14    
+Median TPOT (ms):                        41.06     
+P99 TPOT (ms):                           43.40     
+Median ITL (ms):                         38.58     
+P99 ITL (ms):                            87.65     
+########## [Qwen3.5-4B_graph] conc=none prompts=200 in=256 out=128 rate=inf ##########
+Successful requests:                     200       
+Output token throughput (tok/s):         1087.72   
+Peak output token throughput (tok/s):    2190.00   
+Median TTFT (ms):                        5225.58   
+Median TPOT (ms):                        109.97    
+P99 TPOT (ms):                           121.90    
+Median ITL (ms):                         69.77     
+P99 ITL (ms):                            462.39    
+[Qwen3.5-4B_eager] ready after 95 s
+(EngineCore pid=796161) INFO 11-06 19:37:44 [core.py:281] init engine (profile, create kv cache, warmup model) took 37.44 seconds
+########## [WARMUP_Qwen3.5-4B_eager] conc=64 prompts=128 in=128 out=128 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         578.52    
+Peak output token throughput (tok/s):    1600.00   
+Median TTFT (ms):                        6165.67   
+Median TPOT (ms):                        48.85     
+P99 TPOT (ms):                           68.23     
+Median ITL (ms):                         41.07     
+P99 ITL (ms):                            337.50    
+########## [Qwen3.5-4B_eager] conc=1 prompts=16 in=128 out=256 rate=inf ##########
+Successful requests:                     16        
+Output token throughput (tok/s):         26.72     
+Peak output token throughput (tok/s):    29.00     
+Median TTFT (ms):                        109.87    
+Median TPOT (ms):                        36.84     
+P99 TPOT (ms):                           39.17     
+Median ITL (ms):                         36.43     
+P99 ITL (ms):                            49.41     
+########## [Qwen3.5-4B_eager] conc=4 prompts=64 in=128 out=256 rate=inf ##########
+Successful requests:                     64        
+Output token throughput (tok/s):         101.52    
+Peak output token throughput (tok/s):    112.00    
+Median TTFT (ms):                        179.13    
+Median TPOT (ms):                        38.78     
+P99 TPOT (ms):                           40.59     
+Median ITL (ms):                         38.38     
+P99 ITL (ms):                            48.06     
+########## [Qwen3.5-4B_eager] conc=16 prompts=128 in=128 out=256 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         393.67    
+Peak output token throughput (tok/s):    432.00    
+Median TTFT (ms):                        395.07    
+Median TPOT (ms):                        39.25     
+P99 TPOT (ms):                           40.64     
+Median ITL (ms):                         38.66     
+P99 ITL (ms):                            48.74     
+########## [Qwen3.5-4B_eager] conc=64 prompts=256 in=128 out=256 rate=inf ##########
+Successful requests:                     256       
+Output token throughput (tok/s):         1344.75   
+Peak output token throughput (tok/s):    1664.00   
+Median TTFT (ms):                        929.94    
+Median TPOT (ms):                        44.72     
+P99 TPOT (ms):                           46.94     
+Median ITL (ms):                         41.37     
+P99 ITL (ms):                            75.01     
+########## [Qwen3.5-4B_eager] conc=none prompts=200 in=256 out=128 rate=inf ##########
+Successful requests:                     200       
+Output token throughput (tok/s):         1047.67   
+Peak output token throughput (tok/s):    2107.00   
+Median TTFT (ms):                        5120.93   
+Median TPOT (ms):                        111.52    
+P99 TPOT (ms):                           122.66    
+Median ITL (ms):                         70.80     
+P99 ITL (ms):                            466.10    
+[trace_Qwen2.5-0.5B-Instruct_graph] ready after 30 s
+start_profile: 200
+stop_profile: 200
+=== TRACE CAPTURE DONE Qwen/Qwen2.5-0.5B-Instruct ===
+-rw-r--r-- 1 mpathak users    1037 Nov  6 19:48 devrestricted-mpathak_846420.async_llm.1793994481472331775.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users   18875 Nov  6 19:48 profiler_out_0.txt
+-rw-r--r-- 1 mpathak users 3144324 Nov  6 19:48 rank0.1793994482428578743.pt.trace.json.gz
+[trace_Qwen2.5-0.5B-Instruct_eager] ready after 25 s
+start_profile: 200
+stop_profile: 200
+=== TRACE CAPTURE DONE Qwen/Qwen2.5-0.5B-Instruct ===
+-rw-r--r-- 1 mpathak users    1040 Nov  6 19:49 devrestricted-mpathak_851156.async_llm.1793994544309763892.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users   20657 Nov  6 19:49 profiler_out_0.txt
+-rw-r--r-- 1 mpathak users 3022263 Nov  6 19:49 rank0.1793994544959855708.pt.trace.json.gz
+[trace_Qwen3.5-4B_graph] ready after 90 s
+start_profile: 200
+stop_profile: 200
+=== TRACE CAPTURE DONE Qwen/Qwen3.5-4B ===
+-rw-r--r-- 1 mpathak users    1037 Nov  6 19:51 devrestricted-mpathak_855965.async_llm.1793994682550656364.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users   19265 Nov  6 19:51 profiler_out_0.txt
+-rw-r--r-- 1 mpathak users 1235006 Nov  6 19:51 rank0.1793994682885377326.pt.trace.json.gz
+[trace_Qwen3.5-4B_eager] ready after 80 s
+start_profile: 200
+stop_profile: 200
+=== TRACE CAPTURE DONE Qwen/Qwen3.5-4B ===
+-rw-r--r-- 1 mpathak users    1037 Nov  6 19:53 devrestricted-mpathak_865051.async_llm.1793994810888261852.pt.trace.json.gz
+-rw-r--r-- 1 mpathak users   20654 Nov  6 19:53 profiler_out_0.txt
+-rw-r--r-- 1 mpathak users 1395926 Nov  6 19:53 rank0.1793994811213721769.pt.trace.json.gz
+=== CUDA GRAPH STUDY DONE 2026-11-06T19:53:52Z ===

@@ -1,0 +1,166 @@
+=== NOGRAPH ARM START 2026-11-06T19:57:19Z ===
+[Qwen2.5-0.5B-Instruct_compileonly] ready after 30 s
+cudagraph_mode': <CUDAGraphMode.NONE: 0>
+'mode': <CompilationMode.VLLM_COMPILE: 3>
+cudagraph_mode': <CUDAGraphMode.NONE: 0>
+########## [WARMUP_Qwen2.5-0.5B-Instruct_compileonly] conc=64 prompts=128 in=128 out=128 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         3489.20   
+Peak output token throughput (tok/s):    4032.00   
+Median TTFT (ms):                        205.79    
+Median TPOT (ms):                        16.73     
+P99 TPOT (ms):                           17.19     
+Median ITL (ms):                         16.00     
+P99 ITL (ms):                            31.13     
+########## [Qwen2.5-0.5B-Instruct_compileonly] conc=1 prompts=16 in=128 out=256 rate=inf ##########
+Successful requests:                     16        
+Output token throughput (tok/s):         69.86     
+Peak output token throughput (tok/s):    79.00     
+Median TTFT (ms):                        33.95     
+Median TPOT (ms):                        14.24     
+P99 TPOT (ms):                           15.77     
+Median ITL (ms):                         13.87     
+P99 ITL (ms):                            19.95     
+########## [Qwen2.5-0.5B-Instruct_compileonly] conc=4 prompts=64 in=128 out=256 rate=inf ##########
+Successful requests:                     64        
+Output token throughput (tok/s):         271.39    
+Peak output token throughput (tok/s):    300.00    
+Median TTFT (ms):                        50.44     
+Median TPOT (ms):                        14.56     
+P99 TPOT (ms):                           15.47     
+Median ITL (ms):                         14.41     
+P99 ITL (ms):                            19.61     
+########## [Qwen2.5-0.5B-Instruct_compileonly] conc=16 prompts=128 in=128 out=256 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         1091.64   
+Peak output token throughput (tok/s):    1166.00   
+Median TTFT (ms):                        57.80     
+Median TPOT (ms):                        14.34     
+P99 TPOT (ms):                           15.27     
+Median ITL (ms):                         14.28     
+P99 ITL (ms):                            19.62     
+########## [Qwen2.5-0.5B-Instruct_compileonly] conc=64 prompts=256 in=128 out=256 rate=inf ##########
+Successful requests:                     256       
+Output token throughput (tok/s):         3711.59   
+Peak output token throughput (tok/s):    4110.00   
+Median TTFT (ms):                        132.26    
+Median TPOT (ms):                        16.80     
+P99 TPOT (ms):                           17.42     
+Median ITL (ms):                         16.27     
+P99 ITL (ms):                            23.17     
+[Qwen2.5-3B-Instruct_compileonly] ready after 35 s
+cudagraph_mode': <CUDAGraphMode.NONE: 0>
+'mode': <CompilationMode.VLLM_COMPILE: 3>
+cudagraph_mode': <CUDAGraphMode.NONE: 0>
+########## [WARMUP_Qwen2.5-3B-Instruct_compileonly] conc=64 prompts=128 in=128 out=128 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         1708.58   
+Peak output token throughput (tok/s):    2112.00   
+Median TTFT (ms):                        621.27    
+Median TPOT (ms):                        32.70     
+P99 TPOT (ms):                           35.61     
+Median ITL (ms):                         30.10     
+P99 ITL (ms):                            208.63    
+########## [Qwen2.5-3B-Instruct_compileonly] conc=1 prompts=16 in=128 out=256 rate=inf ##########
+Successful requests:                     16        
+Output token throughput (tok/s):         34.50     
+Peak output token throughput (tok/s):    36.00     
+Median TTFT (ms):                        62.56     
+Median TPOT (ms):                        28.81     
+P99 TPOT (ms):                           29.87     
+Median ITL (ms):                         28.60     
+P99 ITL (ms):                            35.82     
+########## [Qwen2.5-3B-Instruct_compileonly] conc=4 prompts=64 in=128 out=256 rate=inf ##########
+Successful requests:                     64        
+Output token throughput (tok/s):         136.88    
+Peak output token throughput (tok/s):    144.00    
+Median TTFT (ms):                        90.22     
+Median TPOT (ms):                        28.94     
+P99 TPOT (ms):                           29.97     
+Median ITL (ms):                         28.60     
+P99 ITL (ms):                            36.84     
+########## [Qwen2.5-3B-Instruct_compileonly] conc=16 prompts=128 in=128 out=256 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         546.61    
+Peak output token throughput (tok/s):    576.00    
+Median TTFT (ms):                        97.11     
+Median TPOT (ms):                        29.00     
+P99 TPOT (ms):                           29.66     
+Median ITL (ms):                         28.71     
+P99 ITL (ms):                            36.94     
+########## [Qwen2.5-3B-Instruct_compileonly] conc=64 prompts=256 in=128 out=256 rate=inf ##########
+Successful requests:                     256       
+Output token throughput (tok/s):         1972.70   
+Peak output token throughput (tok/s):    2240.00   
+Median TTFT (ms):                        236.72    
+Median TPOT (ms):                        30.79     
+P99 TPOT (ms):                           33.35     
+Median ITL (ms):                         30.04     
+P99 ITL (ms):                            41.40     
+[Qwen3.5-4B_compileonly] ready after 80 s
+cudagraph_mode': <CUDAGraphMode.NONE: 0>
+'mode': <CompilationMode.VLLM_COMPILE: 3>
+cudagraph_mode': <CUDAGraphMode.NONE: 0>
+########## [WARMUP_Qwen3.5-4B_compileonly] conc=64 prompts=128 in=128 out=128 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         666.06    
+Peak output token throughput (tok/s):    1664.00   
+Median TTFT (ms):                        6375.67   
+Median TPOT (ms):                        42.80     
+P99 TPOT (ms):                           49.50     
+Median ITL (ms):                         38.66     
+P99 ITL (ms):                            332.39    
+########## [Qwen3.5-4B_compileonly] conc=1 prompts=16 in=128 out=256 rate=inf ##########
+Successful requests:                     16        
+Output token throughput (tok/s):         33.39     
+Peak output token throughput (tok/s):    36.00     
+Median TTFT (ms):                        93.43     
+Median TPOT (ms):                        29.57     
+P99 TPOT (ms):                           31.24     
+Median ITL (ms):                         29.32     
+P99 ITL (ms):                            37.36     
+########## [Qwen3.5-4B_compileonly] conc=4 prompts=64 in=128 out=256 rate=inf ##########
+Successful requests:                     64        
+Output token throughput (tok/s):         135.88    
+Peak output token throughput (tok/s):    148.00    
+Median TTFT (ms):                        147.29    
+Median TPOT (ms):                        28.87     
+P99 TPOT (ms):                           30.98     
+Median ITL (ms):                         28.54     
+P99 ITL (ms):                            37.61     
+########## [Qwen3.5-4B_compileonly] conc=16 prompts=128 in=128 out=256 rate=inf ##########
+Successful requests:                     128       
+Output token throughput (tok/s):         515.72    
+Peak output token throughput (tok/s):    576.00    
+Median TTFT (ms):                        383.82    
+Median TPOT (ms):                        29.59     
+P99 TPOT (ms):                           30.79     
+Median ITL (ms):                         29.36     
+P99 ITL (ms):                            35.80     
+########## [Qwen3.5-4B_compileonly] conc=64 prompts=256 in=128 out=256 rate=inf ##########
+Successful requests:                     256       
+Output token throughput (tok/s):         1435.70   
+Peak output token throughput (tok/s):    1664.00   
+Median TTFT (ms):                        922.25    
+Median TPOT (ms):                        41.14     
+P99 TPOT (ms):                           43.68     
+Median ITL (ms):                         39.01     
+P99 ITL (ms):                            74.42     
+########## [Qwen3.5-4B_compileonly] conc=none prompts=200 in=256 out=128 rate=inf ##########
+Successful requests:                     200       
+Output token throughput (tok/s):         1082.49   
+Peak output token throughput (tok/s):    2190.00   
+Median TTFT (ms):                        5105.62   
+Median TPOT (ms):                        110.92    
+P99 TPOT (ms):                           122.02    
+Median ITL (ms):                         70.38     
+P99 ITL (ms):                            463.09    
+[trace_Qwen2.5-0.5B-Instruct_compileonly] ready after 25 s
+start_profile: 200
+stop_profile: 200
+=== TRACE CAPTURE DONE Qwen/Qwen2.5-0.5B-Instruct ===
+[trace_Qwen3.5-4B_compileonly] ready after 80 s
+start_profile: 200
+stop_profile: 200
+=== TRACE CAPTURE DONE Qwen/Qwen3.5-4B ===
+=== NOGRAPH ARM DONE 2026-11-06T20:20:39Z ===
