@@ -14,7 +14,7 @@ image: /assets/figures/fig11a-graphs-vs-concurrency.png
 [Part 10]({{ '/articles/part-10/' | relative_url }}) ended with a small number it did not
 explain. On top of the time spent reading a model's weights from memory, every token on the
 GPU carried a fixed cost of about a millisecond, and on small models that millisecond was a
-large share of each token. This post finds where it comes from. A GPU does not decide what
+large share of each token. This post finds where it comes from, starting from the fact that a GPU does not decide what
 to run next. The CPU tells it, one small program at a time, and telling it takes time. Most
 of that time disappears behind a feature called CUDA graphs, which vLLM turns on by default,
 and the millisecond Part 10 measured is the part that remains.
@@ -88,7 +88,7 @@ Qwen2.5-0.5B, Qwen2.5-3B, and the series' Qwen3.5-4B.
 
 ![Milliseconds per token against concurrent requests for three models, with CUDA graphs on and off: with graphs off the line is nearly flat from 1 to 16 requests on every model, while with graphs on it starts much lower and rises with load; on the 4B the two lines meet at 64 requests](../assets/figures/fig11a-graphs-vs-concurrency.png)
 
-The flat lines are the evidence. With graphs off, time per token barely changes between one
+The flat lines are the evidence: with graphs off, time per token barely changes between one
 request and sixteen, on every model. That is the signature of the CPU setting the pace:
 launching 530 kernels takes about as long whether each kernel serves one request or sixteen.
 With graphs on, time per token starts far lower and rises with load, because now the GPU's
@@ -105,8 +105,7 @@ A profiler trace records every kernel the GPU ran, with its start time and durat
 Traces of a single request decoding, with graphs on and off, settle what the slowdown is.
 The kernels are nearly the same in both, about 290 to 335 per token on the 0.5B and 510 to
 530 on the 4B, and the GPU spends the same time running them: 3.0 ms per token on the 0.5B
-and 19.6 ms on the 4B, in both modes. Turning off graphs adds no GPU work at all. It adds
-idle time between kernels.
+and 19.6 ms on the 4B, in both modes. Turning off graphs adds no GPU work at all, only idle time between kernels.
 
 Dividing that GPU time by the measured time per token gives the share of each token the
 GPU spends working:
@@ -131,8 +130,8 @@ none of its 14 ms of launching. The 4B's 20 ms hides about two thirds of its 30.
 ## Back to Part 10's millisecond
 
 Part 10 measured its A10G fixed cost with llama.cpp, whose CUDA build was compiled with CUDA
-graphs enabled, so that millisecond was most likely already the cost left over after graphs. The same holds in vLLM. With
-graphs on, a token takes 3.3 ms on the 0.5B and 20.0 ms on the 4B, against 3.0 and 19.6 ms of
+graphs enabled, so that millisecond was most likely already the cost left over after graphs, and the same
+holds in vLLM. With graphs on, a token takes 3.3 ms on the 0.5B and 20.0 ms on the 4B, against 3.0 and 19.6 ms of
 GPU work, leaving 0.2 to 0.4 ms of fixed cost per token. With graphs off, the leftover is
 about 10 to 11 ms on both. CUDA graphs are what turn roughly ten milliseconds of per-token
 overhead into well under one, and the fraction of a millisecond that remains is the replay itself plus the work that
