@@ -25,19 +25,27 @@ instruction. Under heavy load the 4B's difference shrinks to almost nothing, bec
 enough work of its own that the waiting stops mattering; the smaller models still lose
 ground at 64 requests.
 
-## How a token gets onto the GPU
+## A short primer: kernels, launches, and graphs
 
-Producing one token means running the model's layers in order, and each layer is several
-separate steps: multiply by the attention weights, compute attention, multiply by the MLP
-weights, normalize, and so on. Each step runs on the GPU as a **kernel**, a small program
-for one operation. The CPU starts each kernel with a **launch**, a call that puts the kernel
-in the GPU's queue. For the 4B model, one token is about 530 kernels.
+**CUDA** is NVIDIA's platform for running programs on its GPUs. Work on the GPU is split into
+**kernels**. A kernel is one function, such as a matrix multiply or a normalization, that the
+GPU runs across thousands of threads at once; it does one operation on one set of inputs and
+then ends. Running a model on a GPU means running its kernels one after another.
 
-The CPU and the GPU work side by side. While the GPU runs one kernel, the CPU can be
-preparing and launching the next, so as long as the CPU stays ahead, the queue never runs
-dry and the GPU never waits. Launching is not free, though. Each kernel costs the CPU time to prepare its inputs and make
-the call, and in vLLM much of the code that decides what to launch is Python. If the
-CPU takes longer to launch a kernel than the GPU takes to run it, the GPU finishes and waits.
+The GPU does not choose which kernel comes next. The CPU does, by **launching** each one: it
+fills in the kernel's arguments, such as where its inputs and outputs sit in GPU memory, and
+places it in a queue the GPU reads from. A launch is asynchronous, which means the CPU does
+not wait for the kernel to finish. It returns right away and can launch the next kernel while
+the GPU works through the queue in order, so as long as the CPU keeps the queue ahead of the
+GPU, the GPU never waits.
+
+Producing one token means running every layer of the model, and each layer is several
+kernels: multiply by the attention weights, compute attention, multiply by the MLP weights,
+normalize, and so on. For the 4B model that comes to about 530 kernels per token, and each
+one is a launch. The launch call itself typically takes a few microseconds, but a serving
+engine also has to work out what to launch and prepare its inputs, and in vLLM much of that
+deciding code is Python. If the CPU takes longer to launch a kernel than the GPU takes to run
+it, the queue runs dry and the GPU sits idle until the next kernel arrives.
 
 That gives the time per token a different shape from the one in earlier posts:
 
@@ -47,13 +55,21 @@ time per token  =  the longer of:   GPU work for the token
 ```
 
 The GPU work is the weight reading and arithmetic the series has measured all along. The
-CPU launch time is the number of kernels times the CPU cost of launching each one, and it barely depends on how many requests share the step, because a batch of 64 requests
-runs about the same number of kernels as a single request, each one simply doing more work.
+CPU launch time is the number of kernels times the CPU cost of launching each one, and it
+barely depends on how many requests share the step, because a batch of 64 requests runs
+about the same number of kernels as a single request, each one simply doing more work.
 
-A **CUDA graph** removes most of the second line. When the server starts, it runs the
-model's kernels once while recording them, and keeps the recording. To produce a token it
-then replays the whole recording with a single launch, and the GPU runs most of the 530 kernels back to back with no CPU work between
-them.
+A **CUDA graph** removes most of the second line. Instead of launching kernels one by one,
+the server records them. When it starts up, it runs the model's kernels once in a capture
+mode, and CUDA stores the whole sequence, every kernel together with its arguments, as one
+object. To produce a token, the CPU then replays that recording with a single call, and the
+GPU runs most of the 530 kernels back to back with no CPU work between them.
+
+A recording has two limits that matter later. It stores fixed memory addresses, so every
+replay must read its inputs from the same places in GPU memory and the server copies each
+step's data there first. It also stores fixed sizes, so a graph recorded for a batch of 8
+requests can only run a batch of 8. vLLM therefore records a set of graphs at startup, one
+per batch size, and pads each step up to the nearest size it recorded.
 
 ## What turning graphs off costs
 
@@ -131,11 +147,10 @@ model. vLLM compiles the model as well, with graphs on or off, and the first, co
 graphs took 17 to 36 seconds and pushed the 4B's first start to about five minutes; with
 the compiled result cached, later starts took 25 to 90 seconds.
 
-A recording also has a fixed shape. It stores the kernels for one batch size, so vLLM records
-a set of them at startup, for 1, 2, 4, and 8 requests, then every 8 up to 256 and every 16
-up to 512, and pads each step up to the nearest recorded size. That padding is wasted work and likely
-contributes a little to the shrinking advantage at larger batches, though the main cause
-measured here is the GPU's own work catching up.
+Because each recording has a fixed batch size, vLLM records graphs for 1, 2, 4, and 8
+requests, then every 8 up to 256 and every 16 up to 512. The padding up to the nearest
+recorded size is wasted work and likely contributes a little to the shrinking advantage at
+larger batches, though the main cause measured here is the GPU's own work catching up.
 
 Turning graphs off is mainly useful for debugging the CPU side of a server, where a replayed
 recording collapses hundreds of separate launches into one call. vLLM's `--enforce-eager`
